@@ -44,10 +44,10 @@ const CAPPED = new Set(['mesto', 'vyrobna']);
 const TARGET_IDS = ['laborator', 'bs', 'sdi', 'po', 'kasarna']; // stavby bez stropu (parky zvlášť)
 const COUNT_IDS = BUILDINGS.map((b) => b.id); // sloupce tabulky planet, které známe
 
-/** Minimum parků pro spokojenost `sat`: od něj výš se park bere jako hotový. Bez minima = cíl; minimum nad cílem se ořízne na cíl. */
-const parkMin = (cfgBuild, sat, target) => {
-  const mn = cfgBuild.parksMin?.[String(sat)];
-  return mn === undefined || mn === null || !Number.isFinite(Number(mn)) ? target : Math.min(Number(mn), target);
+/** Globální minimum parků: od něj výš se park bere jako hotový (na jakékoli planetě). Bez minima = cíl; minimum nad cílem se ořízne na cíl. */
+const parkMin = (cfgBuild, target) => {
+  const g = cfgBuild.parksMinAll;
+  return g === undefined || g === null || !Number.isFinite(Number(g)) ? target : Math.min(Number(g), target);
 };
 
 /**
@@ -69,7 +69,7 @@ export function planChanges(cfgBuild, buildings, sat, phaseIdx) {
       const n = sat === null || sat === undefined ? undefined : cfgBuild.parks?.[String(sat)];
       if (n === undefined || n === null) continue;
       target = Number(n);
-      if (page.cur >= parkMin(cfgBuild, sat, target)) continue; // splněno minimum
+      if (page.cur >= parkMin(cfgBuild, target)) continue; // splněno minimum
     } else {
       const p = cfgBuild.plan?.[id];
       if (!p || p.mode === 'skip') continue;
@@ -125,12 +125,14 @@ export function visitReasons(row, cfgBuild, entry, forceAll = false) {
     why.push(id);
   }
 
-  if (Object.keys(parks).length) {
+  const gMin = cfgBuild.parksMinAll;
+  const parksEnough = gMin !== undefined && gMin !== null && Number.isFinite(Number(gMin)) && row.c.park >= Number(gMin); // víc než minimum = parky netřeba řešit (ani zjišťovat spokojenost)
+  if (Object.keys(parks).length && !parksEnough) {
     const sat = row.sat !== undefined ? row.sat : entry?.satKnown ? entry.sat : undefined;
     if (sat === undefined) why.push('park (spokojenost neznámá)');
     else if (sat !== null) {
       const t = parks[String(sat)];
-      if (t !== undefined && t !== null && row.c.park < parkMin(cfgBuild, sat, Number(t)) && !stuck('park', t)) why.push('park');
+      if (t !== undefined && t !== null && row.c.park < parkMin(cfgBuild, Number(t)) && !stuck('park', t)) why.push('park');
     }
   }
 
@@ -163,13 +165,41 @@ export function buildQueue(table, cfgBuild, ledgerPlanets = {}, forceAll = false
   return { queue, skipped };
 }
 
+/** Surová tabulka ze skriptu -> řádky pro frontu. Nečitelný počet = -1, takže planeta se raději navštíví, než aby se omylem přeskočila. */
+function normalizeTable(raw) {
+  const opt = (v) => (v === undefined || v === null || !Number.isFinite(Number(v)) ? undefined : Number(v));
+  const valid = raw.filter((r) => r && r.id && r.name);
+  const allowed = valid.filter((r) => !NO_BUILD_TAGS.has(String(r.tag ?? '').toUpperCase()));
+  const table = allowed.map((r) => ({
+    id: String(r.id), name: String(r.name),
+    free: opt(r.free), townsMax: opt(r.townsMax),
+    sat: r.sat === undefined ? undefined : r.sat === null ? null : opt(r.sat) ?? undefined,
+    c: Object.fromEntries(COUNT_IDS.map((id) => [id, Number.isFinite(Number(r.c?.[id])) && r.c?.[id] !== null ? Number(r.c[id]) : -1])),
+  }));
+  return { table, valid: valid.length, excluded: valid.length - allowed.length };
+}
+
+/** Fronta -> kolik planet se navštíví z jakého důvodu (planeta může mít víc důvodů). 'park?' = chybí spokojenost. */
+export function summarizeQueue(queue) {
+  const reasons = {};
+  for (const q of queue) {
+    for (const w of q.why) {
+      const k = w.startsWith('park') && w !== 'park' ? 'park?' : w;
+      reasons[k] = (reasons[k] ?? 0) + 1;
+    }
+  }
+  return reasons;
+}
+
 export function createBuildRun({ notify = () => {}, rand = Math.random, ledger = { planets: {} }, onLedger = () => {} } = {}) {
   let run = fresh();
+  let preview = null; // poslední náhled fronty (tabulka načtená bez spuštění běhu)
+  let wantScanUntil = 0;
 
   function fresh() {
     return {
       status: 'idle', startedAt: 0, lastSeenAt: 0, current: null, dry: false, staleNotified: false,
-      queue: null, queueTotal: 0, skipped: 0, excluded: 0, tableSize: 0, gotoTries: {},
+      queue: null, queueTotal: 0, skipped: 0, excluded: 0, tableSize: 0, reasons: {}, gotoTries: {},
       planets: [], cur: null, pending: null, failedInRow: 0, log: [],
     };
   }
@@ -300,7 +330,18 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
    * Vrací instrukci: idle | ok | done | goto | send-table | build.
    */
   function report(rep, cfgBuild, now = Date.now(), { forceAll = false } = {}) {
-    if (!active()) return { action: 'idle' };
+    if (!active()) {
+      // náhled fronty bez spuštění: skript pošle tabulku, server spočítá, co by se navštívilo
+      if (rep.phase === 'table' && rep.scan && Array.isArray(rep.table) && rep.table.length) {
+        const { table, valid, excluded } = normalizeTable(rep.table);
+        const { queue, skipped } = buildQueue(table, cfgBuild, ledger.planets, forceAll);
+        preview = { at: now, tableSize: valid, excluded, visit: queue.length, skipped, reasons: summarizeQueue(queue), sample: queue.slice(0, 6).map((q) => q.name) };
+        wantScanUntil = 0;
+        return { action: 'idle' };
+      }
+      if (rep.phase === 'load' && wantScanUntil > now) return { action: 'send-table', scan: true };
+      return { action: 'idle' };
+    }
     run.lastSeenAt = now;
     run.staleNotified = false;
     if (rep.phase === 'ping') return { action: 'ok' };
@@ -320,23 +361,15 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
 
     if (rep.phase === 'table') {
       if (!Array.isArray(rep.table) || !rep.table.length) { fail('nepodařilo se přečíst tabulku planet', now); return { action: 'idle' }; }
-      // nečitelný počet = -1, takže planeta se raději navštíví, než aby se omylem přeskočila
-      const valid = rep.table.filter((r) => r && r.id && r.name);
-      const allowed = valid.filter((r) => !NO_BUILD_TAGS.has(String(r.tag ?? '').toUpperCase()));
-      run.excluded = valid.length - allowed.length;
-      const opt = (v) => (v === undefined || v === null || !Number.isFinite(Number(v)) ? undefined : Number(v));
-      const table = allowed.map((r) => ({
-        id: String(r.id), name: String(r.name),
-        free: opt(r.free), townsMax: opt(r.townsMax),
-        sat: r.sat === undefined ? undefined : r.sat === null ? null : opt(r.sat) ?? undefined,
-        c: Object.fromEntries(COUNT_IDS.map((id) => [id, Number.isFinite(Number(r.c?.[id])) && r.c?.[id] !== null ? Number(r.c[id]) : -1])),
-      }));
+      const { table, valid, excluded } = normalizeTable(rep.table);
       const { queue, skipped } = buildQueue(table, cfgBuild, ledger.planets, forceAll);
       run.queue = queue;
       run.queueTotal = queue.length;
       run.skipped = skipped;
-      run.tableSize = valid.length;
-      addLog(`Tabulka: ${valid.length} planet (${run.excluded} s (CP)/(DP)/(PP) se nestaví), k návštěvě ${queue.length}, přeskočeno ${skipped} (hotové podle tabulky a historie)`, now);
+      run.excluded = excluded;
+      run.tableSize = valid;
+      run.reasons = summarizeQueue(queue);
+      addLog(`Tabulka: ${valid} planet (${excluded} s (CP)/(DP)/(PP) se nestaví), k návštěvě ${queue.length}, přeskočeno ${skipped} (hotové podle tabulky a historie)`, now);
     }
     if (!run.queue) return { action: 'send-table' };
 
@@ -392,12 +425,20 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
       lastSeenAt: run.lastSeenAt,
       current: run.current,
       total: run.planets.length,
-      queue: run.queue ? { total: run.queueTotal, left: run.queue.length, skipped: run.skipped, excluded: run.excluded, tableSize: run.tableSize } : null,
+      queue: run.queue ? { total: run.queueTotal, left: run.queue.length, skipped: run.skipped, excluded: run.excluded, tableSize: run.tableSize, reasons: run.reasons } : null,
+      step: run.cur ? { name: run.cur.name, phase: run.pending ? run.pending.phase : run.cur.phase } : null,
+      preview,
+      scanPending: wantScanUntil > Date.now(),
       counts: counts(),
       planets: run.planets.slice(-40), // běžně stovky planet; do UI jen posledních 40
       log: run.log.slice(-40),
     };
   }
 
-  return { start, stop, report, staleCheck, snapshot, isActive: active };
+  /** Požádat skript na otevřené stránce Stavění o tabulku (náhled fronty). Platí 90 s. */
+  function requestScan(now = Date.now()) {
+    wantScanUntil = now + 90_000;
+  }
+
+  return { start, stop, report, staleCheck, snapshot, requestScan, isActive: active };
 }

@@ -295,6 +295,10 @@ const routes = {
     saveLedger();
     return buildView();
   },
+  'POST /api/build/scan': async () => {
+    build.requestScan();
+    return buildView();
+  },
   'POST /api/build/stop': async () => {
     build.stop();
     return buildView();

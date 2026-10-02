@@ -40,9 +40,9 @@ export const DEFAULTS = {
   watchdog: { enabled: true, staleSec: 30 }, // hlášení, že hlídaná rasa / mapa přestala dodávat data
   discord: { enabled: false, webhookUrl: '' },
   telegram: { enabled: false, botToken: '', chatId: '' },
-  // automatické stavění: plan = { [id stavby]: { mode: 'skip'|'target'|'max', n } }, parks = { [spokojenost -50|-25|0|5|10]: cílový počet }, parksMin = { [spokojenost]: minimum, od kterého se park bere jako hotový },
+  // automatické stavění: plan = { [id stavby]: { mode: 'skip'|'target'|'max', n } }, parks = { [spokojenost -50|-25|0|5|10]: cílový počet }, parksMinAll = globální minimum parků (od něj výš je park hotový, planeta se kvůli němu nenavštěvuje),
   // pace = násobek lidského tempa
-  build: { plan: {}, parks: {}, parksMin: {}, dryRun: false, forceAll: false, pace: 1 },
+  build: { plan: {}, parks: {}, parksMinAll: null, dryRun: false, forceAll: false, pace: 1 },
 };
 
 function readJson(path) {
@@ -191,7 +191,7 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
   }
   if (body.build && typeof body.build === 'object') {
     const b = body.build;
-    next.build = { ...cur.build, plan: { ...cur.build.plan }, parks: { ...cur.build.parks }, parksMin: { ...cur.build.parksMin } };
+    next.build = { ...cur.build, plan: { ...cur.build.plan }, parks: { ...cur.build.parks } };
     if ('dryRun' in b) next.build.dryRun = !!b.dryRun;
     if ('forceAll' in b) next.build.forceAll = !!b.forceAll;
     if ('pace' in b) next.build.pace = [0.4, 0.7, 1, 1.6].includes(Number(b.pace)) ? Number(b.pace) : 1;
@@ -201,12 +201,14 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
       const n = Math.min(1e9, Math.floor(num(p.n, 0)));
       next.build.plan[id] = { mode, n };
     }
-    for (const field of ['parks', 'parksMin']) {
-      for (const [k, v] of Object.entries(b[field] ?? {})) {
-        if (!isSatKey(k)) continue;
-        if (v === null || v === '') delete next.build[field][k];
-        else if (Number.isFinite(Number(v)) && Number(v) >= 0) next.build[field][k] = Math.min(1e9, Math.floor(Number(v)));
-      }
+    for (const [k, v] of Object.entries(b.parks ?? {})) {
+      if (!isSatKey(k)) continue;
+      if (v === null || v === '') delete next.build.parks[k];
+      else if (Number.isFinite(Number(v)) && Number(v) >= 0) next.build.parks[k] = Math.min(1e9, Math.floor(Number(v)));
+    }
+    if ('parksMinAll' in b) {
+      const v = b.parksMinAll;
+      next.build.parksMinAll = v === null || v === '' ? null : Number.isFinite(Number(v)) && Number(v) >= 0 ? Math.min(1e9, Math.floor(Number(v))) : cur.build.parksMinAll ?? null;
     }
   }
   // tajné hodnoty UI nikdy nedostane zpět, takže prázdné pole = ponechat uloženou hodnotu

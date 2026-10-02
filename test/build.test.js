@@ -121,7 +121,7 @@ test('běh: spokojenost a volné místo z tabulky se předají frontě (planeta 
   ];
   const ins = run.report(rep('3', { phase: 'table', table: t }), c, 1);
   assert.deepEqual([ins.action, ins.plId], ['goto', '2']);
-  assert.deepEqual(run.snapshot().queue, { total: 1, left: 1, skipped: 2, excluded: 0, tableSize: 3 });
+  assert.deepEqual(run.snapshot().queue, { total: 1, left: 1, skipped: 2, excluded: 0, tableSize: 3, reasons: { bs: 1 } });
 });
 
 test('buildQueue: pořadí z tabulky a počet přeskočených', () => {
@@ -185,7 +185,7 @@ test('běh: planeta mimo frontu se přeskočí a zadaná planeta se otevře', ()
   const table = [row('1', { bs: 100 }), row('2'), row('3', { bs: 100 })];
   const ins = run.report(rep('1', { phase: 'table', table }), c, 1); // jsme na hotové planetě 1, práce je na 2
   assert.deepEqual([ins.action, ins.plId], ['goto', '2']);
-  assert.deepEqual(run.snapshot().queue, { total: 1, left: 1, skipped: 2, excluded: 0, tableSize: 3 });
+  assert.deepEqual(run.snapshot().queue, { total: 1, left: 1, skipped: 2, excluded: 0, tableSize: 3, reasons: { bs: 1 } });
 });
 
 test('běh: planety se značkou (CP), (DP), (PP) se z fronty vyřadí, ostatní značky ne', () => {
@@ -196,7 +196,7 @@ test('běh: planety se značkou (CP), (DP), (PP) se z fronty vyřadí, ostatní 
   const table = [t('1', 'DP'), t('2', 'CP'), t('3', 'PP'), t('4', 'cp'), t('5', 'SP'), t('6', '')];
   const ins = run.report(rep('1', { phase: 'table', table }), c, 1); // stojíme na (DP) planetě
   assert.deepEqual([ins.action, ins.plId], ['goto', '5']); // (SP) a bez značky se staví
-  assert.deepEqual(run.snapshot().queue, { total: 2, left: 2, skipped: 0, excluded: 4, tableSize: 6 });
+  assert.deepEqual(run.snapshot().queue, { total: 2, left: 2, skipped: 0, excluded: 4, tableSize: 6, reasons: { bs: 2 } });
 });
 
 test('běh: nic k práci -> hned hotovo', () => {
@@ -323,25 +323,62 @@ test('chyba stránky zastaví běh a pošle upozornění; stop vrací idle; stal
   assert.equal(run.report({ phase: 'ping' }, c, 6).action, 'idle');
 });
 
-test('parky: minimum = od kolika se planeta bere jako hotová, pod ním se doplní na cíl', () => {
-  const c = cfg({ parks: { '-50': 300 }, parksMin: { '-50': 250 } });
+test('parky: globální minimum = od kolika se planeta kvůli parkům nenavštěvuje, pod ním se doplní na cíl podle spokojenosti', () => {
+  const c = cfg({ parks: { '-50': 300, '10': 100 }, parksMinAll: 80 });
   const buildings = (cur) => page({ park: { cur, max: 0 } });
-  assert.deepEqual(planChanges(c, buildings(250), -50, 1), {}); // na minimu -> hotovo
-  assert.deepEqual(planChanges(c, buildings(280), -50, 1), {}); // mezi minimem a cílem -> hotovo
-  assert.deepEqual(planChanges(c, buildings(249), -50, 1), { park: 300 }); // pod minimem -> na cíl, ne na minimum
+  assert.deepEqual(planChanges(c, buildings(80), 10, 1), {}); // na minimu -> hotovo, i když cíl pro +10 % je 100
+  assert.deepEqual(planChanges(c, buildings(90), 10, 1), {});
+  assert.deepEqual(planChanges(c, buildings(79), 10, 1), { park: 100 }); // pod minimem -> na cíl
+  assert.deepEqual(planChanges(c, buildings(79), -50, 1), { park: 300 }); // cíl se řídí spokojeností, minimum je jedno pro všechny
   assert.deepEqual(planChanges(cfg({ parks: { '-50': 300 } }), buildings(299), -50, 1), { park: 300 }); // bez minima = cíl
-  assert.deepEqual(planChanges(cfg({ parks: { '-50': 300 }, parksMin: { '-50': 900 } }), buildings(299), -50, 1), { park: 300 }); // minimum nad cílem se ořízne na cíl
+  assert.deepEqual(planChanges(cfg({ parks: { '-50': 300 }, parksMinAll: 900 }), buildings(299), -50, 1), { park: 300 }); // minimum nad cílem se ořízne na cíl
 
-  const known = { satKnown: true, sat: -50 };
-  assert.deepEqual(visitReasons(row('1', { park: 260 }), c, known), []); // planeta se ani nenavštíví
-  assert.deepEqual(visitReasons(row('1', { park: 100 }), c, known), ['park']);
+  // planeta s dost parky se ani nenavštíví – a nemusí se ani znát spokojenost
+  assert.deepEqual(visitReasons(row('1', { park: 85 }), c), []);
+  assert.deepEqual(visitReasons({ ...row('1', { park: 85 }), sat: -50 }, c), []);
+  assert.deepEqual(visitReasons(row('1', { park: 79 }), c), ['park (spokojenost neznámá)']);
+  assert.deepEqual(visitReasons({ ...row('1', { park: 79 }), sat: 10 }, c), ['park']);
 });
 
-test('sanitizeUpdate: turbo tempo a minimum parků', () => {
-  const next = sanitizeUpdate(structuredClone(DEFAULTS), { build: { pace: 0.4, parksMin: { '-50': '250', '7': 1, '10': -4 } } });
+test('sanitizeUpdate: turbo tempo a globální minimum parků', () => {
+  const next = sanitizeUpdate(structuredClone(DEFAULTS), { build: { pace: 0.4, parksMinAll: '80.9' } });
   assert.equal(next.build.pace, 0.4);
-  assert.deepEqual(next.build.parksMin, { '-50': 250 });
-  assert.deepEqual(sanitizeUpdate(next, { build: { parksMin: { '-50': null } } }).build.parksMin, {});
+  assert.equal(next.build.parksMinAll, 80);
+  assert.equal(sanitizeUpdate(next, { build: { parksMinAll: 'abc' } }).build.parksMinAll, 80); // nesmysl se ignoruje
+  assert.equal(sanitizeUpdate(next, { build: { parksMinAll: '' } }).build.parksMinAll, null); // prázdné = vypnuto
+  assert.equal(sanitizeUpdate(next, { build: { parksMinAll: -5 } }).build.parksMinAll, 80);
+});
+
+test('náhled fronty: tabulka bez spuštění běhu spočítá, co by se navštívilo, a z jakých důvodů', () => {
+  const run = mkRun();
+  const c = cfg({ plan: { bs: { mode: 'target', n: 1000 }, sdi: { mode: 'target', n: 1000 } } });
+  assert.equal(run.report(rep('1', { phase: 'load' }), c, 1).action, 'idle'); // nikdo nic nechtěl
+  run.requestScan(1000);
+  assert.deepEqual(run.report(rep('1', { phase: 'load' }), c, 2000), { action: 'send-table', scan: true });
+  const t = [row('1', { bs: 1000, sdi: 1000 }), row('2', { bs: 300, sdi: 1000 }), row('3'), { ...row('4'), tag: 'CP' }];
+  assert.equal(run.report(rep('1', { phase: 'table', scan: true, table: t }), c, 3000).action, 'idle');
+  const p = run.snapshot().preview;
+  assert.deepEqual([p.tableSize, p.excluded, p.visit, p.skipped], [4, 1, 2, 1]);
+  assert.deepEqual(p.reasons, { bs: 2, sdi: 1 });
+  assert.deepEqual(p.sample, ['P2', 'P3']);
+  assert.equal(run.snapshot().scanPending, false);
+  assert.equal(run.report(rep('1', { phase: 'load' }), c, 4000).action, 'idle'); // žádost je vyřízená
+  assert.equal(run.snapshot().status, 'idle'); // náhled běh nespustil
+});
+
+test('náhled fronty: žádost vyprší, když není otevřená stránka Stavění', () => {
+  const run = mkRun();
+  const c = cfg({ plan: { bs: { mode: 'target', n: 1000 } } });
+  run.requestScan(0);
+  assert.equal(run.report(rep('1', { phase: 'load' }), c, 91_000).action, 'idle');
+});
+
+test('běh: důvody fronty se uloží pro UI', () => {
+  const run = mkRun();
+  const c = cfg({ plan: { bs: { mode: 'target', n: 1000 } }, parks: { '10': 100 } });
+  run.start(c, 0);
+  run.report(rep('9', { phase: 'table', table: [{ ...row('1', { bs: 5, park: 100 }), sat: 10 }, row('2', { bs: 1000 })] }), c, 1);
+  assert.deepEqual(run.snapshot().queue.reasons, { bs: 1, 'park?': 1 });
 });
 
 test('sanitizeUpdate: plán staveb, tabulka parků a přepínače se čistí', () => {

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – stavění
 // @namespace    sg-dominator
-// @version      1.3.0
+// @version      1.3.1
 // @description  Na pokyn z aplikace vyplní počty staveb, klikne na Postavit a přejde na další planetu klikem v tabulce planet (pomalu a nepravidelně, jako člověk)
 // @match        https://stargate-game.cz/stavby.php*
 // @match        https://www.stargate-game.cz/stavby.php*
@@ -286,7 +286,8 @@
         await sleep(rnd(300, 900));
         const list = await readPlanetList();
         const table = readTable().map((r) => ({ ...r, sat: list?.[r.id]?.sat, townsMax: list?.[r.id]?.townsMax }));
-        ins = await post('/build/report', { phase: 'table', ...page, table });
+        const scan = !!ins.scan; // náhled fronty bez spuštění běhu
+        ins = await post('/build/report', { phase: 'table', ...page, table, ...(scan ? { scan: true } : {}) });
       }
       for (let first = true; ins && (ins.action === 'build' || ins.action === 'goto'); first = false) ins = await act(ins, first);
     } catch (e) {
