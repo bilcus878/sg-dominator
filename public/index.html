@@ -257,6 +257,7 @@
     <button class="tab" data-tab="op">OP</button>
     <button class="tab" data-tab="channels">Kanály</button>
     <button class="tab" data-tab="data">Data</button>
+    <button class="tab" data-tab="scripts">Skripty</button>
   </div>
   <div class="d-body">
     <div class="pane on" id="pane-rules">
@@ -336,6 +337,14 @@
         <p class="muted" style="margin-top:0">Smaže seznam posledních alertů v aplikaci. Nic neodvolá a nic neposílá.</p>
         <button class="ghost" id="clearAlerts2">Vymazat historii alertů</button>
       </div>
+    </div>
+
+    <div class="pane" id="pane-scripts">
+      <p class="muted" style="margin-top:0">Skripty pro Tampermonkey. Seznam i kód se načítají přímo ze serveru, takže tu vždy najdeš aktuální verzi. Po každé změně skriptu porovnej číslo verze tady s číslem v Tampermonkey (Přehled).</p>
+      <div id="scriptList"></div>
+      <details open><summary>Když se po kliknutí na „Instalovat odkazem“ nic nestane</summary><p>
+        Použij <b>Zkopírovat kód</b>: ikona Tampermonkey → Přehled → klikni na název skriptu → <code>Ctrl+A</code>, <code>Ctrl+V</code>, <code>Ctrl+S</code> → obnov stránku hry (<code>F5</code>).
+        Pokud skript pořád nic nedělá, zkontroluj v <code>chrome://extensions</code> u Tampermonkey přepínač <b>Povolit uživatelské skripty</b>.</p></details>
     </div>
 
     <div class="pane" id="pane-channels">
@@ -821,6 +830,41 @@ const openDrawer = () => { fillForm(); document.body.classList.add('open'); };
 const closeDrawer = () => document.body.classList.remove('open');
 $('openSettings').onclick = openDrawer; $('closeSettings').onclick = closeDrawer; $('cancel').onclick = closeDrawer; $('scrim').onclick = closeDrawer;
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
+/* ---------- skripty pro Tampermonkey ---------- */
+(() => {
+  const SCRIPTS = [
+    ['Stavění', '/stavby.user.js', 'vyplňuje a staví na planetách'],
+    ['Mapa', '/mapa.user.js', 'OP, tlačítko bdělosti, teleskop'],
+    ['Síla hráčů', '/userscript.user.js', 'posílá sílu hráčů do hlídání'],
+  ];
+  let loaded = false;
+  async function loadScripts() {
+    if (loaded) return;
+    loaded = true;
+    $('scriptList').innerHTML = SCRIPTS.map(([name, path, desc], i) => `<div class="chan" data-i="${i}">
+      <div class="chan-head"><span>${esc(name)} <span class="muted" style="font-weight:400">– ${esc(desc)}</span></span><span class="muted sver">verze …</span></div>
+      <a href="${path}" target="_blank" rel="noopener"><button type="button">Instalovat odkazem</button></a>
+      <button type="button" class="ghost scopy">Zkopírovat kód</button><span class="saved smsg"></span>
+      <textarea readonly hidden style="width:100%;height:160px;margin-top:8px;font:12px monospace"></textarea></div>`).join('');
+    for (const [i, [, path]] of SCRIPTS.entries()) {
+      const box = document.querySelector(`#scriptList [data-i="${i}"]`);
+      const ta = box.querySelector('textarea'), msg = box.querySelector('.smsg');
+      let code = '';
+      try {
+        code = await (await fetch(path, { cache: 'no-store' })).text();
+        box.querySelector('.sver').textContent = 'verze ' + ((code.match(/@version\s+(\S+)/) || [])[1] ?? '?');
+      } catch { box.querySelector('.sver').textContent = 'nelze načíst'; }
+      ta.value = code;
+      box.querySelector('.scopy').onclick = async () => {
+        try { await navigator.clipboard.writeText(code); msg.textContent = 'Zkopírováno ✓'; }
+        catch { ta.hidden = false; ta.select(); msg.textContent = 'Označ kód níže a zkopíruj (Ctrl+C)'; }
+        setTimeout(() => (msg.textContent = ''), 4000);
+      };
+    }
+  }
+  document.querySelector('[data-tab="scripts"]').addEventListener('click', loadScripts);
+})();
+
 document.querySelectorAll('.tab').forEach((b) => (b.onclick = () => {
   document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === b));
   document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('on', p.id === 'pane-' + b.dataset.tab));
