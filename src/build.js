@@ -169,7 +169,8 @@ export function buildQueue(table, cfgBuild, ledgerPlanets = {}, forceAll = false
 function normalizeTable(raw) {
   const opt = (v) => (v === undefined || v === null || !Number.isFinite(Number(v)) ? undefined : Number(v));
   const valid = raw.filter((r) => r && r.id && r.name);
-  const allowed = valid.filter((r) => !NO_BUILD_TAGS.has(String(r.tag ?? '').toUpperCase()));
+  // nestaví se: značky (CP)/(DP)/(PP) a neobyvatelné planety (ve hře celý řádek červeně)
+  const allowed = valid.filter((r) => !NO_BUILD_TAGS.has(String(r.tag ?? '').toUpperCase()) && r.uninhabitable !== true);
   const table = allowed.map((r) => ({
     id: String(r.id), name: String(r.name),
     free: opt(r.free), townsMax: opt(r.townsMax),
@@ -369,7 +370,7 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
       run.excluded = excluded;
       run.tableSize = valid;
       run.reasons = summarizeQueue(queue);
-      addLog(`Tabulka: ${valid} planet (${excluded} s (CP)/(DP)/(PP) se nestaví), k návštěvě ${queue.length}, přeskočeno ${skipped} (hotové podle tabulky a historie)`, now);
+      addLog(`Tabulka: ${valid} planet (${excluded} se nestaví: (CP)/(DP)/(PP) nebo neobyvatelné), k návštěvě ${queue.length}, přeskočeno ${skipped} (hotové podle tabulky a historie)`, now);
     }
     if (!run.queue) return { action: 'send-table' };
 

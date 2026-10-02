@@ -399,3 +399,15 @@ test('sanitizeUpdate: plán staveb, tabulka parků a přepínače se čistí', (
   assert.deepEqual(sanitizeUpdate(next, { build: { parks: { '-50': null } } }).build.parks, { '10': 100 }); // null maže
   assert.equal(sanitizeUpdate(next, { build: { pace: 99 } }).build.pace, 1);
 });
+
+test('neobyvatelné planety (červený řádek ve hře) se z fronty vyřadí stejně jako (CP)/(DP)/(PP)', () => {
+  const run = mkRun();
+  const c = cfg({ plan: { bs: { mode: 'target', n: 1000 } } });
+  run.requestScan(1000);
+  run.report(rep('1', { phase: 'load' }), c, 2000);
+  const t = [row('1'), { ...row('2'), uninhabitable: true }, { ...row('3'), tag: 'DP' }, row('4')];
+  run.report(rep('1', { phase: 'table', scan: true, table: t }), c, 3000);
+  const p = run.snapshot().preview;
+  assert.deepEqual([p.tableSize, p.excluded, p.visit], [4, 2, 2]);
+  assert.deepEqual(p.sample, ['P1', 'P4']);
+});

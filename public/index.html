@@ -1194,7 +1194,7 @@ setView(store.get('view') === 'build' ? 'build' : 'watch');
     const p = r.preview;
     $('bPreview').innerHTML = B.run.scanPending
       ? '⏳ Čekám na stránku Stavění (musí být otevřená ve hře)…'
-      : on && q ? `<b>Fronta:</b> ${reasonsText(q.reasons) || 'nic'}<br><span class="muted">Vyloučeno ${q.excluded} planet (CP/DP/PP), přeskočeno ${q.skipped} hotových.</span>`
+      : on && q ? `<b>Fronta:</b> ${reasonsText(q.reasons) || 'nic'}<br><span class="muted">Vyloučeno ${q.excluded} planet (CP/DP/PP, neobyvatelné), přeskočeno ${q.skipped} hotových.</span>`
       : p ? `<b>Náhled (${ago(p.at)}):</b> z ${p.tableSize} planet by se navštívilo <b>${p.visit}</b>, přeskočilo ${p.skipped}, vyloučeno ${p.excluded}.${p.visit ? `<br><span class="muted">Důvody: ${reasonsText(p.reasons)}</span>` : ''}`
       : '<span class="muted">Náhled ukáže, kolik planet bot navštíví a proč, bez spuštění. Potřebuje otevřenou stránku Stavění ve hře.</span>';
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – stavění
 // @namespace    sg-dominator
-// @version      1.3.1
+// @version      1.3.2
 // @description  Na pokyn z aplikace vyplní počty staveb, klikne na Postavit a přejde na další planetu klikem v tabulce planet (pomalu a nepravidelně, jako člověk)
 // @match        https://stargate-game.cz/stavby.php*
 // @match        https://www.stargate-game.cz/stavby.php*
@@ -114,7 +114,8 @@
       }
       // značka za názvem: (DP), (CP), (PP) – takové planety se nestaví
       const tag = tr.querySelector('.nazev-planety')?.textContent.match(/\(([A-Za-z]{1,3})\)/)?.[1] ?? '';
-      return { id: tr.id.slice(3), name: tr.querySelector('.nazev-planety a')?.textContent.trim(), tag, free: num(tr.cells[1]?.textContent), c };
+      const uninhabitable = tr.classList.contains('neobyvatelna'); // celý řádek sytě červený: neobyvatelná planeta, nestaví se
+      return { id: tr.id.slice(3), name: tr.querySelector('.nazev-planety a')?.textContent.trim(), tag, uninhabitable, free: num(tr.cells[1]?.textContent), c };
     }).filter((r) => r.id && r.name);
   }
 
