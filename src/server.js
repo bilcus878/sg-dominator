@@ -45,7 +45,8 @@ function saveLedger() {
     } catch (e) { console.error('historie planet se neuložila:', e.message); }
   }, 500);
 }
-const build = createBuildRun({ notify: (t) => sendText(cfg, t), ledger, onLedger: saveLedger });
+// o stavění se na Telegram nic neposílá (dostavěno, zastaveno…): jen log a stav v aplikaci
+const build = createBuildRun({ notify: (t) => console.log(`[stavění] ${t}`), ledger, onLedger: saveLedger });
 const db = openDb();
 const ingestTimes = []; // časy posledních příjmů pro výpočet frekvence
 
@@ -283,7 +284,7 @@ function watchdogTick(now = Date.now()) {
   }
 }
 setInterval(watchdogTick, 5000);
-setInterval(() => { if (build.staleCheck()) sendText(cfg, '⚠️ Stavění: skript přestal hlásit (zavřená karta nebo odhlášení?)'); }, 10_000);
+setInterval(() => { if (build.staleCheck()) console.log('[stavění] skript přestal hlásit (zavřená karta nebo odhlášení?)'); }, 10_000);
 
 /** Hlášení ze stránky stavby.php -> instrukce, co dělat dál. */
 async function handleBuildReport(req) {
