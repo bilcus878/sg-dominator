@@ -160,10 +160,9 @@ async function handleIngestOp(req) {
   return [200, { ok: true, alerts: notify ? 1 : 0, vigilance: cfg.op.vigilance, telescope: cfg.op.telescope }];
 }
 
-// tlačítko bdělosti na mapě: skript hlásí, že se objevilo a že ho potvrdil; zaseknuté potvrzení se hlásí do Telegramu
-const vig = { seenAt: 0, clickedAt: 0, count: 0, pending: false, alerted: false };
+// tlačítko bdělosti na mapě: skript hlásí, že se objevilo a že ho potvrdil; na Telegram se o bdělosti nic neposílá (jen log)
+const vig = { seenAt: 0, clickedAt: 0, count: 0, pending: false };
 const tele = createTelescope();
-const VIG_ALERT_MS = 150_000; // hra dává ~5 minut, upozornit dřív, než je pozdě
 
 async function handleVigilance(req) {
   if (!authOk(req)) return [401, { error: 'bad token' }];
@@ -177,19 +176,16 @@ async function handleVigilance(req) {
       console.log('[bdělost] tlačítko se objevilo, tentokrát ho záměrně nepotvrdím (teleskop se zastaví a chvíli zůstane vypnutý)');
       return [200, { ok: true, action: 'skip' }];
     }
-    vig.pending = true; vig.seenAt = now; vig.alerted = false;
+    vig.pending = true; vig.seenAt = now;
     console.log(`[bdělost] tlačítko se objevilo, kliknu za ${Math.round(Number(body.delayMs) / 100) / 10} s`);
     return [200, { ok: true, action: 'click' }];
   } else if (body.event === 'clicked') {
     tele.vigilanceClicked();
     vig.pending = false; vig.clickedAt = now; vig.count++;
     console.log('[bdělost] potvrzeno');
-    if (vig.alerted) sendText(cfg, '✅ Tlačítko bdělosti je potvrzené (se zpožděním).');
-    vig.alerted = false;
   } else if (body.event === 'failed') {
     const err = typeof body.error === 'string' ? body.error.slice(0, 120) : '';
     console.log(`[bdělost] potvrzení selhalo: ${err}`);
-    sendText(cfg, `⚠️ Tlačítko bdělosti se nepodařilo potvrdit${err ? ` (${err})` : ''}. Zkontroluj mapu, hrozí přerušení teleskopu.`);
   } else return [400, { error: 'invalid event' }];
   return [200, { ok: true }];
 }
@@ -214,13 +210,6 @@ async function handleTelescope(req) {
   if (r.alert === 'zero') sendText(cfg, '⚠️ Teleskop je zastavený a nezbývá mu žádný čas, nelze ho aktivovat.');
   return [200, r];
 }
-setInterval(() => {
-  const now = Date.now();
-  if (vig.pending && !vig.alerted && now - vig.seenAt > VIG_ALERT_MS) {
-    vig.alerted = true;
-    sendText(cfg, `⚠️ Tlačítko bdělosti čeká na potvrzení už ${Math.round((now - vig.seenAt) / 1000)} s. Zkontroluj mapu, hrozí přerušení teleskopu.`);
-  }
-}, 10_000);
 
 /** Stav pro UI: rasy s hráči a jejich efektivním nastavením hlídání. */
 function buildState() {
