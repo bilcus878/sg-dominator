@@ -1,0 +1,24 @@
+STARGATE DOMINATOR - JAK NA TO
+================================
+
+V PRÁCI
+  1. Zasuň flashku, otevři složku.
+  2. Dvojklik na  instal.cmd
+     - načte nastavení ze souboru sg-settings.json (Telegram nemusíš vyplňovat)
+     - otevře Tampermonkey v Chrome: klikni "Přidat do Chromu"
+     - otevři v chromu rozsireni > sprava rozsireni > tampermonkey > a tam zaskrnout povolit uzivatelske scripty
+  3. Dvojklik na  start.cmd
+     - spustí aplikaci a otevře přehled
+     - poprvé otevře i dvě stránky se skripty: u každé klikni "Instalovat"
+  4. Otevři ve hře stránku s hráči rasy a/nebo mapu. V aplikaci přidej rasu tlačítkem "+".
+
+Další dny stačí jen start.cmd. Zastavení: stop.cmd.
+
+POZOR
+  - Nenech aplikaci běžet doma i v práci současně na stejných rasách,
+    do skupiny by chodily alerty dvakrát. Před odchodem spusť stop.cmd.
+  - Soubor sg-settings.json obsahuje token Telegram bota v čitelné podobě.
+    Flashku nikomu nepůjčuj. Když se ztratí, v @BotFather dej /revoke a vlož nový token.
+  - Node.js je přibalené ve složce runtime, nic se neinstaluje a nepotřebuješ práva správce.
+  - Nastavení v práci se ukládá do  %LOCALAPPDATA%\sg-dominator  na tom počítači.
+  - Firemní notebook může blokovat doplňky do Chrome (Tampermonkey) nebo spouštění skriptů.

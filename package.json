@@ -1,0 +1,12 @@
+{
+  "name": "sg-dominator",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Hlídá sílu hráčů ve Stargate Game a posílá alerty na Discord/Telegram",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning src/server.js",
+    "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js"
+  }
+}
