@@ -7,3 +7,6 @@ data/
 *.bak
 *.tmp
 node_modules/
+
+# tajné: token Telegram bota, přenáší se ručně přes flashku (nastaveni-export.cmd / nastaveni-import.cmd)
+sg-settings.json
