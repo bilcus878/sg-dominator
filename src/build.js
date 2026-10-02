@@ -20,6 +20,8 @@ export const isBuildingId = (id) => IDS.has(id);
 
 const STALE_MS = 150_000; // skript přestal hlásit (zavřená karta, odhlášení…)
 const MAX_FAILED_IN_ROW = 5; // tolik planet po sobě bez úspěchu = nejspíš došly suroviny, běh se zastaví
+/** Planety s těmito značkami za názvem v tabulce ((CP), (DP), (PP)) se nestaví – hra to nedovolí. */
+const NO_BUILD_TAGS = new Set(['CP', 'DP', 'PP']);
 const MAX_GOTO_TRIES = 3; // tolikrát se zkusí přejít na planetu, než se přeskočí
 
 /** Spokojenost z typu planety -> klíč v plánu parků ('~' ve hře = 0). */
@@ -146,7 +148,7 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
   function fresh() {
     return {
       status: 'idle', startedAt: 0, lastSeenAt: 0, current: null, dry: false, staleNotified: false,
-      queue: null, queueTotal: 0, skipped: 0, tableSize: 0, gotoTries: {},
+      queue: null, queueTotal: 0, skipped: 0, excluded: 0, tableSize: 0, gotoTries: {},
       planets: [], cur: null, pending: null, failedInRow: 0, log: [],
     };
   }
@@ -298,7 +300,10 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
     if (rep.phase === 'table') {
       if (!Array.isArray(rep.table) || !rep.table.length) { fail('nepodařilo se přečíst tabulku planet', now); return { action: 'idle' }; }
       // nečitelný počet = -1, takže planeta se raději navštíví, než aby se omylem přeskočila
-      const table = rep.table.filter((r) => r && r.id && r.name).map((r) => ({
+      const valid = rep.table.filter((r) => r && r.id && r.name);
+      const allowed = valid.filter((r) => !NO_BUILD_TAGS.has(String(r.tag ?? '').toUpperCase()));
+      run.excluded = valid.length - allowed.length;
+      const table = allowed.map((r) => ({
         id: String(r.id), name: String(r.name),
         c: Object.fromEntries(COUNT_IDS.map((id) => [id, Number.isFinite(Number(r.c?.[id])) && r.c?.[id] !== null ? Number(r.c[id]) : -1])),
       }));
@@ -306,8 +311,8 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
       run.queue = queue;
       run.queueTotal = queue.length;
       run.skipped = skipped;
-      run.tableSize = table.length;
-      addLog(`Tabulka: ${table.length} planet, k návštěvě ${queue.length}, přeskočeno ${skipped} (hotové podle tabulky a historie)`, now);
+      run.tableSize = valid.length;
+      addLog(`Tabulka: ${valid.length} planet (${run.excluded} s (CP)/(DP)/(PP) se nestaví), k návštěvě ${queue.length}, přeskočeno ${skipped} (hotové podle tabulky a historie)`, now);
     }
     if (!run.queue) return { action: 'send-table' };
 
@@ -363,7 +368,7 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
       lastSeenAt: run.lastSeenAt,
       current: run.current,
       total: run.planets.length,
-      queue: run.queue ? { total: run.queueTotal, left: run.queue.length, skipped: run.skipped, tableSize: run.tableSize } : null,
+      queue: run.queue ? { total: run.queueTotal, left: run.queue.length, skipped: run.skipped, excluded: run.excluded, tableSize: run.tableSize } : null,
       counts: counts(),
       planets: run.planets.slice(-40), // běžně stovky planet; do UI jen posledních 40
       log: run.log.slice(-40),

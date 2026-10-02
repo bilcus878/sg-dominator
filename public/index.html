@@ -885,7 +885,7 @@ $('test').onclick = async () => {
     $('bHint').textContent = stale ? '⚠ skript neodpovídá – je otevřená stránka Stavění?' : on && r.current ? `právě planeta ${r.current}` : '';
     const c = r.counts, q = r.queue;
     $('bKnown').textContent = `Historie planet: ${B.knownPlanets} známých`;
-    $('bPlanets').innerHTML = (q ? `<div class="muted" style="width:100%">Tabulka ${q.tableSize} planet · ve frontě ${q.total} · zbývá ${q.left} · přeskočeno ${q.skipped} jako hotové</div>` : '')
+    $('bPlanets').innerHTML = (q ? `<div class="muted" style="width:100%">Tabulka ${q.tableSize} planet · ve frontě ${q.total} · zbývá ${q.left} · přeskočeno ${q.skipped} jako hotové · vyloučeno ${q.excluded} (CP/DP/PP)</div>` : '')
       + (r.total ? `<span class="muted" style="margin-right:6px">Zpracováno ${r.total}: ${c.built} postaveno, ${c.nothing} beze změny, ${c.dry} zkušebně, ${c.failed} chyb · posledních ${r.planets.length}:</span>` : '') + r.planets.map((p) => `<span class="bp ${p.state}" title="${esc(p.note)}">${esc(p.name)}</span>`).join('')
       + (on && r.current && !r.planets.some((p) => p.name === r.current) ? `<span class="bp cur">${esc(r.current)} …</span>` : '');
     $('bLog').innerHTML = r.log.length ? r.log.slice().reverse().map((l) => `<div><time>${tm(l.at)}</time>${esc(l.msg)}</div>`).join('') : '<span class="muted">Zatím nic.</span>';

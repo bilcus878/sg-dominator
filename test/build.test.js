@@ -143,6 +143,17 @@ test('běh: planeta mimo frontu se přeskočí a zadaná planeta se otevře', ()
   assert.deepEqual(run.snapshot().queue, { total: 1, left: 1, skipped: 2, tableSize: 3 });
 });
 
+test('běh: planety se značkou (CP), (DP), (PP) se z fronty vyřadí, ostatní značky ne', () => {
+  const run = mkRun();
+  const c = cfg({ plan: { bs: { mode: 'target', n: 100 } } });
+  run.start(c, 0);
+  const t = (id, tag) => ({ ...row(id), tag });
+  const table = [t('1', 'DP'), t('2', 'CP'), t('3', 'PP'), t('4', 'cp'), t('5', 'SP'), t('6', '')];
+  const ins = run.report(rep('1', { phase: 'table', table }), c, 1); // stojíme na (DP) planetě
+  assert.deepEqual([ins.action, ins.plId], ['goto', '5']); // (SP) a bez značky se staví
+  assert.deepEqual(run.snapshot().queue, { total: 2, left: 2, skipped: 0, excluded: 4, tableSize: 6 });
+});
+
 test('běh: nic k práci -> hned hotovo', () => {
   const sent = [];
   const run = mkRun({ notify: (t) => sent.push(t) });
