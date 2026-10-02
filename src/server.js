@@ -279,7 +279,7 @@ function watchdogTick(now = Date.now()) {
     const a = { name: ev.name, power: 0, prev: null, reason: ev.type, race: null, ageMs: ev.ageMs };
     db.recordAlert(now, a);
     console.log(`[watchdog] ${ev.type === 'down' ? 'VÝPADEK' : 'obnoveno'}: ${ev.name} (${Math.round(ev.ageMs / 1000)} s)`);
-    sendText(cfg, formatAlert(a));
+    if (ev.key !== 'op') sendText(cfg, formatAlert(a)); // výpadek mapy jen v aplikaci, na Telegram ne
   }
 }
 setInterval(watchdogTick, 5000);
