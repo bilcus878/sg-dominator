@@ -179,6 +179,7 @@ export function createBuildRun({ notify = () => {}, rand = Math.random } = {}) {
     run.lastSeenAt = now;
     run.staleNotified = false;
     if (rep.phase === 'ping') return { action: 'ok' };
+    if (rep.scriptError) { fail(`chyba skriptu v prohlížeči: ${String(rep.scriptError).slice(0, 160)}`, now); return { action: 'idle' }; }
     if (rep.error) { fail(`stránka stavění vypadá jinak, než čekám (${String(rep.error).slice(0, 80)})`, now); return { action: 'idle' }; }
 
     const name = String(rep.planet ?? '').trim();
