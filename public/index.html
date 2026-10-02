@@ -37,7 +37,8 @@
   .empty { color:var(--mut); text-align:center; padding:24px 8px; }
   input[type=text],input[type=number],input[type=password],input[type=search] { width:100%; padding:8px 10px; background:var(--card2); color:var(--fg); border:1px solid var(--line); border-radius:6px; font:inherit; }
   input:focus { outline:1px solid var(--acc); }
-  td input[type=number] { width:130px; padding:4px 8px; text-align:right; }
+  td input[type=number], td input.num { width:130px; padding:4px 8px; text-align:right; }
+  input.num { font-variant-numeric:tabular-nums; }
   label { display:block; font-size:12px; color:var(--mut); margin-bottom:4px; }
   .field { margin-bottom:16px; } .field small { display:block; color:var(--mut); font-size:12px; margin-top:5px; line-height:1.4; }
 
@@ -303,7 +304,7 @@
   <div class="d-body">
     <div class="pane on" id="pane-rules">
       <p class="muted" style="margin-top:0">Zpráva přijde, když někomu klesne síla pod hranici. Zbytek jen doladí, aby to nespamovalo.</p>
-      <div class="field"><label for="threshold">Výchozí hranice síly</label><input type="number" id="threshold" min="0">
+      <div class="field"><label for="threshold">Výchozí hranice síly</label><input type="text" inputmode="numeric" class="num" id="threshold">
         <small>Platí pro všechny hlídané hráče, pokud rasa nebo hráč nemá vlastní práh. Klesne-li síla <b>pod toto číslo</b>, pošle se zpráva.</small></div>
       <div class="field"><label for="cooldownSec">Pauza mezi zprávami o jednom hráči (s)</label><input type="number" id="cooldownSec" min="0">
         <small>Další zpráva o něm přijde nejdřív po této pauze.</small></div>
@@ -314,7 +315,7 @@
       <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
         <span class="sw"><input type="checkbox" id="repeatWhileBelow"><span></span></span> Opakovat zprávu, dokud je pod hranicí</label>
         <small>Dokud hráč nevyleze zpátky nad hranici, přijde zpráva po každé pauze znovu (např. každých 10 s).</small></div>
-      <div class="field"><label for="minDrop">Další pokles hlásit od ztráty (síla)</label><input type="number" id="minDrop" min="0">
+      <div class="field"><label for="minDrop">Další pokles hlásit od ztráty (síla)</label><input type="text" inputmode="numeric" class="num" id="minDrop">
         <small>Pod hranicí se hlásí každé další snížení. Tady můžeš určit minimální velikost ztráty. 0 = hlásit vše.</small></div>
       <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
         <span class="sw"><input type="checkbox" id="notifyRecovery"><span></span></span> Napsat i když se hráč vrátí nad hranici</label>
@@ -418,6 +419,22 @@
 <script>
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => Number(n).toLocaleString('cs-CZ');
+/** Síla s tečkami po třech číslicích (100.000.000); prázdné pro null. */
+const dots = (n) => (n === null || n === undefined || n === '' ? '' : String(Math.round(Number(n))).replace(/\B(?=(\d{3})+(?!\d))/g, '.'));
+/** Zpět na číslo: bere jen číslice; prázdné = null. */
+const undots = (t) => { const d = String(t).replace(/\D/g, ''); return d ? Number(d) : null; };
+// políčka se silou (.num): při psaní se průběžně formátují s tečkami, kurzor zůstává za stejnou číslicí
+document.addEventListener('input', (e) => {
+  const el = e.target;
+  if (!el.classList?.contains('num')) return;
+  const before = el.value.slice(0, el.selectionStart ?? el.value.length).replace(/\D/g, '').length;
+  const out = dots(undots(el.value));
+  if (out === el.value) return;
+  el.value = out;
+  let pos = 0;
+  for (let seen = 0; pos < out.length && seen < before; pos++) if (/\d/.test(out[pos])) seen++;
+  el.setSelectionRange(pos, pos);
+}, true);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const store = {
   get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
@@ -520,7 +537,7 @@ function buildPanel(id) {
     </div>
     <div class="rsum"><span class="rwatch"></span><button class="icon rcfgbtn" data-act="cfg" title="Práh a kritická hranice této rasy"></button></div>
     <div class="rcfg" hidden>
-      <label>Práh rasy<input type="number" min="0" class="rth"></label>
+      <label>Práh rasy<input type="text" inputmode="numeric" class="num rth"></label>
       <label title="Kritická hranice jako % z prahu hráče">Kritická (% prahu)<input type="number" min="0" max="100" class="rcrit"></label>
     </div>`}
     <div class="toolbar">
@@ -544,7 +561,7 @@ function makeRow(v, r, p) {
   const tr = document.createElement('tr');
   tr.innerHTML = `<td class="pname" title="Klikni pro zkopírování jména"></td>${v.isW ? '<td></td>' : ''}<td class="n"><span class="pv"></span><span class="pd"></span></td>
     <td class="n"><span class="pv"></span><span class="pd"></span></td>
-    <td class="n"><input type="number" min="0"></td>
+    <td class="n"><input type="text" inputmode="numeric" class="num"></td>
     <td class="c"><label class="sw"><input type="checkbox"><span></span></label></td>`;
   const nameTd = tr.children[0];
   nameTd.textContent = p.name;
@@ -609,8 +626,8 @@ function updatePanel(id) {
     v.cfgBtn.textContent = `⚙ Práh ${short(th)}${pct ? ` · 🆘 ${pct} %` : ''}`;
     v.cfgBtn.classList.toggle('open', !!st.cfgOpen);
     v.cfgBox.hidden = !st.cfgOpen;
-    v.th.placeholder = fmt(cfg.threshold);
-    if (document.activeElement !== v.th && !pending) v.th.value = r?.threshold ?? '';
+    v.th.placeholder = dots(cfg.threshold);
+    if (document.activeElement !== v.th && !pending) v.th.value = dots(r?.threshold);
     v.crit.placeholder = String(cfg.criticalPct);
     if (document.activeElement !== v.crit && !pending) v.crit.value = r?.criticalPct ?? '';
   }
@@ -646,9 +663,9 @@ function updatePanel(id) {
       p.critical > 0 ? `Kritická hranice ${fmt(p.critical)}` : '',
     ].filter(Boolean).join('\n');
     row.tr.classList.toggle('off', !p.watched);
-    row.input.placeholder = fmt(p.threshold);
+    row.input.placeholder = dots(p.threshold);
     if (!pending) { // ovládací prvky se synchronizují jen když se nic neukládá a uživatel v nich nepíše
-      if (document.activeElement !== row.input && row.input.value !== String(p.ownThreshold ?? '')) row.input.value = p.ownThreshold ?? '';
+      if (document.activeElement !== row.input && row.input.value !== dots(p.ownThreshold)) row.input.value = dots(p.ownThreshold);
       if (row.sw.checked !== p.watched) row.sw.checked = p.watched;
     }
   });
@@ -765,7 +782,7 @@ $('board').addEventListener('change', (e) => {
   }
   if (t.classList.contains('rth')) {
     const r = raceOf(id); if (!r) return;
-    const v = t.value === '' ? null : Number(t.value);
+    const v = undots(t.value);
     r.threshold = v; savePartial({ races: { [id]: { threshold: v } } });
     return;
   }
@@ -787,7 +804,7 @@ $('board').addEventListener('change', (e) => {
     p.overridden = want !== (r.mode === 'all');
     savePartial({ players: { [name]: { watch: want === (r.mode === 'all') ? null : want } } });
   } else if (kind === 'th') {
-    const v = t.value === '' ? null : Number(t.value);
+    const v = undots(t.value);
     p.ownThreshold = v;
     savePartial({ players: { [name]: { threshold: v } } });
   }
@@ -871,14 +888,14 @@ async function refresh() {
 
 /* ---------- nastavení ---------- */
 function updateCritHint() {
-  const pct = Number($('criticalPct').value), th = Number($('threshold').value);
+  const pct = Number($('criticalPct').value), th = undots($('threshold').value) ?? 0;
   $('critHint').textContent = !pct
     ? 'Vypnuto. Kritické pásmo je druhá, přísnější hranice: hráč, kterému klesne síla pod ni, dostane výraznou zprávu 🆘 KRITICKÉ.'
     : `Např. při hranici ${fmt(th || 0)} je kritické pod ${fmt(Math.round(((th || 0) * pct) / 100))}. Hráč s vlastním prahem má kritickou hranici úměrnou jeho prahu. 0 = vypnuto.`;
 }
 document.addEventListener('input', (e) => { if (e.target.id === 'criticalPct' || e.target.id === 'threshold') updateCritHint(); });
 function fillForm() {
-  $('threshold').value = cfg.threshold; $('cooldownSec').value = cfg.cooldownSec; $('minDrop').value = cfg.minDrop;
+  $('threshold').value = dots(cfg.threshold); $('cooldownSec').value = cfg.cooldownSec; $('minDrop').value = dots(cfg.minDrop);
   $('criticalPct').value = cfg.criticalPct; $('criticalCooldownSec').value = cfg.criticalCooldownSec; updateCritHint();
   $('wdEnabled').checked = cfg.watchdog.enabled; $('wdStale').value = cfg.watchdog.staleSec;
   $('notifyRecovery').checked = cfg.notifyRecovery; $('repeatWhileBelow').checked = cfg.repeatWhileBelow;
@@ -945,7 +962,7 @@ $('drawer').addEventListener('input', () => ($('dirtyNote').textContent = 'neulo
 $('save').onclick = async () => {
   try {
     cfg = await api('/api/config', 'PUT', {
-      threshold: $('threshold').value, cooldownSec: $('cooldownSec').value, minDrop: $('minDrop').value,
+      threshold: undots($('threshold').value) ?? '', cooldownSec: $('cooldownSec').value, minDrop: undots($('minDrop').value) ?? '',
       criticalPct: $('criticalPct').value, criticalCooldownSec: $('criticalCooldownSec').value,
       watchdog: { enabled: $('wdEnabled').checked, staleSec: $('wdStale').value },
       notifyRecovery: $('notifyRecovery').checked, repeatWhileBelow: $('repeatWhileBelow').checked,
