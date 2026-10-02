@@ -570,7 +570,7 @@ function buildPanel(id) {
       <span class="muted rcount"></span>
     </div>
     <div class="rbody"><table>
-      <thead><tr><th>Jméno</th>${isW ? '<th>Rasa</th>' : ''}<th class="n" title="Počet planet a změna, jak ji ukazuje hra">Planety</th><th class="n sortable" data-act="sort" title="Řadit podle síly">Síla ↕</th><th class="n thcol">Vlastní práh</th><th class="c">Hlídat</th></tr></thead>
+      <thead><tr><th>Jméno</th>${isW ? '<th>Rasa</th>' : ''}<th class="n" title="Počet planet; získaná planeta zeleně +1, ztracená červeně −1 (30 s od poslední změny)">Planety</th><th class="n sortable" data-act="sort" title="Řadit podle síly">Síla ↕</th><th class="n thcol">Vlastní práh</th><th class="c">Hlídat</th></tr></thead>
       <tbody></tbody></table><div class="empty rempty"></div></div>`;
   const q = (s) => root.querySelector(s);
   const v = { root, isW, rows: new Map(), dot: q('.dot'), name: q('.rname'), info: q('.rinfo'), th: q('.rth'), crit: q('.rcrit'),
@@ -606,6 +606,7 @@ async function copyName(name) {
 
 /** „před 12 min“ od času serveru. */
 const ago = (t) => { const m = Math.round((S.serverTime - t) / 60000); return m < 1 ? 'před chvílí' : m < 90 ? `před ${m} min` : `před ${(m / 60).toFixed(1)} h`; };
+const PLANET_MS = 30_000; // jak dlouho je vidět získaná/ztracená planeta (od poslední změny)
 const CHANGE_MS = 10_000; // jak dlouho je změna síly vidět barevně, pak zpět na výchozí vzhled
 const signed = (n) => (n > 0 ? '+' : '−') + fmt(Math.abs(n));
 /** Číslo + změna jako ve hře: nárůst zeleně, ztráta červeně (cls '' = beze změny). */
@@ -686,7 +687,11 @@ function updatePanel(id) {
     row.pw.v.classList.toggle('minus', recent < 0);
     const pl = p.planets == null ? '' : fmt(p.planets);
     if (row.planets.v.textContent !== pl) row.planets.v.textContent = pl;
-    setDelta(row.planets, p.planetsDelta || 0);
+    // okamžitá změna planet (ne denní přírůstek ze hry): zeleně +N / červeně −N, 30 s od poslední změny
+    const plRecent = p.planetsChange && p.planetsAt && S.serverTime - p.planetsAt < PLANET_MS ? p.planetsChange : 0;
+    setDelta(row.planets, plRecent);
+    row.planets.v.classList.toggle('plus', plRecent > 0);
+    row.planets.v.classList.toggle('minus', plRecent < 0);
     const atk = pr.role === 'attack';
     row.power.classList.toggle('below', !atk && p.power < p.threshold);
     const isCrit = !atk && p.critical > 0 && p.power < p.critical;
