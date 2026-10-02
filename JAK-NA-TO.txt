@@ -14,6 +14,10 @@ V PRÁCI
 
 Další dny stačí jen start.cmd. Zastavení: stop.cmd.
 
+STAVĚNÍ
+  - V aplikaci karta "Stavění": nastav, co stavět, a dej Spustit. Potřebuje skript z  /stavby.user.js  (nainstaluj ho přes Tampermonkey)
+    a otevřenou stránku Stavění ve hře. Nejdřív zkus "Zkušební běh" (vyplní, ale neklikne na Postavit).
+
 POZOR
   - Nenech aplikaci běžet doma i v práci současně na stejných rasách,
     do skupiny by chodily alerty dvakrát. Před odchodem spusť stop.cmd.

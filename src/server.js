@@ -10,6 +10,7 @@ import { createStore } from './store.js';
 import { createOpTracker } from './op.js';
 import { resolveWatch } from './watch.js';
 import { createWatchdog } from './watchdog.js';
+import { BUILDINGS, createBuildRun } from './build.js';
 
 // data bydlela dřív ve složce projektu (Dropbox); při prvním spuštění se přesunou mimo ni
 if (USING_DEFAULT_DIR) migrateLegacyData(LEGACY_DATA_DIR, DATA_DIR);
@@ -23,6 +24,7 @@ const lastWritten = new Map();
 const watchdog = createWatchdog();
 const raceLastAt = new Map(); // raceId -> čas posledních dat (nezávisle na pročišťování store)
 const playerRace = new Map(); // jméno -> raceId (pro přepočet prahů po změně konfigurace)
+const build = createBuildRun({ notify: (t) => sendText(cfg, t) });
 const db = openDb();
 const ingestTimes = []; // časy posledních příjmů pro výpočet frekvence
 
@@ -177,10 +179,34 @@ function watchdogTick(now = Date.now()) {
   }
 }
 setInterval(watchdogTick, 5000);
+setInterval(() => { if (build.staleCheck()) sendText(cfg, '⚠️ Stavění: skript přestal hlásit (zavřená karta nebo odhlášení?)'); }, 10_000);
+
+/** Hlášení ze stránky stavby.php -> instrukce, co dělat dál. */
+async function handleBuildReport(req) {
+  if (!authOk(req)) return [401, { error: 'bad token' }];
+  const body = await readJson(req);
+  return [200, build.report(body, cfg.build)];
+}
+const buildView = () => [200, { buildings: BUILDINGS, config: cfg.build, run: build.snapshot(), serverTime: Date.now() }];
 
 const routes = {
   'POST /ingest': handleIngest,
   'POST /ingest-op': handleIngestOp,
+  'POST /build/report': handleBuildReport,
+  'GET /api/build': async () => buildView(),
+  'PUT /api/build': async (req) => {
+    cfg = sanitizeUpdate(cfg, { build: await readJson(req) });
+    saveConfig(cfg);
+    return buildView();
+  },
+  'POST /api/build/start': async () => {
+    build.start(cfg.build);
+    return buildView();
+  },
+  'POST /api/build/stop': async () => {
+    build.stop();
+    return buildView();
+  },
   'GET /api/config': async () => [200, publicConfig(cfg)],
   'PUT /api/config': async (req) => {
     cfg = sanitizeUpdate(cfg, await readJson(req), {
@@ -236,7 +262,7 @@ const server = createServer(async (req, res) => {
   const path = new URL(req.url, 'http://x').pathname;
   try {
     if (req.method === 'GET' && path === '/') return await serveFile(res, pub('public/index.html'), 'text/html');
-    const scripts = { '/userscript.user.js': 'stargate-notifikator.user.js', '/mapa.user.js': 'stargate-mapa.user.js' };
+    const scripts = { '/userscript.user.js': 'stargate-notifikator.user.js', '/mapa.user.js': 'stargate-mapa.user.js', '/stavby.user.js': 'stargate-stavby.user.js' };
     if (req.method === 'GET' && scripts[path]) {
       return await serveFile(res, pub(`userscript/${scripts[path]}`), 'text/javascript', (s) =>
         s.replace('__TOKEN__', cfg.token).replace('__SERVER__', `http://127.0.0.1:${cfg.port}`),

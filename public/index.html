@@ -156,6 +156,19 @@
   .two { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
   .toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:#1d2a24; color:var(--ok); border:1px solid #2c5a46; padding:8px 16px; border-radius:8px; opacity:0; transition:.2s; z-index:20; pointer-events:none; }
   .toast.show { opacity:1; } .toast.err { background:#2a1d1d; color:var(--bad); border-color:#6a3030; }
+  /* stavění */
+  .bgrid { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:20px; }
+  @media (max-width:900px) { .bgrid { grid-template-columns:1fr; } }
+  .btable select, .bopts select { background:var(--card2); color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:5px 8px; font:inherit; }
+  .btable td input[type=number] { width:120px; }
+  .btable input:disabled { opacity:.35; }
+  .brun { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:14px 0 8px; }
+  .bopts { display:flex; gap:18px; align-items:center; flex-wrap:wrap; margin-top:12px; font-size:13px; color:var(--mut); }
+  .blog { background:var(--card2); border:1px solid var(--line); border-radius:8px; padding:8px 12px; max-height:260px; overflow:auto; font-size:13px; font-variant-numeric:tabular-nums; }
+  .blog div { padding:2px 0; } .blog time { color:var(--mut); margin-right:8px; }
+  .bplanets { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 10px; }
+  .bp { font-size:12px; padding:2px 9px; border-radius:99px; border:1px solid var(--line); background:var(--card2); color:var(--mut); }
+  .bp.built { color:var(--ok); border-color:#2c5a46; } .bp.failed { color:var(--bad); border-color:#6a3030; } .bp.dry { color:var(--acc); border-color:var(--acc); } .bp.cur { color:var(--fg); border-color:var(--acc); }
 </style>
 </head>
 <body>
@@ -182,6 +195,34 @@
     </div>
     <div class="board" id="board"></div>
     <div class="card empty big" id="boardEmpty" hidden></div>
+  </section>
+
+  <section class="card" id="buildBox">
+    <div class="card-head">
+      <h2>Stavění</h2>
+      <span class="pill" id="bStatus">nečinné</span>
+    </div>
+    <div class="bgrid">
+      <div>
+        <p class="muted" style="margin-top:0">Co se má postavit na <b>každé</b> planetě. Číslo je <b>cílový celkový počet</b> (jako políčka ve hře); co už stojí, se nesnižuje a víc než povolené maximum se nezadá.</p>
+        <table class="btable"><thead><tr><th>Stavba</th><th>Režim</th><th class="n">Cílový počet</th></tr></thead><tbody id="bRows"></tbody></table>
+        <div class="bopts">
+          <label style="margin:0">Tempo
+            <select id="bPace"><option value="0.7">rychlejší</option><option value="1">normální</option><option value="1.6">pomalé</option></select></label>
+          <label style="display:flex;gap:8px;align-items:center;margin:0;color:var(--fg)"><span class="sw"><input type="checkbox" id="bDry"><span></span></span> Zkušební běh (vyplní, ale neklikne na Postavit)</label>
+        </div>
+      </div>
+      <div>
+        <div class="brun" style="margin-top:0">
+          <button id="bStart">▶ Spustit stavění</button>
+          <button class="ghost" id="bStop">■ Zastavit</button>
+          <span class="muted" id="bHint"></span>
+        </div>
+        <div class="bplanets" id="bPlanets"></div>
+        <div class="blog" id="bLog"><span class="muted">Zatím nic.</span></div>
+        <p class="muted">Potřebuje otevřenou stránku <b>Stavění</b> ve hře a nainstalovaný skript z <code>/stavby.user.js</code>. Bot jede po planetách šipkou »; skončí, když se vrátí na první.</p>
+      </div>
+    </div>
   </section>
 
   <section class="card alertsbox" id="alertsBox">
@@ -776,6 +817,70 @@ $('test').onclick = async () => {
 };
 
 (async () => { cfg = await api('/api/config'); renderChips(); applyAlertsOpen(); refresh(); setInterval(refresh, 1000); })();
+
+/* ---------- stavění ---------- */
+(() => {
+  let B = null;        // { buildings, config, run }
+  let built = false;   // tabulka plánu se vykreslí jednou, ať se nepřepisuje, co právě píšeš
+  const tm = (t) => new Date(t).toLocaleTimeString('cs-CZ');
+  const STATUS = { idle: 'nečinné', running: 'běží', stopped: 'zastaveno', finished: 'hotovo', error: 'chyba' };
+  const MODES = [['skip', 'Nestavět'], ['target', 'Cílový počet'], ['max', 'Maximum']];
+
+  function planFromUi() {
+    const plan = {};
+    for (const b of B.buildings) {
+      plan[b.id] = { mode: $('bm-' + b.id).value, n: Number($('bn-' + b.id).value) || 0 };
+    }
+    return { plan, pace: Number($('bPace').value), dryRun: $('bDry').checked };
+  }
+  let saveT;
+  function save() {
+    clearTimeout(saveT);
+    saveT = setTimeout(() => api('/api/build', 'PUT', planFromUi()).then(() => toast('Plán uložen')).catch((e) => toast(e.message, true)), 400);
+  }
+  function buildTable() {
+    $('bRows').innerHTML = B.buildings.map((b) => {
+      const p = B.config.plan[b.id] ?? { mode: 'skip', n: 0 };
+      return `<tr><td>${esc(b.name)}</td>
+        <td><select id="bm-${b.id}">${MODES.map(([v, t]) => `<option value="${v}"${p.mode === v ? ' selected' : ''}>${t}</option>`).join('')}</select></td>
+        <td class="n"><input type="number" min="0" id="bn-${b.id}" value="${p.n || ''}" ${p.mode === 'target' ? '' : 'disabled'}></td></tr>`;
+    }).join('');
+    for (const b of B.buildings) {
+      $('bm-' + b.id).onchange = () => { $('bn-' + b.id).disabled = $('bm-' + b.id).value !== 'target'; save(); };
+      $('bn-' + b.id).oninput = save;
+    }
+    $('bPace').value = String(B.config.pace);
+    $('bDry').checked = !!B.config.dryRun;
+    $('bPace').onchange = $('bDry').onchange = save;
+    built = true;
+  }
+  function renderRun() {
+    const r = B.run, on = r.status === 'running';
+    const st = $('bStatus');
+    st.textContent = STATUS[r.status] + (r.dry && on ? ' (zkušebně)' : '');
+    st.className = 'pill' + (on ? ' ok' : r.status === 'error' ? ' bad' : '');
+    $('bStart').disabled = on; $('bStop').disabled = !on;
+    $('bStart').style.opacity = on ? .5 : 1;
+    const stale = on && B.serverTime - r.lastSeenAt > 20000;
+    $('bHint').textContent = stale ? '⚠ skript neodpovídá – je otevřená stránka Stavění?' : on && r.current ? `právě planeta ${r.current}` : '';
+    $('bPlanets').innerHTML = r.planets.map((p) => `<span class="bp ${p.state}" title="${esc(p.note)}">${esc(p.name)}</span>`).join('')
+      + (on && r.current && !r.planets.some((p) => p.name === r.current) ? `<span class="bp cur">${esc(r.current)} …</span>` : '');
+    $('bLog').innerHTML = r.log.length ? r.log.slice().reverse().map((l) => `<div><time>${tm(l.at)}</time>${esc(l.msg)}</div>`).join('') : '<span class="muted">Zatím nic.</span>';
+  }
+  async function poll() {
+    try {
+      B = await api('/api/build');
+      if (!built) buildTable();
+      renderRun();
+    } catch {}
+  }
+  $('bStart').onclick = async () => {
+    try { clearTimeout(saveT); await api('/api/build', 'PUT', planFromUi()); B = await api('/api/build/start', 'POST'); renderRun(); }
+    catch (e) { toast(e.message, true); }
+  };
+  $('bStop').onclick = async () => { try { B = await api('/api/build/stop', 'POST'); renderRun(); } catch (e) { toast(e.message, true); } };
+  poll(); setInterval(poll, 1500);
+})();
 </script>
 </body>
 </html>

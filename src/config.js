@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { isBuildingId } from './build.js';
 
 /**
  * Datová složka (config s tajnými tokeny + databáze). Záměrně MIMO složku projektu,
@@ -38,6 +39,8 @@ export const DEFAULTS = {
   watchdog: { enabled: true, staleSec: 30 }, // hlášení, že hlídaná rasa / mapa přestala dodávat data
   discord: { enabled: false, webhookUrl: '' },
   telegram: { enabled: false, botToken: '', chatId: '' },
+  // automatické stavění: plan = { [id stavby]: { mode: 'skip'|'target'|'max', n } }, pace = násobek lidského tempa
+  build: { plan: {}, dryRun: false, pace: 1 },
 };
 
 function readJson(path) {
@@ -156,6 +159,18 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
     next.watchdog = { ...cur.watchdog };
     if ('enabled' in body.watchdog) next.watchdog.enabled = !!body.watchdog.enabled;
     if ('staleSec' in body.watchdog) next.watchdog.staleSec = Math.max(10, num(body.watchdog.staleSec, cur.watchdog.staleSec));
+  }
+  if (body.build && typeof body.build === 'object') {
+    const b = body.build;
+    next.build = { ...cur.build, plan: { ...cur.build.plan } };
+    if ('dryRun' in b) next.build.dryRun = !!b.dryRun;
+    if ('pace' in b) next.build.pace = [0.7, 1, 1.6].includes(Number(b.pace)) ? Number(b.pace) : 1;
+    for (const [id, p] of Object.entries(b.plan ?? {})) {
+      if (!isBuildingId(id) || !p || typeof p !== 'object') continue;
+      const mode = ['skip', 'target', 'max'].includes(p.mode) ? p.mode : 'skip';
+      const n = Math.min(1e9, Math.floor(num(p.n, 0)));
+      next.build.plan[id] = { mode, n };
+    }
   }
   // tajné hodnoty UI nikdy nedostane zpět, takže prázdné pole = ponechat uloženou hodnotu
   if (body.discord) {
