@@ -1,0 +1,15 @@
+# Pravidla pro práci na projektu
+
+## Git workflow (povinné)
+1. **Před každou prací** spusť `git pull`, ať pracuješ s nejnovější verzí z GitHubu.
+2. **Každou úpravu commitni** se srozumitelným popisem v češtině (co a proč se změnilo).
+3. **Po každém commitu pushni** na GitHub (`git push`).
+
+## Projekt
+- Stargate dominator: lokální Node.js server (`src/server.js`, port 3940, jen 127.0.0.1) + userscripty pro Tampermonkey (`userscript/`), které běží na stargate-game.cz.
+- Bez npm závislostí, potřebuje Node.js >= 22.13 (`node:sqlite`).
+- Spuštění: `start.cmd` (nebo `npm start`), zastavení: `stop.cmd`. Testy: `npm test`.
+- Data a nastavení (tokeny) jsou mimo repo v `%LOCALAPPDATA%\sg-dominator`. `sg-settings.json` obsahuje tajný token, nikdy ho necommituj.
+- Po změně userscriptu zvyš `@version` v hlavičce, ať ho Tampermonkey aktualizuje.
+- Testování v prohlížeči: přes rozšíření Claude in Chrome (uživatelův Chrome s Tampermonkey a přihlášením do hry).
+- Když je potřeba uživatel (přihlášení, potvrzení), zastav se a řekni mu.
