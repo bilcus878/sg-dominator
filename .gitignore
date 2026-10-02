@@ -1,9 +1,6 @@
 # přibalené Node.js (velké binárky; start.ps1 si poradí se systémovým / přenosným Node)
 runtime/
 
-# tajné: token Telegram bota (vyexportuj na novém PC: node src/cli.js export, nebo zkopíruj ručně)
-sg-settings.json
-
 # lokální data a logy
 data/
 *.log
