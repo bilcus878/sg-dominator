@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator
 // @namespace    sg-dominator
-// @version      3.2.0
+// @version      3.3.0
 // @description  Čte tabulku hráčů a posílá sílu na lokální notifikační server (bez zásahu do stránky)
 // @match        https://stargate-game.cz/vesmir.php*
 // @match        https://www.stargate-game.cz/vesmir.php*
@@ -69,8 +69,9 @@
         if (d) p.planetsDelta = (d[1] === '+' ? 1 : -1) * Number(d[2].replace(/\D/g, ''));
       }
       if (attackIdx >= 0 && td[attackIdx]) {
-        // Útok: odkaz/ikona = zaútočit jde, „nelze“ nebo prázdno = nejde
-        p.attackable = !/nelze/i.test(texts[attackIdx]) && !!td[attackIdx].querySelector('a, img');
+        // Útok: dobýt jde jen se svítící ikonou D (dobytí); chybí, je průhledná (.pruhledny) nebo „nelze“ = nejde
+        const d = [...td[attackIdx].querySelectorAll('img')].find((i) => i.alt === 'D');
+        p.attackable = !!d && !d.classList.contains('pruhledny') && !/nelze/i.test(texts[attackIdx]);
       }
       players.push(p);
     }
