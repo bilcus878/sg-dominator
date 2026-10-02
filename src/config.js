@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { isBuildingId, isSatKey } from './build.js';
+import { VIGILANCE_DEFAULTS, TELESCOPE_DEFAULTS } from './telescope.js';
 
 /**
  * Datová složka (config s tajnými tokeny + databáze). Záměrně MIMO složku projektu,
@@ -35,7 +36,7 @@ export const DEFAULTS = {
   races: {},
   // výjimky pro hráče: { [jméno]: { watch?: true|false, threshold?: číslo } }
   players: {},
-  op: { enabled: false, repeatSec: 10, vigilance: { enabled: true, minSec: 5, maxSec: 10 } }, // alert na tečky OP na mapě; repeatSec = připomínka, dokud svítí (0 = jen jednou); vigilance = automatické potvrzení tlačítka bdělosti po minSec až maxSec
+  op: { enabled: false, repeatSec: 10, vigilance: { ...VIGILANCE_DEFAULTS }, telescope: { ...TELESCOPE_DEFAULTS } }, // alert na tečky OP na mapě; repeatSec = připomínka, dokud svítí (0 = jen jednou); vigilance = automatické potvrzení tlačítka bdělosti po minSec až maxSec
   watchdog: { enabled: true, staleSec: 30 }, // hlášení, že hlídaná rasa / mapa přestala dodávat data
   discord: { enabled: false, webhookUrl: '' },
   telegram: { enabled: false, botToken: '', chatId: '' },
@@ -62,6 +63,9 @@ export function loadConfig() {
     }
   }
   const cfg = merge(DEFAULTS, stored);
+  // uložená podobjekty se s výchozími slučují jen mělce, takže chybějící nová pole se doplní tady
+  cfg.op.vigilance = { ...VIGILANCE_DEFAULTS, ...cfg.op.vigilance };
+  cfg.op.telescope = { ...TELESCOPE_DEFAULTS, ...cfg.op.telescope };
   migrateLegacy(cfg, stored);
   if (!cfg.token) {
     cfg.token = randomBytes(16).toString('hex');
@@ -157,13 +161,27 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
     if ('repeatSec' in body.op) next.op.repeatSec = num(body.op.repeatSec, cur.op.repeatSec);
     if (body.op.vigilance && typeof body.op.vigilance === 'object') {
       const v = body.op.vigilance;
-      const cv = cur.op.vigilance ?? { enabled: true, minSec: 5, maxSec: 10 };
+      const cv = { ...VIGILANCE_DEFAULTS, ...cur.op.vigilance };
       const nv = { ...cv };
-      if ('enabled' in v) nv.enabled = !!v.enabled;
-      if ('minSec' in v) nv.minSec = Math.min(120, Math.max(1, num(v.minSec, cv.minSec)));
-      if ('maxSec' in v) nv.maxSec = Math.min(120, Math.max(1, num(v.maxSec, cv.maxSec)));
-      if (nv.maxSec < nv.minSec) nv.maxSec = nv.minSec;
+      const rng = (a, b, lo, hi, int) => { // dvojice min/max v mezích; max nikdy pod min
+        for (const k of [a, b]) if (k in v) nv[k] = Math.min(hi, Math.max(lo, num(v[k], cv[k])));
+        if (int) { nv[a] = Math.floor(nv[a]); nv[b] = Math.floor(nv[b]); }
+        if (nv[b] < nv[a]) nv[b] = nv[a];
+      };
+      for (const k of ['enabled', 'skipEnabled']) if (k in v) nv[k] = !!v[k];
+      rng('minSec', 'maxSec', 1, 120, false);
+      rng('skipMin', 'skipMax', 1, 50, true);
+      rng('downMin', 'downMax', 1, 240, false);
       next.op.vigilance = nv;
+    }
+    if (body.op.telescope && typeof body.op.telescope === 'object') {
+      const t = body.op.telescope;
+      const ct = { ...TELESCOPE_DEFAULTS, ...cur.op.telescope };
+      const nt = { ...ct };
+      if ('auto' in t) nt.auto = !!t.auto;
+      for (const k of ['reactMinSec', 'reactMaxSec']) if (k in t) nt[k] = Math.min(600, Math.max(1, num(t[k], ct[k])));
+      if (nt.reactMaxSec < nt.reactMinSec) nt.reactMaxSec = nt.reactMinSec;
+      next.op.telescope = nt;
     }
   }
   if (body.watchdog && typeof body.watchdog === 'object') {

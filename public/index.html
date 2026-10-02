@@ -299,8 +299,22 @@
         <p class="muted" style="margin-top:0">Jednou za pár minut se na mapě objeví tlačítko <b>Povrdit</b>; bez kliknutí se obnova stránky přeruší a teleskop přestane jet. Skript ho potvrdí sám, ale <b>nikdy hned</b> po objevení, až po náhodné pauze v tomto rozmezí:</p>
         <div class="two"><div><label for="opVigMin">Nejdřív po (s)</label><input type="number" id="opVigMin" min="1" max="120"></div>
           <div><label for="opVigMax">Nejpozději po (s)</label><input type="number" id="opVigMax" min="1" max="120"></div></div>
+        <div class="field" style="margin-top:14px"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
+          <span class="sw"><input type="checkbox" id="opVigSkip"><span></span></span> Občas záměrně nepotvrdit (jako člověk)</label>
+          <small>Člověk to taky ne vždy stihne. Jednou za několik potvrzení (náhodně v tomto rozmezí) bot tlačítko vynechá, hra teleskop zastaví a bot ho nechá nějakou dobu vypnutý. <b>Po tuto dobu se OP nehlídají.</b></small></div>
+        <div class="two"><div><label for="opSkipMin">Vynechat jednou za (min. potvrzení)</label><input type="number" id="opSkipMin" min="1" max="50"></div>
+          <div><label for="opSkipMax">… až za (max. potvrzení)</label><input type="number" id="opSkipMax" min="1" max="50"></div></div>
+        <div class="two" style="margin-top:10px"><div><label for="opDownMin">Teleskop pak nechat vypnutý od (min)</label><input type="number" id="opDownMin" min="1" max="240"></div>
+          <div><label for="opDownMax">… do (min)</label><input type="number" id="opDownMax" min="1" max="240"></div></div>
         <p class="muted" id="opVigStatus" style="margin-bottom:0"></p>
         <p class="muted" style="margin-bottom:0">Když tlačítko zůstane nepotvrzené déle než 2,5 minuty, přijde zpráva na Telegram. Okno mapy musí být otevřené a viditelné.</p>
+      </div>
+      <div class="chan">
+        <div class="chan-head"><span>Teleskop</span><label class="sw"><input type="checkbox" id="opTeleAuto"><span></span></label></div>
+        <p class="muted" style="margin-top:0">Když je teleskop zastavený (<b>Stav teleskopu: Zastaven</b>), bot po lidské prodlevě klikne na <b>Aktivovat teleskop</b>. Po záměrně vynechané bdělosti počká celou dobu „pauzy“ výše. Když teleskopu nezbývá žádný čas nebo se aktivace třikrát nepovede, pošle zprávu na Telegram. <b>Pozor:</b> když teleskop zastavíš ručně, vypni tenhle přepínač, jinak ho bot zase zapne.</p>
+        <div class="two"><div><label for="opReactMin">Aktivovat nejdřív po (s)</label><input type="number" id="opReactMin" min="1" max="600"></div>
+          <div><label for="opReactMax">… nejpozději po (s)</label><input type="number" id="opReactMax" min="1" max="600"></div></div>
+        <p class="muted" id="opTeleStatus" style="margin-bottom:0"></p>
       </div>
       <p class="muted">Skript pro mapu se instaluje z adresy <code>/mapa.user.js</code> (stejně jako ten pro hráče). Aktuální stav vidíš v kartě „OP na mapě“ na hlavní stránce.</p>
     </div>
@@ -753,6 +767,16 @@ function renderOp() {
     $('opVigStatus').textContent = v.pendingSince ? `⏳ Tlačítko se objevilo ${ago(v.pendingSince)} a čeká na potvrzení.`
       : v.count ? `Potvrzeno ${v.count}× od startu aplikace, naposledy ${ago(v.lastClickedAt)}.` : 'Zatím nebylo potvrzeno žádné tlačítko.';
   }
+  const tl = op.telescope;
+  if (tl) {
+    const inMin = (t) => Math.max(1, Math.round((t - S.serverTime) / 60000));
+    const parts = [tl.state === 'active' ? '🔭 Teleskop jede' : tl.state === 'stopped' ? '⏸ Teleskop je zastavený' : 'Stav teleskopu zatím neznám'];
+    if (tl.state === 'stopped' && tl.downUntil > S.serverTime) parts.push(`záměrná pauza, zapnu za ~${inMin(tl.downUntil)} min`);
+    if (tl.blockedUntil > S.serverTime) parts.push(`aktivace pozastavena na ~${inMin(tl.blockedUntil)} min (nepovedla se)`);
+    if (tl.untilSkip !== null) parts.push(`další vynechání bdělosti po ${tl.untilSkip} potvrzeních`);
+    if (tl.skipped) parts.push(`vynecháno ${tl.skipped}×`);
+    $('opTeleStatus').textContent = parts.join(' · ') + '.';
+  }
   $('opDots').innerHTML = op.dots.map((d) => `<span class="opdot sm">🟠 ${esc(d.id)}${/^\d+$/.test(d.label) || !d.label ? '' : ' · ' + esc(d.label)}</span>`).join('');
 }
 $('opPill').onclick = () => { openDrawer(); document.querySelector('[data-tab="op"]').click(); };
@@ -780,7 +804,11 @@ function fillForm() {
   $('notifyRecovery').checked = cfg.notifyRecovery; $('repeatWhileBelow').checked = cfg.repeatWhileBelow;
   $('opRepeatSec').value = cfg.op.repeatSec; $('opEnabled2').checked = cfg.op.enabled;
   const vg = cfg.op.vigilance ?? { enabled: true, minSec: 5, maxSec: 10 };
-  $('opVigEnabled').checked = vg.enabled; $('opVigMin').value = vg.minSec; $('opVigMax').value = vg.maxSec; $('dropPct').value = cfg.dropPct; $('dropWindowSec').value = cfg.dropWindowSec;
+  $('opVigEnabled').checked = vg.enabled; $('opVigMin').value = vg.minSec; $('opVigMax').value = vg.maxSec;
+  $('opVigSkip').checked = vg.skipEnabled ?? true; $('opSkipMin').value = vg.skipMin ?? 5; $('opSkipMax').value = vg.skipMax ?? 10;
+  $('opDownMin').value = vg.downMin ?? 3; $('opDownMax').value = vg.downMax ?? 15;
+  const te = cfg.op.telescope ?? { auto: true, reactMinSec: 10, reactMaxSec: 40 };
+  $('opTeleAuto').checked = te.auto; $('opReactMin').value = te.reactMinSec; $('opReactMax').value = te.reactMaxSec; $('dropPct').value = cfg.dropPct; $('dropWindowSec').value = cfg.dropWindowSec;
   $('dEnabled').checked = cfg.discord.enabled; $('dUrl').value = '';
   $('dUrl').placeholder = cfg.discord.configured ? '•••••••• uloženo (nech prázdné)' : 'https://discord.com/api/webhooks/…';
   $('dSaved').textContent = cfg.discord.configured ? '✓ nastaveno' : '';
@@ -806,7 +834,7 @@ $('save').onclick = async () => {
       criticalPct: $('criticalPct').value, criticalCooldownSec: $('criticalCooldownSec').value,
       watchdog: { enabled: $('wdEnabled').checked, staleSec: $('wdStale').value },
       notifyRecovery: $('notifyRecovery').checked, repeatWhileBelow: $('repeatWhileBelow').checked,
-      op: { enabled: $('opEnabled2').checked, repeatSec: $('opRepeatSec').value, vigilance: { enabled: $('opVigEnabled').checked, minSec: $('opVigMin').value, maxSec: $('opVigMax').value } },
+      op: { enabled: $('opEnabled2').checked, repeatSec: $('opRepeatSec').value, vigilance: { enabled: $('opVigEnabled').checked, minSec: $('opVigMin').value, maxSec: $('opVigMax').value, skipEnabled: $('opVigSkip').checked, skipMin: $('opSkipMin').value, skipMax: $('opSkipMax').value, downMin: $('opDownMin').value, downMax: $('opDownMax').value }, telescope: { auto: $('opTeleAuto').checked, reactMinSec: $('opReactMin').value, reactMaxSec: $('opReactMax').value } },
       dropPct: $('dropPct').value, dropWindowSec: $('dropWindowSec').value,
       discord: { enabled: $('dEnabled').checked, webhookUrl: $('dUrl').value },
       telegram: { enabled: $('tEnabled').checked, botToken: $('tToken').value, chatId: $('tChat').value },

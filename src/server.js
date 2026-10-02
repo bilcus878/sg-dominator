@@ -13,6 +13,7 @@ import { createOpTracker } from './op.js';
 import { resolveWatch } from './watch.js';
 import { createWatchdog } from './watchdog.js';
 import { BUILDINGS, createBuildRun } from './build.js';
+import { createTelescope } from './telescope.js';
 
 // data bydlela dřív ve složce projektu (Dropbox); při prvním spuštění se přesunou mimo ni
 if (USING_DEFAULT_DIR) migrateLegacyData(LEGACY_DATA_DIR, DATA_DIR);
@@ -154,11 +155,12 @@ async function handleIngestOp(req) {
     console.log(`[alert] OP ${repeat ? 'stále ' : ''}v ${name}`);
     sendText(cfg, formatAlert(a));
   }
-  return [200, { ok: true, alerts: todo.length, vigilance: cfg.op.vigilance }];
+  return [200, { ok: true, alerts: todo.length, vigilance: cfg.op.vigilance, telescope: cfg.op.telescope }];
 }
 
 // tlačítko bdělosti na mapě: skript hlásí, že se objevilo a že ho potvrdil; zaseknuté potvrzení se hlásí do Telegramu
 const vig = { seenAt: 0, clickedAt: 0, count: 0, pending: false, alerted: false };
+const tele = createTelescope();
 const VIG_ALERT_MS = 150_000; // hra dává ~5 minut, upozornit dřív, než je pozdě
 
 async function handleVigilance(req) {
@@ -166,9 +168,17 @@ async function handleVigilance(req) {
   const body = await readJson(req);
   const now = Date.now();
   if (body.event === 'seen') {
+    const d = tele.vigilanceSeen(cfg.op.vigilance); // občas záměrně vynechat, ať to nevypadá jako stroj
+    if (d.action === 'skip') {
+      vig.pending = false;
+      console.log('[bdělost] tlačítko se objevilo, tentokrát ho záměrně nepotvrdím (teleskop se zastaví a chvíli zůstane vypnutý)');
+      return [200, { ok: true, action: 'skip' }];
+    }
     vig.pending = true; vig.seenAt = now; vig.alerted = false;
     console.log(`[bdělost] tlačítko se objevilo, kliknu za ${Math.round(Number(body.delayMs) / 100) / 10} s`);
+    return [200, { ok: true, action: 'click' }];
   } else if (body.event === 'clicked') {
+    tele.vigilanceClicked();
     vig.pending = false; vig.clickedAt = now; vig.count++;
     console.log('[bdělost] potvrzeno');
     if (vig.alerted) sendText(cfg, '✅ Tlačítko bdělosti je potvrzené (se zpožděním).');
@@ -179,6 +189,26 @@ async function handleVigilance(req) {
     sendText(cfg, `⚠️ Tlačítko bdělosti se nepodařilo potvrdit${err ? ` (${err})` : ''}. Zkontroluj mapu, hrozí přerušení teleskopu.`);
   } else return [400, { error: 'invalid event' }];
   return [200, { ok: true }];
+}
+/** Stav teleskopu z mapy -> instrukce (aktivovat po lidské prodlevě / počkat / nic). */
+let teleLast = '';
+async function handleTelescope(req) {
+  if (!authOk(req)) return [401, { error: 'bad token' }];
+  const body = await readJson(req);
+  const now = Date.now();
+  if (body.event === 'attempt') {
+    const r = tele.attempt(now);
+    console.log('[teleskop] klikám na Aktivovat');
+    if (r.alert === 'failed') sendText(cfg, '⚠️ Teleskop se nepodařilo aktivovat ani na několikátý pokus. Zkontroluj mapu, příštích 30 minut to zkoušet nebudu.');
+    return [200, { ok: true }];
+  }
+  if (body.event !== 'state') return [400, { error: 'invalid event' }];
+  const remaining = Number.isFinite(Number(body.remainingSec)) && body.remainingSec !== null ? Number(body.remainingSec) : null;
+  const state = body.state === 'stopped' ? 'stopped' : 'active';
+  const r = tele.telescopeState({ state, remainingSec: remaining }, cfg.op, now);
+  if (state !== teleLast) { teleLast = state; console.log(`[teleskop] ${state === 'active' ? 'aktivní' : 'zastavený'}`); }
+  if (r.alert === 'zero') sendText(cfg, '⚠️ Teleskop je zastavený a nezbývá mu žádný čas, nelze ho aktivovat.');
+  return [200, r];
 }
 setInterval(() => {
   const now = Date.now();
@@ -211,6 +241,7 @@ function buildState() {
   const opState = {
     enabled: cfg.op.enabled, at: opLastAt, dots: op.current(now),
     vigilance: { count: vig.count, lastClickedAt: vig.clickedAt, pendingSince: vig.pending ? vig.seenAt : 0 },
+    telescope: tele.snapshot(),
   };
   return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState };
 }
@@ -245,6 +276,7 @@ const routes = {
   'POST /ingest': handleIngest,
   'POST /ingest-op': handleIngestOp,
   'POST /vigilance': handleVigilance,
+  'POST /telescope': handleTelescope,
   'POST /build/report': handleBuildReport,
   'GET /api/build': async () => buildView(),
   'PUT /api/build': async (req) => {

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – stavění
 // @namespace    sg-dominator
-// @version      1.2.1
+// @version      1.2.2
 // @description  Na pokyn z aplikace vyplní počty staveb, klikne na Postavit a přejde na další planetu klikem v tabulce planet (pomalu a nepravidelně, jako člověk)
 // @match        https://stargate-game.cz/stavby.php*
 // @match        https://www.stargate-game.cz/stavby.php*
@@ -141,7 +141,9 @@
     if (el.focus) el.focus();
     await sleep(rnd(45, 130));
     fire(el, 'mouseup', pt);
-    el.click(); // pro odkaz = přechod, pro submit = odeslání formuláře, pro input = fokus
+    // klik se souřadnicemi jako od skutečné myši (el.click() má 0,0 a hra takové kliky může ignorovat);
+    // pro odkaz = přechod, pro submit = odeslání formuláře, pro input = fokus
+    el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1, ...pt }));
   }
 
   const keyInit = (key) => ({ key, code: /^\d$/.test(key) ? `Digit${key}` : key, bubbles: true, cancelable: true });
