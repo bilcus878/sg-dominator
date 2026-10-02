@@ -562,7 +562,7 @@ async function copyName(name) {
   catch { toast('Kopírování se nepovedlo', true); }
 }
 
-const CHANGE_MS = 10 * 60_000; // jak dlouho je změna síly vidět barevně
+const CHANGE_MS = 10_000; // jak dlouho je změna síly vidět barevně, pak zpět na výchozí vzhled
 const signed = (n) => (n > 0 ? '+' : '−') + fmt(Math.abs(n));
 /** Číslo + změna jako ve hře: nárůst zeleně, ztráta červeně (cls '' = beze změny). */
 function setDelta(c, delta) {
@@ -642,7 +642,7 @@ function updatePanel(id) {
     const isCrit = p.critical > 0 && p.power < p.critical;
     row.power.classList.toggle('crit', isCrit);
     row.power.title = [
-      recent ? `Změna síly ${signed(recent)} před ${Math.max(1, Math.round((S.serverTime - p.powerAt) / 60_000))} min` : '',
+      recent ? `Změna síly ${signed(recent)} před ${Math.max(1, Math.round((S.serverTime - p.powerAt) / 1000))} s` : '',
       p.critical > 0 ? `Kritická hranice ${fmt(p.critical)}` : '',
     ].filter(Boolean).join('\n');
     row.tr.classList.toggle('off', !p.watched);
