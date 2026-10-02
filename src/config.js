@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { isBuildingId } from './build.js';
+import { isBuildingId, isSatKey } from './build.js';
 
 /**
  * Datová složka (config s tajnými tokeny + databáze). Záměrně MIMO složku projektu,
@@ -39,8 +39,9 @@ export const DEFAULTS = {
   watchdog: { enabled: true, staleSec: 30 }, // hlášení, že hlídaná rasa / mapa přestala dodávat data
   discord: { enabled: false, webhookUrl: '' },
   telegram: { enabled: false, botToken: '', chatId: '' },
-  // automatické stavění: plan = { [id stavby]: { mode: 'skip'|'target'|'max', n } }, pace = násobek lidského tempa
-  build: { plan: {}, dryRun: false, pace: 1 },
+  // automatické stavění: plan = { [id stavby]: { mode: 'skip'|'target'|'max', n } }, parks = { [spokojenost -50|-25|0|5|10]: cílový počet },
+  // pace = násobek lidského tempa
+  build: { plan: {}, parks: {}, dryRun: false, pace: 1 },
 };
 
 function readJson(path) {
@@ -162,7 +163,7 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
   }
   if (body.build && typeof body.build === 'object') {
     const b = body.build;
-    next.build = { ...cur.build, plan: { ...cur.build.plan } };
+    next.build = { ...cur.build, plan: { ...cur.build.plan }, parks: { ...cur.build.parks } };
     if ('dryRun' in b) next.build.dryRun = !!b.dryRun;
     if ('pace' in b) next.build.pace = [0.7, 1, 1.6].includes(Number(b.pace)) ? Number(b.pace) : 1;
     for (const [id, p] of Object.entries(b.plan ?? {})) {
@@ -170,6 +171,11 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
       const mode = ['skip', 'target', 'max'].includes(p.mode) ? p.mode : 'skip';
       const n = Math.min(1e9, Math.floor(num(p.n, 0)));
       next.build.plan[id] = { mode, n };
+    }
+    for (const [k, v] of Object.entries(b.parks ?? {})) {
+      if (!isSatKey(k)) continue;
+      if (v === null || v === '') delete next.build.parks[k];
+      else if (Number.isFinite(Number(v)) && Number(v) >= 0) next.build.parks[k] = Math.min(1e9, Math.floor(Number(v)));
     }
   }
   // tajné hodnoty UI nikdy nedostane zpět, takže prázdné pole = ponechat uloženou hodnotu

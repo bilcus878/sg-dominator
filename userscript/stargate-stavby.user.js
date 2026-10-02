@@ -52,10 +52,21 @@
   const submitBtn = () => document.querySelector('input[name="postavit"]');
   const arrowNext = () => [...document.querySelectorAll('.vyber-planety a')].find((a) => a.textContent.trim() === '»');
 
+  /** Spokojenost pod názvem planety: '+ 10%' -> 10, '- 50%' -> -50, '~' -> 0; nerozpoznané -> null. */
+  function readSatisfaction() {
+    const t = (document.querySelector('.typ-planety .vhodnost-planety')?.textContent ?? '').replace(/\s+/g, '');
+    if (!t) return null;
+    if (t.includes('~')) return 0;
+    const m = t.match(/^([+\-−–]?)(\d+)%/);
+    if (!m) return null;
+    return m[1] && m[1] !== '+' ? -Number(m[2]) : Number(m[2]);
+  }
+
   function readPage() {
     const btn = submitBtn();
     const planet = document.querySelector('.vyber-planety .nazev')?.textContent.trim();
     if (!btn || !btn.form || !planet) return null;
+    const satisfaction = readSatisfaction();
     const buildings = {};
     for (const id of IDS) {
       const inp = document.getElementById(id);
@@ -63,7 +74,7 @@
       // defaultValue = počet z HTML (aktuálně postaveno), ne to, co jsme zrovna napsali
       buildings[id] = { cur: num(inp.defaultValue), max: num(inp.closest('.stavba')?.querySelector('.max')?.textContent) };
     }
-    return { planet, buildings };
+    return { planet, satisfaction, buildings };
   }
 
   // ---------- „lidská“ myš a klávesnice ----------
@@ -177,30 +188,28 @@
     return r?.action === 'ok';
   }
 
-  async function act(ins) {
+  /** Provede instrukci. Vrací další instrukci jen ve zkušebním běhu (stránka se nepřenačítá). */
+  async function act(ins, first) {
     const speed = Math.min(2.5, Math.max(0.5, Number(ins.speed) || 1));
-    await pause(rnd(1800, 4800) * speed); // „čte“ stránku
+    await pause(rnd(first ? 1800 : 900, first ? 4800 : 2200) * speed); // „čte“ stránku
     if (Math.random() < 0.03) await sleep(rnd(15000, 45000) * speed); // občas se na chvíli „zdrží“
 
     if (ins.action === 'build') {
       for (const id of fillOrder(IDS.filter((i) => i in ins.values))) {
         const inp = document.getElementById(id);
-        if (!inp || !(await stillActive())) return;
+        if (!inp || !(await stillActive())) return null;
         await fillField(inp, ins.values[id], speed);
         await pause(rnd(500, 1600) * speed);
       }
       await pause(rnd(1200, 3500) * speed); // zkontroluje, co napsal
-      if (!(await stillActive())) return;
-      if (ins.dry) {
-        const nxt = await post('/build/report', { phase: 'filled', ...readPage() });
-        if (nxt?.action === 'next') await goNext(nxt);
-        return;
-      }
+      if (!(await stillActive())) return null;
+      if (ins.dry) return await post('/build/report', { phase: 'filled', ...readPage() });
       holdUntil = Date.now() + 25000;
-      await clickEl(submitBtn(), speed); // stránka se přenačte, další krok řeší nové načtení
-      return;
+      await clickEl(submitBtn(), speed); // stránka se přenačte, další fázi řeší nové načtení
+      return null;
     }
     if (ins.action === 'next') await goNext(ins);
+    return null;
   }
 
   async function goNext(ins) {
@@ -221,8 +230,8 @@
         await post('/build/report', { phase: 'load', error: 'chybí formulář nebo název planety' });
         return;
       }
-      const ins = await post('/build/report', { phase: 'load', ...page });
-      if (ins && (ins.action === 'build' || ins.action === 'next')) await act(ins);
+      let ins = await post('/build/report', { phase: 'load', ...page });
+      for (let first = true; ins && (ins.action === 'build' || ins.action === 'next'); first = false) ins = await act(ins, first);
     } catch (e) {
       console.error('[dominator stavění]', e);
     } finally {
