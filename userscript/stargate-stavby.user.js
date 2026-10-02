@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – stavění
 // @namespace    sg-dominator
-// @version      1.1.0
+// @version      1.2.0
 // @description  Na pokyn z aplikace vyplní počty staveb, klikne na Postavit a přejde na další planetu klikem v tabulce planet (pomalu a nepravidelně, jako člověk)
 // @match        https://stargate-game.cz/stavby.php*
 // @match        https://www.stargate-game.cz/stavby.php*
@@ -26,7 +26,8 @@
     return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
   };
   /** Pauza kolem `ms` s lidským rozptylem; občas delší „zamyšlení“. */
-  const pause = (ms) => sleep(Math.max(40, ms * (1 + gauss() * 0.3)) + (Math.random() < 0.06 ? rnd(1500, 4500) : 0));
+  let tempo = 1; // násobek tempa z aktuální instrukce (menší = rychlejší); zkracuje i náhodná „zamyšlení“ a kroky myši
+  const pause = (ms) => sleep(Math.max(40, ms * (1 + gauss() * 0.3)) + (Math.random() < 0.06 ? rnd(1500, 4500) * Math.min(1, tempo) : 0));
 
   // ---------- komunikace se serverem ----------
   function post(path, data) {
@@ -115,7 +116,7 @@
     const t = { x: r.left + r.width * rnd(0.22, 0.78), y: r.top + r.height * rnd(0.3, 0.7) };
     const c = { x: mouse.x + (t.x - mouse.x) * rnd(0.2, 0.6) + rnd(-90, 90), y: mouse.y + (t.y - mouse.y) * rnd(0.2, 0.6) + rnd(-90, 90) };
     const from = { ...mouse };
-    const steps = Math.round(rnd(16, 34));
+    const steps = Math.round(rnd(16, 34) * Math.min(1, Math.max(0.5, tempo)));
     for (let i = 1; i <= steps; i++) {
       const k = i / steps;
       const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; // ease in-out
@@ -208,7 +209,8 @@
 
   /** Provede instrukci. Vrací další instrukci jen ve zkušebním běhu (stránka se nepřenačítá). */
   async function act(ins, first) {
-    const speed = Math.min(2.5, Math.max(0.5, Number(ins.speed) || 1));
+    const speed = Math.min(2.5, Math.max(0.25, Number(ins.speed) || 1));
+    tempo = speed;
     await pause(rnd(first ? 1800 : 900, first ? 4800 : 2200) * speed); // „čte“ stránku
     if (Math.random() < 0.03) await sleep(rnd(15000, 45000) * speed); // občas se na chvíli „zdrží“
 
@@ -232,7 +234,7 @@
 
   /** Přechod na jinou planetu klikem na její název v tabulce pod stavěním. */
   async function goPlanet(ins) {
-    const speed = Math.min(2.5, Math.max(0.5, Number(ins.speed) || 1));
+    const speed = Math.min(2.5, Math.max(0.25, Number(ins.speed) || 1));
     const a = document.querySelector(`#pl-${CSS.escape(String(ins.plId))} .nazev-planety a`);
     if (!a) return await post('/build/report', { phase: 'goto-failed', plId: ins.plId }); // server planetu přeskočí
     if (!(await stillActive())) return null;

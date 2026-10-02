@@ -209,11 +209,11 @@
           Na každé planetě jde ve třech krocích, každý končí kliknutím na Postavit: <b>1.</b> města, <b>2.</b> ostatní stavby včetně parků, <b>3.</b> naquadahový důl.</p>
         <table class="btable"><thead><tr><th>Stavba</th><th>Režim</th><th class="n">Cílový počet</th></tr></thead><tbody id="bRows"></tbody></table>
         <h2 style="margin:18px 0 6px">Chodba harmonie podle spokojenosti</h2>
-        <p class="muted" style="margin:0 0 8px">Bot přečte pod názvem planety spokojenost obyvatel a nastaví tolik parků, kolik je tady u dané hodnoty (nehledí na maximum, hra uvolní místo z dolů). Prázdné políčko = na takové planetě parky nestavět. Planeta bez rozpoznané spokojenosti parky přeskočí.</p>
-        <table class="btable"><thead><tr><th>Spokojenost</th><th class="n">Cílový počet parků</th></tr></thead><tbody id="bParks"></tbody></table>
+        <p class="muted" style="margin:0 0 8px">Bot přečte pod názvem planety spokojenost obyvatel a nastaví tolik parků, kolik je tady u dané hodnoty (nehledí na maximum, hra uvolní místo z dolů). Prázdný cíl = na takové planetě parky nestavět. Když na planetě stojí aspoň <b>minimum</b>, je to hotovo; pod minimem se doplní na <b>cíl</b>. Planeta bez rozpoznané spokojenosti parky přeskočí.</p>
+        <table class="btable"><thead><tr><th>Spokojenost</th><th class="n" title="Na tolik parků se doplní">Cíl</th><th class="n" title="Pokud už jich stojí aspoň tolik, planeta se bere jako hotová a nic se nestaví. Prázdné = minimum je stejné jako cíl.">Minimum (hotovo od)</th></tr></thead><tbody id="bParks"></tbody></table>
         <div class="bopts">
           <label style="margin:0">Tempo
-            <select id="bPace"><option value="0.7">rychlejší</option><option value="1">normální</option><option value="1.6">pomalé</option></select></label>
+            <select id="bPace"><option value="0.4">turbo</option><option value="0.7">rychlejší</option><option value="1">normální</option><option value="1.6">pomalé</option></select></label>
           <label style="display:flex;gap:8px;align-items:center;margin:0;color:var(--fg)"><span class="sw"><input type="checkbox" id="bDry"><span></span></span> Zkušební běh (vyplní, ale neklikne na Postavit)</label>
         </div>
         <div class="bopts">
@@ -843,9 +843,12 @@ $('test').onclick = async () => {
   function planFromUi() {
     const plan = {};
     for (const [id] of ORDER) plan[id] = { mode: $('bm-' + id).value, n: Number($('bn-' + id).value) || 0 };
-    const parks = {};
-    for (const [k] of SATS) { const v = $('bk-' + k).value.trim(); parks[k] = v === '' ? null : Number(v); }
-    return { plan, parks, pace: Number($('bPace').value), dryRun: $('bDry').checked, recheckMax: $('bRecheck').checked };
+    const parks = {}, parksMin = {};
+    for (const [k] of SATS) {
+      const v = $('bk-' + k).value.trim(); parks[k] = v === '' ? null : Number(v);
+      const m = $('bm2-' + k).value.trim(); parksMin[k] = m === '' ? null : Number(m);
+    }
+    return { plan, parks, parksMin, pace: Number($('bPace').value), dryRun: $('bDry').checked, recheckMax: $('bRecheck').checked };
   }
   let saveT;
   function save() {
@@ -859,12 +862,12 @@ $('test').onclick = async () => {
         <td><select id="bm-${id}">${MODES.map(([v, t]) => `<option value="${v}"${p.mode === v ? ' selected' : ''}>${t}</option>`).join('')}</select></td>
         <td class="n"><input type="number" min="0" id="bn-${id}" value="${p.n || ''}" ${p.mode === 'target' ? '' : 'disabled'}></td></tr>`;
     }).join('');
-    $('bParks').innerHTML = SATS.map(([k, label]) => `<tr><td>${label}</td><td class="n"><input type="number" min="0" id="bk-${k}" value="${B.config.parks?.[k] ?? ''}"></td></tr>`).join('');
+    $('bParks').innerHTML = SATS.map(([k, label]) => `<tr><td>${label}</td><td class="n"><input type="number" min="0" id="bk-${k}" value="${B.config.parks?.[k] ?? ''}"></td><td class="n"><input type="number" min="0" id="bm2-${k}" value="${B.config.parksMin?.[k] ?? ''}"></td></tr>`).join('');
     for (const [id] of ORDER) {
       $('bm-' + id).onchange = () => { $('bn-' + id).disabled = $('bm-' + id).value !== 'target'; save(); };
       $('bn-' + id).oninput = save;
     }
-    for (const [k] of SATS) $('bk-' + k).oninput = save;
+    for (const [k] of SATS) $('bk-' + k).oninput = $('bm2-' + k).oninput = save;
     $('bPace').value = String(B.config.pace);
     $('bDry').checked = !!B.config.dryRun;
     $('bRecheck').checked = !!B.config.recheckMax;

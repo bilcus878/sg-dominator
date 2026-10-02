@@ -267,6 +267,27 @@ test('chyba stránky zastaví běh a pošle upozornění; stop vrací idle; stal
   assert.equal(run.report({ phase: 'ping' }, c, 6).action, 'idle');
 });
 
+test('parky: minimum = od kolika se planeta bere jako hotová, pod ním se doplní na cíl', () => {
+  const c = cfg({ parks: { '-50': 300 }, parksMin: { '-50': 250 } });
+  const buildings = (cur) => page({ park: { cur, max: 0 } });
+  assert.deepEqual(planChanges(c, buildings(250), -50, 1), {}); // na minimu -> hotovo
+  assert.deepEqual(planChanges(c, buildings(280), -50, 1), {}); // mezi minimem a cílem -> hotovo
+  assert.deepEqual(planChanges(c, buildings(249), -50, 1), { park: 300 }); // pod minimem -> na cíl, ne na minimum
+  assert.deepEqual(planChanges(cfg({ parks: { '-50': 300 } }), buildings(299), -50, 1), { park: 300 }); // bez minima = cíl
+  assert.deepEqual(planChanges(cfg({ parks: { '-50': 300 }, parksMin: { '-50': 900 } }), buildings(299), -50, 1), { park: 300 }); // minimum nad cílem se ořízne na cíl
+
+  const known = { satKnown: true, sat: -50 };
+  assert.deepEqual(visitReasons(row('1', { park: 260 }), c, known), []); // planeta se ani nenavštíví
+  assert.deepEqual(visitReasons(row('1', { park: 100 }), c, known), ['park']);
+});
+
+test('sanitizeUpdate: turbo tempo a minimum parků', () => {
+  const next = sanitizeUpdate(structuredClone(DEFAULTS), { build: { pace: 0.4, parksMin: { '-50': '250', '7': 1, '10': -4 } } });
+  assert.equal(next.build.pace, 0.4);
+  assert.deepEqual(next.build.parksMin, { '-50': 250 });
+  assert.deepEqual(sanitizeUpdate(next, { build: { parksMin: { '-50': null } } }).build.parksMin, {});
+});
+
 test('sanitizeUpdate: plán staveb, tabulka parků a přepínače se čistí', () => {
   const next = sanitizeUpdate(structuredClone(DEFAULTS), {
     build: {

@@ -42,6 +42,12 @@ const CAPPED = new Set(['mesto', 'vyrobna']);
 const TARGET_IDS = ['laborator', 'bs', 'sdi', 'po', 'kasarna']; // stavby bez stropu (parky zvlášť)
 const COUNT_IDS = BUILDINGS.map((b) => b.id); // sloupce tabulky planet, které známe
 
+/** Minimum parků pro spokojenost `sat`: od něj výš se park bere jako hotový. Bez minima = cíl; minimum nad cílem se ořízne na cíl. */
+const parkMin = (cfgBuild, sat, target) => {
+  const mn = cfgBuild.parksMin?.[String(sat)];
+  return mn === undefined || mn === null || !Number.isFinite(Number(mn)) ? target : Math.min(Number(mn), target);
+};
+
 /**
  * Plán -> co vyplnit ve fázi. Políčka ve hře jsou CÍLOVÝ celkový počet staveb. Cíl se ořezává stropem `max`
  * jen u města a dolu; ostatní stavby (parky, BS, RL štít…) se píšou přesně, i když je u nich „max“ nižší,
@@ -61,6 +67,7 @@ export function planChanges(cfgBuild, buildings, sat, phaseIdx) {
       const n = sat === null || sat === undefined ? undefined : cfgBuild.parks?.[String(sat)];
       if (n === undefined || n === null) continue;
       target = Number(n);
+      if (page.cur >= parkMin(cfgBuild, sat, target)) continue; // splněno minimum
     } else {
       const p = cfgBuild.plan?.[id];
       if (!p || p.mode === 'skip') continue;
@@ -108,7 +115,7 @@ export function visitReasons(row, cfgBuild, entry, recheckMax = false) {
     if (!entry?.satKnown) why.push('park (spokojenost neznámá)');
     else if (entry.sat !== null) {
       const t = parks[String(entry.sat)];
-      if (t !== undefined && t !== null && row.c.park < t && !stuck('park', t)) why.push('park');
+      if (t !== undefined && t !== null && row.c.park < parkMin(cfgBuild, entry.sat, Number(t)) && !stuck('park', t)) why.push('park');
     }
   }
   for (const id of ['mesto', 'vyrobna']) {
