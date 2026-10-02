@@ -1,5 +1,7 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
+import { readFileSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { timingSafeEqual } from 'node:crypto';
 import { loadConfig, saveConfig, sanitizeUpdate, publicConfig, DATA_DIR, LEGACY_DATA_DIR, USING_DEFAULT_DIR } from './config.js';
 import { migrateLegacyData } from './migrate.js';
@@ -24,7 +26,23 @@ const lastWritten = new Map();
 const watchdog = createWatchdog();
 const raceLastAt = new Map(); // raceId -> čas posledních dat (nezávisle na pročišťování store)
 const playerRace = new Map(); // jméno -> raceId (pro přepočet prahů po změně konfigurace)
-const build = createBuildRun({ notify: (t) => sendText(cfg, t) });
+// historie planet pro stavění (spokojenost, co už bylo postaveno) – mimo konfiguraci, může být velká
+const LEDGER_PATH = join(DATA_DIR, 'build-planets.json');
+const ledger = (() => {
+  try { return { planets: JSON.parse(readFileSync(LEDGER_PATH, 'utf8')).planets ?? {} }; } catch { return { planets: {} }; }
+})();
+let ledgerTimer;
+function saveLedger() {
+  clearTimeout(ledgerTimer);
+  ledgerTimer = setTimeout(() => {
+    try {
+      mkdirSync(DATA_DIR, { recursive: true });
+      writeFileSync(`${LEDGER_PATH}.tmp`, JSON.stringify({ planets: ledger.planets }));
+      renameSync(`${LEDGER_PATH}.tmp`, LEDGER_PATH);
+    } catch (e) { console.error('historie planet se neuložila:', e.message); }
+  }, 500);
+}
+const build = createBuildRun({ notify: (t) => sendText(cfg, t), ledger, onLedger: saveLedger });
 const db = openDb();
 const ingestTimes = []; // časy posledních příjmů pro výpočet frekvence
 
@@ -185,9 +203,9 @@ setInterval(() => { if (build.staleCheck()) sendText(cfg, '⚠️ Stavění: skr
 async function handleBuildReport(req) {
   if (!authOk(req)) return [401, { error: 'bad token' }];
   const body = await readJson(req);
-  return [200, build.report(body, cfg.build)];
+  return [200, build.report(body, cfg.build, Date.now(), { recheckMax: !!cfg.build.recheckMax })];
 }
-const buildView = () => [200, { buildings: BUILDINGS, config: cfg.build, run: build.snapshot(), serverTime: Date.now() }];
+const buildView = () => [200, { buildings: BUILDINGS, config: cfg.build, run: build.snapshot(), knownPlanets: Object.keys(ledger.planets).length, serverTime: Date.now() }];
 
 const routes = {
   'POST /ingest': handleIngest,
@@ -201,6 +219,11 @@ const routes = {
   },
   'POST /api/build/start': async () => {
     build.start(cfg.build);
+    return buildView();
+  },
+  'DELETE /api/build/ledger': async () => {
+    ledger.planets = {};
+    saveLedger();
     return buildView();
   },
   'POST /api/build/stop': async () => {

@@ -205,7 +205,8 @@
     <div class="bgrid">
       <div>
         <p class="muted" style="margin-top:0">Co se má postavit na <b>každé</b> planetě. Číslo je <b>cílový celkový počet</b> (jako políčka ve hře); co už stojí, se nesnižuje. U města a dolu se víc než maximum nezadá. U ostatních staveb se píše přesně tvoje číslo, i když je „max“ u políčka nižší, protože hra místo uvolní z dolů (a ve 3. kroku se důl doplní zpátky).
-          Na každé planetě bot jde ve třech krocích, každý končí kliknutím na Postavit: <b>1.</b> města, <b>2.</b> ostatní stavby včetně parků, <b>3.</b> naquadahový důl.</p>
+          Bot si z tabulky planet pod stavěním sestaví <b>frontu jen planet, kde je ještě co stavět</b> (hotové vynechá) a mezi nimi přechází klikem na řádek v tabulce.
+          Na každé planetě jde ve třech krocích, každý končí kliknutím na Postavit: <b>1.</b> města, <b>2.</b> ostatní stavby včetně parků, <b>3.</b> naquadahový důl.</p>
         <table class="btable"><thead><tr><th>Stavba</th><th>Režim</th><th class="n">Cílový počet</th></tr></thead><tbody id="bRows"></tbody></table>
         <h2 style="margin:18px 0 6px">Chodba harmonie podle spokojenosti</h2>
         <p class="muted" style="margin:0 0 8px">Bot přečte pod názvem planety spokojenost obyvatel a nastaví tolik parků, kolik je tady u dané hodnoty (nehledí na maximum, hra uvolní místo z dolů). Prázdné políčko = na takové planetě parky nestavět. Planeta bez rozpoznané spokojenosti parky přeskočí.</p>
@@ -214,6 +215,13 @@
           <label style="margin:0">Tempo
             <select id="bPace"><option value="0.7">rychlejší</option><option value="1">normální</option><option value="1.6">pomalé</option></select></label>
           <label style="display:flex;gap:8px;align-items:center;margin:0;color:var(--fg)"><span class="sw"><input type="checkbox" id="bDry"><span></span></span> Zkušební běh (vyplní, ale neklikne na Postavit)</label>
+        </div>
+        <div class="bopts">
+          <label style="display:flex;gap:8px;align-items:center;margin:0;color:var(--fg)" title="Z tabulky se nepozná strop měst a dolu. Planeta, kterou už bot dořešil a města i doly se u ní nezměnily, se jinak přeskočí. Zapni po přidání surovin."><span class="sw"><input type="checkbox" id="bRecheck"><span></span></span> Znovu ověřit města a doly i na hotových planetách</label>
+        </div>
+        <div class="bopts">
+          <span id="bKnown">Historie planet: …</span>
+          <button class="ghost" id="bForget" title="Smaže, co si bot pamatuje o planetách (spokojenost, co už nejde postavit). Příští běh projde všechny planety s prací.">Zapomenout historii</button>
         </div>
       </div>
       <div>
@@ -837,7 +845,7 @@ $('test').onclick = async () => {
     for (const [id] of ORDER) plan[id] = { mode: $('bm-' + id).value, n: Number($('bn-' + id).value) || 0 };
     const parks = {};
     for (const [k] of SATS) { const v = $('bk-' + k).value.trim(); parks[k] = v === '' ? null : Number(v); }
-    return { plan, parks, pace: Number($('bPace').value), dryRun: $('bDry').checked };
+    return { plan, parks, pace: Number($('bPace').value), dryRun: $('bDry').checked, recheckMax: $('bRecheck').checked };
   }
   let saveT;
   function save() {
@@ -859,7 +867,8 @@ $('test').onclick = async () => {
     for (const [k] of SATS) $('bk-' + k).oninput = save;
     $('bPace').value = String(B.config.pace);
     $('bDry').checked = !!B.config.dryRun;
-    $('bPace').onchange = $('bDry').onchange = save;
+    $('bRecheck').checked = !!B.config.recheckMax;
+    $('bPace').onchange = $('bDry').onchange = $('bRecheck').onchange = save;
     built = true;
   }
   function renderRun() {
@@ -871,8 +880,10 @@ $('test').onclick = async () => {
     $('bStart').style.opacity = on ? .5 : 1;
     const stale = on && B.serverTime - r.lastSeenAt > 20000;
     $('bHint').textContent = stale ? '⚠ skript neodpovídá – je otevřená stránka Stavění?' : on && r.current ? `právě planeta ${r.current}` : '';
-    const c = r.counts;
-    $('bPlanets').innerHTML = (r.total ? `<span class="muted" style="margin-right:6px">${r.total} planet: ${c.built} postaveno, ${c.nothing} beze změny, ${c.dry} zkušebně, ${c.failed} chyb · posledních ${r.planets.length}:</span>` : '') + r.planets.map((p) => `<span class="bp ${p.state}" title="${esc(p.note)}">${esc(p.name)}</span>`).join('')
+    const c = r.counts, q = r.queue;
+    $('bKnown').textContent = `Historie planet: ${B.knownPlanets} známých`;
+    $('bPlanets').innerHTML = (q ? `<div class="muted" style="width:100%">Tabulka ${q.tableSize} planet · ve frontě ${q.total} · zbývá ${q.left} · přeskočeno ${q.skipped} jako hotové</div>` : '')
+      + (r.total ? `<span class="muted" style="margin-right:6px">Zpracováno ${r.total}: ${c.built} postaveno, ${c.nothing} beze změny, ${c.dry} zkušebně, ${c.failed} chyb · posledních ${r.planets.length}:</span>` : '') + r.planets.map((p) => `<span class="bp ${p.state}" title="${esc(p.note)}">${esc(p.name)}</span>`).join('')
       + (on && r.current && !r.planets.some((p) => p.name === r.current) ? `<span class="bp cur">${esc(r.current)} …</span>` : '');
     $('bLog').innerHTML = r.log.length ? r.log.slice().reverse().map((l) => `<div><time>${tm(l.at)}</time>${esc(l.msg)}</div>`).join('') : '<span class="muted">Zatím nic.</span>';
   }
@@ -886,6 +897,10 @@ $('test').onclick = async () => {
   $('bStart').onclick = async () => {
     try { clearTimeout(saveT); await api('/api/build', 'PUT', planFromUi()); B = await api('/api/build/start', 'POST'); renderRun(); }
     catch (e) { toast(e.message, true); }
+  };
+  $('bForget').onclick = async () => {
+    if (!confirm('Smazat historii planet? Příští běh pak znovu projde všechny planety, na kterých je práce.')) return;
+    try { B = await api('/api/build/ledger', 'DELETE'); renderRun(); toast('Historie smazána'); } catch (e) { toast(e.message, true); }
   };
   $('bStop').onclick = async () => { try { B = await api('/api/build/stop', 'POST'); renderRun(); } catch (e) { toast(e.message, true); } };
   poll(); setInterval(poll, 1500);

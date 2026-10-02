@@ -15,6 +15,8 @@ V PRÁCI
 Další dny stačí jen start.cmd. Zastavení: stop.cmd.
 
 STAVĚNÍ
+  - Bot si z tabulky planet pod stavěním sestaví frontu jen planet, kde je ještě co stavět, a přechází klikem na řádek tabulky.
+    Historie planet (spokojenost, co už nejde postavit) je v  %LOCALAPPDATA%\sg-dominatoruild-planets.json  (tlačítko "Zapomenout historii" v aplikaci).
   - V aplikaci karta "Stavění": nastav, co stavět, a dej Spustit. Potřebuje skript z  /stavby.user.js  (nainstaluj ho přes Tampermonkey)
     a otevřenou stránku Stavění ve hře. Nejdřív zkus "Zkušební běh" (vyplní, ale neklikne na Postavit).
 

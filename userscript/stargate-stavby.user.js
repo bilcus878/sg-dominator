@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Stargate dominator – stavění
 // @namespace    sg-dominator
-// @version      1.0.1
-// @description  Na pokyn z aplikace vyplní počty staveb, klikne na Postavit a přepne se na další planetu (pomalu a nepravidelně, jako člověk)
+// @version      1.1.0
+// @description  Na pokyn z aplikace vyplní počty staveb, klikne na Postavit a přejde na další planetu klikem v tabulce planet (pomalu a nepravidelně, jako člověk)
 // @match        https://stargate-game.cz/stavby.php*
 // @match        https://www.stargate-game.cz/stavby.php*
 // @grant        GM_xmlhttpRequest
@@ -50,7 +50,6 @@
     return d ? Number(d) : NaN;
   };
   const submitBtn = () => document.querySelector('input[name="postavit"]');
-  const arrowNext = () => [...document.querySelectorAll('.vyber-planety a')].find((a) => a.textContent.trim() === '»');
 
   /** Spokojenost pod názvem planety: '+ 10%' -> 10, '- 50%' -> -50, '~' -> 0; nerozpoznané -> null. */
   function readSatisfaction() {
@@ -65,7 +64,8 @@
   function readPage() {
     const btn = submitBtn();
     const planet = document.querySelector('.vyber-planety .nazev')?.textContent.trim();
-    if (!btn || !btn.form || !planet) return null;
+    const plId = btn?.form?.elements?.pl_id?.value;
+    if (!btn || !btn.form || !planet || !plId) return null;
     const satisfaction = readSatisfaction();
     const buildings = {};
     for (const id of IDS) {
@@ -74,19 +74,37 @@
       // defaultValue = počet z HTML (aktuálně postaveno), ne to, co jsme zrovna napsali
       buildings[id] = { cur: num(inp.defaultValue), max: num(inp.closest('.stavba')?.querySelector('.max')?.textContent) };
     }
-    return { planet, satisfaction, buildings };
+    return { plId, planet, satisfaction, buildings };
+  }
+
+  // sloupce tabulky planet (#seznam-planet): Planeta, Místo, Města, Výrobny, BS, SDI, PO, KAS, LAB, PAR, HB, Iris
+  const TABLE_COLS = { mesto: 2, vyrobna: 3, bs: 4, sdi: 5, po: 6, kasarna: 7, laborator: 8, park: 9 };
+  /** Tabulka pod stavěním -> [{id, name, c:{stavba: počet}}]. U „430 / 430“ se bere první číslo (postaveno). */
+  function readTable() {
+    return [...document.querySelectorAll('#seznam-planet tr[id^="pl-"]')].map((tr) => {
+      const c = {};
+      for (const [k, i] of Object.entries(TABLE_COLS)) {
+        const cell = tr.cells[i];
+        c[k] = num(cell?.querySelector('span')?.textContent ?? cell?.textContent);
+      }
+      return { id: tr.id.slice(3), name: tr.querySelector('.nazev-planety a')?.textContent.trim(), c };
+    }).filter((r) => r.id && r.name);
   }
 
   // ---------- „lidská“ myš a klávesnice ----------
   let mouse = { x: rnd(300, 700), y: rnd(250, 500) };
   const fire = (el, type, init = {}) => el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, ...init }));
 
+  /** Plynulé rolování k prvku (i o tisíce px, třeba řádek v dlouhé tabulce): kroky se zpomalují, občas krátká pauza. */
   async function ensureVisible(el) {
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 120; i++) {
       const r = el.getBoundingClientRect();
-      if (r.top > 70 && r.bottom < innerHeight - 70) return;
-      window.scrollBy(0, (r.top < 70 ? -1 : 1) * rnd(70, 130));
-      await sleep(rnd(25, 80));
+      if (r.top > 90 && r.bottom < innerHeight - 90) return;
+      const want = r.top + r.height / 2 - innerHeight * rnd(0.35, 0.6);
+      const dist = Math.abs(want);
+      const step = Math.min(dist, Math.max(60, Math.min(900, dist * rnd(0.12, 0.3))) * rnd(0.7, 1.2));
+      window.scrollBy(0, Math.sign(want) * step);
+      await sleep(rnd(18, 70) + (Math.random() < 0.05 ? rnd(150, 400) : 0));
     }
   }
 
@@ -208,17 +226,20 @@
       await clickEl(submitBtn(), speed); // stránka se přenačte, další fázi řeší nové načtení
       return null;
     }
-    if (ins.action === 'next') await goNext(ins);
+    if (ins.action === 'goto') return await goPlanet(ins);
     return null;
   }
 
-  async function goNext(ins) {
+  /** Přechod na jinou planetu klikem na její název v tabulce pod stavěním. */
+  async function goPlanet(ins) {
     const speed = Math.min(2.5, Math.max(0.5, Number(ins.speed) || 1));
-    const a = arrowNext();
-    if (!a || !(await stillActive())) return;
+    const a = document.querySelector(`#pl-${CSS.escape(String(ins.plId))} .nazev-planety a`);
+    if (!a) return await post('/build/report', { phase: 'goto-failed', plId: ins.plId }); // server planetu přeskočí
+    if (!(await stillActive())) return null;
     await pause(rnd(900, 2600) * speed);
     holdUntil = Date.now() + 25000;
     await clickEl(a, speed);
+    return null;
   }
 
   async function tick() {
@@ -231,7 +252,8 @@
         return;
       }
       let ins = await post('/build/report', { phase: 'load', ...page });
-      for (let first = true; ins && (ins.action === 'build' || ins.action === 'next'); first = false) ins = await act(ins, first);
+      if (ins?.action === 'send-table') ins = await post('/build/report', { phase: 'table', ...page, table: readTable() });
+      for (let first = true; ins && (ins.action === 'build' || ins.action === 'goto'); first = false) ins = await act(ins, first);
     } catch (e) {
       console.error('[dominator stavění]', e);
       await post('/build/report', { phase: 'load', scriptError: `${e?.name}: ${e?.message}`.slice(0, 160) }); // ať je chyba vidět v aplikaci

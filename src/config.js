@@ -41,7 +41,7 @@ export const DEFAULTS = {
   telegram: { enabled: false, botToken: '', chatId: '' },
   // automatické stavění: plan = { [id stavby]: { mode: 'skip'|'target'|'max', n } }, parks = { [spokojenost -50|-25|0|5|10]: cílový počet },
   // pace = násobek lidského tempa
-  build: { plan: {}, parks: {}, dryRun: false, pace: 1 },
+  build: { plan: {}, parks: {}, dryRun: false, recheckMax: false, pace: 1 },
 };
 
 function readJson(path) {
@@ -165,6 +165,7 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
     const b = body.build;
     next.build = { ...cur.build, plan: { ...cur.build.plan }, parks: { ...cur.build.parks } };
     if ('dryRun' in b) next.build.dryRun = !!b.dryRun;
+    if ('recheckMax' in b) next.build.recheckMax = !!b.recheckMax;
     if ('pace' in b) next.build.pace = [0.7, 1, 1.6].includes(Number(b.pace)) ? Number(b.pace) : 1;
     for (const [id, p] of Object.entries(b.plan ?? {})) {
       if (!isBuildingId(id) || !p || typeof p !== 'object') continue;
