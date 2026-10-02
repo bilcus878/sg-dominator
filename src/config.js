@@ -35,7 +35,7 @@ export const DEFAULTS = {
   races: {},
   // výjimky pro hráče: { [jméno]: { watch?: true|false, threshold?: číslo } }
   players: {},
-  op: { enabled: false, repeatSec: 10 }, // alert na tečky OP na mapě; repeatSec = připomínka, dokud svítí (0 = jen jednou)
+  op: { enabled: false, repeatSec: 10, vigilance: { enabled: true, minSec: 5, maxSec: 10 } }, // alert na tečky OP na mapě; repeatSec = připomínka, dokud svítí (0 = jen jednou); vigilance = automatické potvrzení tlačítka bdělosti po minSec až maxSec
   watchdog: { enabled: true, staleSec: 30 }, // hlášení, že hlídaná rasa / mapa přestala dodávat data
   discord: { enabled: false, webhookUrl: '' },
   telegram: { enabled: false, botToken: '', chatId: '' },
@@ -155,6 +155,16 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
     next.op = { ...cur.op };
     if ('enabled' in body.op) next.op.enabled = !!body.op.enabled;
     if ('repeatSec' in body.op) next.op.repeatSec = num(body.op.repeatSec, cur.op.repeatSec);
+    if (body.op.vigilance && typeof body.op.vigilance === 'object') {
+      const v = body.op.vigilance;
+      const cv = cur.op.vigilance ?? { enabled: true, minSec: 5, maxSec: 10 };
+      const nv = { ...cv };
+      if ('enabled' in v) nv.enabled = !!v.enabled;
+      if ('minSec' in v) nv.minSec = Math.min(120, Math.max(1, num(v.minSec, cv.minSec)));
+      if ('maxSec' in v) nv.maxSec = Math.min(120, Math.max(1, num(v.maxSec, cv.maxSec)));
+      if (nv.maxSec < nv.minSec) nv.maxSec = nv.minSec;
+      next.op.vigilance = nv;
+    }
   }
   if (body.watchdog && typeof body.watchdog === 'object') {
     next.watchdog = { ...cur.watchdog };

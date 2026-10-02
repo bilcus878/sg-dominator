@@ -154,8 +154,39 @@ async function handleIngestOp(req) {
     console.log(`[alert] OP ${repeat ? 'stále ' : ''}v ${name}`);
     sendText(cfg, formatAlert(a));
   }
-  return [200, { ok: true, alerts: todo.length }];
+  return [200, { ok: true, alerts: todo.length, vigilance: cfg.op.vigilance }];
 }
+
+// tlačítko bdělosti na mapě: skript hlásí, že se objevilo a že ho potvrdil; zaseknuté potvrzení se hlásí do Telegramu
+const vig = { seenAt: 0, clickedAt: 0, count: 0, pending: false, alerted: false };
+const VIG_ALERT_MS = 150_000; // hra dává ~5 minut, upozornit dřív, než je pozdě
+
+async function handleVigilance(req) {
+  if (!authOk(req)) return [401, { error: 'bad token' }];
+  const body = await readJson(req);
+  const now = Date.now();
+  if (body.event === 'seen') {
+    vig.pending = true; vig.seenAt = now; vig.alerted = false;
+    console.log(`[bdělost] tlačítko se objevilo, kliknu za ${Math.round(Number(body.delayMs) / 100) / 10} s`);
+  } else if (body.event === 'clicked') {
+    vig.pending = false; vig.clickedAt = now; vig.count++;
+    console.log('[bdělost] potvrzeno');
+    if (vig.alerted) sendText(cfg, '✅ Tlačítko bdělosti je potvrzené (se zpožděním).');
+    vig.alerted = false;
+  } else if (body.event === 'failed') {
+    const err = typeof body.error === 'string' ? body.error.slice(0, 120) : '';
+    console.log(`[bdělost] potvrzení selhalo: ${err}`);
+    sendText(cfg, `⚠️ Tlačítko bdělosti se nepodařilo potvrdit${err ? ` (${err})` : ''}. Zkontroluj mapu, hrozí přerušení teleskopu.`);
+  } else return [400, { error: 'invalid event' }];
+  return [200, { ok: true }];
+}
+setInterval(() => {
+  const now = Date.now();
+  if (vig.pending && !vig.alerted && now - vig.seenAt > VIG_ALERT_MS) {
+    vig.alerted = true;
+    sendText(cfg, `⚠️ Tlačítko bdělosti čeká na potvrzení už ${Math.round((now - vig.seenAt) / 1000)} s. Zkontroluj mapu, hrozí přerušení teleskopu.`);
+  }
+}, 10_000);
 
 /** Stav pro UI: rasy s hráči a jejich efektivním nastavením hlídání. */
 function buildState() {
@@ -177,7 +208,10 @@ function buildState() {
   });
   const recent = ingestTimes.filter((t) => t > now - 10_000);
   const ratePerSec = recent.length ? recent.length / Math.min(10, (now - recent[0]) / 1000 + 1) : 0;
-  const opState = { enabled: cfg.op.enabled, at: opLastAt, dots: op.current(now) };
+  const opState = {
+    enabled: cfg.op.enabled, at: opLastAt, dots: op.current(now),
+    vigilance: { count: vig.count, lastClickedAt: vig.clickedAt, pendingSince: vig.pending ? vig.seenAt : 0 },
+  };
   return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState };
 }
 
@@ -210,6 +244,7 @@ const buildView = () => [200, { buildings: BUILDINGS, config: cfg.build, run: bu
 const routes = {
   'POST /ingest': handleIngest,
   'POST /ingest-op': handleIngestOp,
+  'POST /vigilance': handleVigilance,
   'POST /build/report': handleBuildReport,
   'GET /api/build': async () => buildView(),
   'PUT /api/build': async (req) => {

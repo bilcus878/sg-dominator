@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Stargate dominator – OP na mapě
 // @namespace    sg-dominator
-// @version      1.0.0
-// @description  Hledá na mapě galaxie svítící tečky (opuštěné planety) a hlásí je lokálnímu notifikátoru (bez zásahu do stránky)
+// @version      1.1.0
+// @description  Hledá na mapě galaxie svítící tečky (opuštěné planety) a hlásí je lokálnímu notifikátoru; potvrzuje tlačítko bdělosti (po náhodné prodlevě)
 // @match        https://stargate-game.cz/mapa.php*
 // @match        https://www.stargate-game.cz/mapa.php*
 // @grant        GM_xmlhttpRequest
@@ -104,8 +104,89 @@
       headers: { 'content-type': 'application/json', 'x-token': TOKEN },
       data: JSON.stringify({ src, sectors: found }),
       timeout: 5000,
+      onload: (r) => { try { const j = JSON.parse(r.responseText); if (j.vigilance) vig = j.vigilance; } catch { /* zůstane poslední známé nastavení */ } },
     });
   }
+
+  // ---------- tlačítko bdělosti ----------
+  // Hra ho tu a tam vytvoří (<input id="kliknout" value="Povrdit">); bez potvrzení se obnova stránky přeruší.
+  // Klikne se až po náhodné prodlevě minSec–maxSec (nastavení v aplikaci), ne hned po objevení.
+  let vig = { enabled: true, minSec: 5, maxSec: 10 }; // přepíše server v odpovědi na /ingest-op
+  let vigSeen = false, vigClicking = false, vigTries = 0;
+  let mouse = { x: 300 + Math.random() * 400, y: 200 + Math.random() * 200 };
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const fire = (el, type, init = {}) => el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, ...init }));
+  const isVisible = (el) => !!(el && (el.offsetWidth || el.offsetHeight) && !el.disabled);
+
+  function postVig(event, extra = {}) {
+    GM_xmlhttpRequest({
+      method: 'POST',
+      url: `${SERVER}/vigilance`,
+      headers: { 'content-type': 'application/json', 'x-token': TOKEN },
+      data: JSON.stringify({ event, ...extra }),
+      timeout: 5000,
+    });
+  }
+
+  /** Doscrolluje k tlačítku, přejede k němu myší po zakřivené dráze a klikne (stisk a puštění s pauzou). */
+  async function humanClick(el) {
+    for (let i = 0; i < 40; i++) {
+      const r = el.getBoundingClientRect();
+      if (r.top > 80 && r.bottom < innerHeight - 80) break;
+      window.scrollBy(0, (r.top < 80 ? -1 : 1) * rnd(60, 140));
+      await sleep(rnd(25, 80));
+    }
+    const r = el.getBoundingClientRect();
+    const t = { x: r.left + r.width * rnd(0.25, 0.75), y: r.top + r.height * rnd(0.3, 0.7) };
+    const c = { x: mouse.x + (t.x - mouse.x) * rnd(0.2, 0.6) + rnd(-80, 80), y: mouse.y + (t.y - mouse.y) * rnd(0.2, 0.6) + rnd(-80, 80) };
+    const from = { ...mouse };
+    const steps = Math.round(rnd(18, 34));
+    for (let i = 1; i <= steps; i++) {
+      const k = i / steps;
+      const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      const x = (1 - e) * (1 - e) * from.x + 2 * (1 - e) * e * c.x + e * e * t.x + rnd(-1, 1);
+      const y = (1 - e) * (1 - e) * from.y + 2 * (1 - e) * e * c.y + e * e * t.y + rnd(-1, 1);
+      fire(document.elementFromPoint(x, y) || document.body, 'mousemove', { clientX: x, clientY: y });
+      await sleep(rnd(6, 22));
+    }
+    mouse = t;
+    fire(el, 'mouseover', { clientX: t.x, clientY: t.y });
+    await sleep(rnd(120, 380));
+    const pt = { clientX: t.x, clientY: t.y, button: 0 };
+    fire(el, 'mousedown', pt);
+    el.focus();
+    await sleep(rnd(50, 140));
+    fire(el, 'mouseup', pt);
+    el.click();
+  }
+
+  function vigilanceTick() {
+    const btn = document.getElementById('kliknout');
+    if (!isVisible(btn)) {
+      if (vigSeen && !vigClicking) { vigSeen = false; vigTries = 0; } // tlačítko zmizelo (potvrzeno nebo vypršelo)
+      return;
+    }
+    if (!vig.enabled || vigSeen) return;
+    vigSeen = true;
+    const lo = Math.max(1, Number(vig.minSec) || 5);
+    const hi = Math.max(lo, Number(vig.maxSec) || 10);
+    const delay = rnd(lo, hi) * 1000;
+    postVig('seen', { delayMs: Math.round(delay) });
+    setTimeout(async () => {
+      const b = document.getElementById('kliknout');
+      if (!isVisible(b)) return; // mezitím zmizelo
+      vigClicking = true;
+      try { await humanClick(b); postVig('clicked'); } catch (e) { postVig('failed', { error: `${e?.name}: ${e?.message}` }); }
+      vigClicking = false;
+      setTimeout(() => { // když tlačítko po kliknutí zůstalo, zkusí to znovu (nejvýš 3×)
+        if (!isVisible(document.getElementById('kliknout'))) return;
+        if (++vigTries >= 3) { postVig('failed', { error: 'tlačítko po 3 kliknutích zůstává' }); return; }
+        vigSeen = false;
+      }, 5000);
+    }, delay);
+  }
+  setInterval(vigilanceTick, 500);
 
   // hra přenačítá obrázek mapy každou vteřinu; čteme ho přesně ve chvíli, kdy se dokončí načtení
   document.addEventListener('load', (e) => { if (e.target && e.target.id === 'galaxie') scan(); }, true);

@@ -294,6 +294,14 @@
         <small>Zpráva přijde, jakmile se tečka v nějakém sektoru objeví. Tečky, které svítily už při zapnutí, se jako nové nehlásí.</small></div>
       <div class="field"><label for="opRepeatSec">Připomínat, dokud tečka svítí – každých (s)</label><input type="number" id="opRepeatSec" min="0">
         <small>Dokud je OP v sektoru vidět, přijde „OP je stále v sektoru …“ po této pauze. 0 = ohlásit jen první objevení.</small></div>
+      <div class="chan">
+        <div class="chan-head"><span>Tlačítko bdělosti</span><label class="sw"><input type="checkbox" id="opVigEnabled"><span></span></label></div>
+        <p class="muted" style="margin-top:0">Jednou za pár minut se na mapě objeví tlačítko <b>Povrdit</b>; bez kliknutí se obnova stránky přeruší a teleskop přestane jet. Skript ho potvrdí sám, ale <b>nikdy hned</b> po objevení, až po náhodné pauze v tomto rozmezí:</p>
+        <div class="two"><div><label for="opVigMin">Nejdřív po (s)</label><input type="number" id="opVigMin" min="1" max="120"></div>
+          <div><label for="opVigMax">Nejpozději po (s)</label><input type="number" id="opVigMax" min="1" max="120"></div></div>
+        <p class="muted" id="opVigStatus" style="margin-bottom:0"></p>
+        <p class="muted" style="margin-bottom:0">Když tlačítko zůstane nepotvrzené déle než 2,5 minuty, přijde zpráva na Telegram. Okno mapy musí být otevřené a viditelné.</p>
+      </div>
       <p class="muted">Skript pro mapu se instaluje z adresy <code>/mapa.user.js</code> (stejně jako ten pro hráče). Aktuální stav vidíš v kartě „OP na mapě“ na hlavní stránce.</p>
     </div>
 
@@ -739,6 +747,12 @@ function renderOp() {
   pill.className = 'oppill ' + cls;
   $('opText').textContent = txt;
   pill.title = op.enabled ? 'OP alert je zapnutý – klikni pro nastavení' : 'OP alert je vypnutý – klikni pro zapnutí v Nastavení → OP';
+  const v = op.vigilance;
+  if (v) {
+    const ago = (t) => { const m = Math.round((S.serverTime - t) / 60000); return m < 1 ? 'před chvílí' : `před ${m} min`; };
+    $('opVigStatus').textContent = v.pendingSince ? `⏳ Tlačítko se objevilo ${ago(v.pendingSince)} a čeká na potvrzení.`
+      : v.count ? `Potvrzeno ${v.count}× od startu aplikace, naposledy ${ago(v.lastClickedAt)}.` : 'Zatím nebylo potvrzeno žádné tlačítko.';
+  }
   $('opDots').innerHTML = op.dots.map((d) => `<span class="opdot sm">🟠 ${esc(d.id)}${/^\d+$/.test(d.label) || !d.label ? '' : ' · ' + esc(d.label)}</span>`).join('');
 }
 $('opPill').onclick = () => { openDrawer(); document.querySelector('[data-tab="op"]').click(); };
@@ -764,7 +778,9 @@ function fillForm() {
   $('criticalPct').value = cfg.criticalPct; $('criticalCooldownSec').value = cfg.criticalCooldownSec; updateCritHint();
   $('wdEnabled').checked = cfg.watchdog.enabled; $('wdStale').value = cfg.watchdog.staleSec;
   $('notifyRecovery').checked = cfg.notifyRecovery; $('repeatWhileBelow').checked = cfg.repeatWhileBelow;
-  $('opRepeatSec').value = cfg.op.repeatSec; $('opEnabled2').checked = cfg.op.enabled; $('dropPct').value = cfg.dropPct; $('dropWindowSec').value = cfg.dropWindowSec;
+  $('opRepeatSec').value = cfg.op.repeatSec; $('opEnabled2').checked = cfg.op.enabled;
+  const vg = cfg.op.vigilance ?? { enabled: true, minSec: 5, maxSec: 10 };
+  $('opVigEnabled').checked = vg.enabled; $('opVigMin').value = vg.minSec; $('opVigMax').value = vg.maxSec; $('dropPct').value = cfg.dropPct; $('dropWindowSec').value = cfg.dropWindowSec;
   $('dEnabled').checked = cfg.discord.enabled; $('dUrl').value = '';
   $('dUrl').placeholder = cfg.discord.configured ? '•••••••• uloženo (nech prázdné)' : 'https://discord.com/api/webhooks/…';
   $('dSaved').textContent = cfg.discord.configured ? '✓ nastaveno' : '';
@@ -790,7 +806,7 @@ $('save').onclick = async () => {
       criticalPct: $('criticalPct').value, criticalCooldownSec: $('criticalCooldownSec').value,
       watchdog: { enabled: $('wdEnabled').checked, staleSec: $('wdStale').value },
       notifyRecovery: $('notifyRecovery').checked, repeatWhileBelow: $('repeatWhileBelow').checked,
-      op: { enabled: $('opEnabled2').checked, repeatSec: $('opRepeatSec').value },
+      op: { enabled: $('opEnabled2').checked, repeatSec: $('opRepeatSec').value, vigilance: { enabled: $('opVigEnabled').checked, minSec: $('opVigMin').value, maxSec: $('opVigMax').value } },
       dropPct: $('dropPct').value, dropWindowSec: $('dropWindowSec').value,
       discord: { enabled: $('dEnabled').checked, webhookUrl: $('dUrl').value },
       telegram: { enabled: $('tEnabled').checked, botToken: $('tToken').value, chatId: $('tChat').value },
