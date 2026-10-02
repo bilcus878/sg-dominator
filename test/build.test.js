@@ -140,7 +140,7 @@ test('běh: planeta mimo frontu se přeskočí a zadaná planeta se otevře', ()
   const table = [row('1', { bs: 100 }), row('2'), row('3', { bs: 100 })];
   const ins = run.report(rep('1', { phase: 'table', table }), c, 1); // jsme na hotové planetě 1, práce je na 2
   assert.deepEqual([ins.action, ins.plId], ['goto', '2']);
-  assert.deepEqual(run.snapshot().queue, { total: 1, left: 1, skipped: 2, tableSize: 3 });
+  assert.deepEqual(run.snapshot().queue, { total: 1, left: 1, skipped: 2, excluded: 0, tableSize: 3 });
 });
 
 test('běh: planety se značkou (CP), (DP), (PP) se z fronty vyřadí, ostatní značky ne', () => {
