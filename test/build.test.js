@@ -25,7 +25,10 @@ test('planChanges: fáze, strop max, žádné snižování, parky podle spokojen
   assert.deepEqual(planChanges(c, page(), 5, 1), { laborator: 50 }); // pro +5 % parky nejsou nastavené
   assert.deepEqual(planChanges(c, page(), null, 1), { laborator: 50 }); // spokojenost nerozpoznána
   assert.deepEqual(planChanges(c, page(), 0, 2), { vyrobna: 500 });
-  assert.deepEqual(planChanges(c, page({ park: { cur: 0, max: 80 } }), -50, 1), { laborator: 50, park: 80 }); // oříznuto na max
+  // park a ostatní se nehledí na max (hra uvolní místo z dolů), město a důl ano
+  assert.deepEqual(planChanges(c, page({ park: { cur: 0, max: 0 }, laborator: { cur: 0, max: 0 } }), -50, 1), { laborator: 50, park: 300 });
+  assert.deepEqual(planChanges(cfg({ plan: { mesto: { mode: 'target', n: 999 } } }), page(), 0, 0), { mesto: 430 });
+  assert.deepEqual(planChanges(cfg({ plan: { bs: { mode: 'target', n: 1000 }, sdi: { mode: 'target', n: 1000 } } }), page({ bs: { cur: 300, max: 0 }, sdi: { cur: 0, max: 0 } }), 0, 1), { bs: 1000, sdi: 1000 });
   assert.deepEqual(planChanges(c, page({ mesto: { cur: 430, max: 430 } }), -50, 0), {}); // města už jsou na maximu
   assert.deepEqual(planChanges(c, page({ park: { cur: 500, max: 600 } }), -50, 1), { laborator: 50 }); // park by se snižoval
 });

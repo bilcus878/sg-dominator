@@ -37,9 +37,14 @@ export const PHASES = [
   { name: 'naquadahový důl', ids: ['vyrobna'] },
 ];
 
+/** Jen u města a dolu je „max“ u políčka skutečný strop; u ostatních staveb si hra místo uvolní z dolů. */
+const CAPPED = new Set(['mesto', 'vyrobna']);
+
 /**
- * Plán -> co vyplnit ve fázi. Políčka ve hře jsou CÍLOVÝ celkový počet staveb, `max` je strop,
- * který stránka u políčka ukazuje. Snižovat počet (bourat) se nikdy nezkouší.
+ * Plán -> co vyplnit ve fázi. Políčka ve hře jsou CÍLOVÝ celkový počet staveb. Cíl se ořezává stropem `max`
+ * jen u města a dolu; ostatní stavby (parky, BS, RL štít…) se píšou přesně, i když je u nich „max“ nižší,
+ * protože hra při postavení uvolní místo zmenšením dolů (ve 3. fázi se důl doplní zpátky).
+ * Snižovat počet (bourat) se nikdy nezkouší.
  * Parky se neřídí `plan`, ale tabulkou `parks` podle spokojenosti planety (sat = -50|-25|0|5|10|null).
  * @returns { [id]: cílový počet } jen pro stavby, které se mají změnit
  */
@@ -47,7 +52,8 @@ export function planChanges(cfgBuild, buildings, sat, phaseIdx) {
   const out = {};
   for (const id of PHASES[phaseIdx].ids) {
     const page = buildings?.[id];
-    if (!page || !Number.isFinite(page.cur) || !Number.isFinite(page.max)) continue;
+    if (!page || !Number.isFinite(page.cur)) continue;
+    const capped = CAPPED.has(id);
     let target;
     if (id === 'park') {
       const n = sat === null || sat === undefined ? undefined : cfgBuild.parks?.[String(sat)];
@@ -59,7 +65,11 @@ export function planChanges(cfgBuild, buildings, sat, phaseIdx) {
       target = p.mode === 'max' ? page.max : Number(p.n);
     }
     if (!Number.isFinite(target)) continue;
-    target = Math.min(Math.floor(target), page.max);
+    if (capped) {
+      if (!Number.isFinite(page.max)) continue;
+      target = Math.min(target, page.max);
+    }
+    target = Math.floor(target);
     if (target > page.cur) out[id] = target;
   }
   return out;

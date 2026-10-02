@@ -204,11 +204,11 @@
     </div>
     <div class="bgrid">
       <div>
-        <p class="muted" style="margin-top:0">Co se má postavit na <b>každé</b> planetě. Číslo je <b>cílový celkový počet</b> (jako políčka ve hře); co už stojí, se nesnižuje a víc než povolené maximum se nezadá.
+        <p class="muted" style="margin-top:0">Co se má postavit na <b>každé</b> planetě. Číslo je <b>cílový celkový počet</b> (jako políčka ve hře); co už stojí, se nesnižuje. U města a dolu se víc než maximum nezadá. U ostatních staveb se píše přesně tvoje číslo, i když je „max“ u políčka nižší, protože hra místo uvolní z dolů (a ve 3. kroku se důl doplní zpátky).
           Na každé planetě bot jde ve třech krocích, každý končí kliknutím na Postavit: <b>1.</b> města, <b>2.</b> ostatní stavby včetně parků, <b>3.</b> naquadahový důl.</p>
         <table class="btable"><thead><tr><th>Stavba</th><th>Režim</th><th class="n">Cílový počet</th></tr></thead><tbody id="bRows"></tbody></table>
         <h2 style="margin:18px 0 6px">Chodba harmonie podle spokojenosti</h2>
-        <p class="muted" style="margin:0 0 8px">Bot přečte pod názvem planety spokojenost obyvatel a postaví tolik parků, kolik je tady u dané hodnoty. Prázdné políčko = na takové planetě parky nestavět. Planeta bez rozpoznané spokojenosti parky přeskočí.</p>
+        <p class="muted" style="margin:0 0 8px">Bot přečte pod názvem planety spokojenost obyvatel a nastaví tolik parků, kolik je tady u dané hodnoty (nehledí na maximum, hra uvolní místo z dolů). Prázdné políčko = na takové planetě parky nestavět. Planeta bez rozpoznané spokojenosti parky přeskočí.</p>
         <table class="btable"><thead><tr><th>Spokojenost</th><th class="n">Cílový počet parků</th></tr></thead><tbody id="bParks"></tbody></table>
         <div class="bopts">
           <label style="margin:0">Tempo
