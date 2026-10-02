@@ -147,15 +147,17 @@ async function handleIngestOp(req) {
   opLastAt = now;
   // tracker běží i při vypnutém alertu (silent), ať se po zapnutí nehlásí staré tečky
   const { fresh, repeats } = op.update(sectors, now, { repeatMs: cfg.op.repeatSec * 1000, silent: !cfg.op.enabled });
-  const todo = [...fresh.map((f) => ({ f, repeat: false })), ...repeats.map((f) => ({ f, repeat: true }))];
-  for (const { f, repeat } of todo) {
-    const name = /^\d+$/.test(f.label) || !f.label ? `Sektor ${f.id}` : `Sektor ${f.id} (${f.label})`;
-    const a = { name, power: 0, prev: null, reason: 'op', race: null, repeat };
+  // jedna souhrnná zpráva za celou mapu (počet OP + sektory), ne zpráva za každý sektor
+  const notify = fresh.length > 0 || repeats.length > 0;
+  if (notify) {
+    op.markAllNotified(now); // připomínka pak přijde zase až po repeatSec pro všechny tečky naráz
+    const list = sectors.map((s) => (/^\d+$/.test(s.label) || !s.label ? `Sektor ${s.id}` : `Sektor ${s.id} (${s.label})`)).join(', ');
+    const a = { name: `${sectors.length}× OP – ${list}`, power: sectors.length, prev: null, reason: 'op', race: null, repeat: !fresh.length, count: sectors.length, sectors: list };
     db.recordAlert(now, a);
-    console.log(`[alert] OP ${repeat ? 'stále ' : ''}v ${name}`);
+    console.log(`[alert] OP ${a.repeat ? 'stále ' : ''}na mapě: ${a.name}`);
     sendText(cfg, formatAlert(a));
   }
-  return [200, { ok: true, alerts: todo.length, vigilance: cfg.op.vigilance, telescope: cfg.op.telescope }];
+  return [200, { ok: true, alerts: notify ? 1 : 0, vigilance: cfg.op.vigilance, telescope: cfg.op.telescope }];
 }
 
 // tlačítko bdělosti na mapě: skript hlásí, že se objevilo a že ho potvrdil; zaseknuté potvrzení se hlásí do Telegramu

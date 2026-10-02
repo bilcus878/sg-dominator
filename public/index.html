@@ -331,7 +331,7 @@
         <span class="sw"><input type="checkbox" id="opEnabled2"><span></span></span> Zapnout OP automat: hlásit OP, sám zapínat teleskop a potvrzovat bdělost</label>
         <small>Zapnuto = bot na mapě jedná sám: sám zapne zastavený teleskop, potvrzuje tlačítko bdělosti a pošle zprávu, jakmile se tečka v nějakém sektoru objeví. Vypnuto = bot nic nedělá a nehlásí. Stejný vypínač je nahoře v hlavičce. Tečky, které svítily už při zapnutí, se jako nové nehlásí.</small></div>
       <div class="field"><label for="opRepeatSec">Připomínat, dokud tečka svítí – každých (s)</label><input type="number" id="opRepeatSec" min="0">
-        <small>Dokud je OP v sektoru vidět, přijde „OP je stále v sektoru …“ po této pauze. 0 = ohlásit jen první objevení.</small></div>
+        <small>Při objevení nového OP přijde jedna zpráva s celkovým počtem OP na mapě a seznamem sektorů. Dokud nějaký OP svítí, přijde po této pauze jedna připomínka „OP stále na mapě: počet“. 0 = ohlásit jen objevení.</small></div>
       <div class="chan">
         <div class="chan-head"><span>Tlačítko bdělosti</span><label class="sw"><input type="checkbox" id="opVigEnabled"><span></span></label></div>
         <p class="muted" style="margin-top:0">Jednou za pár minut se na mapě objeví tlačítko <b>Povrdit</b>; bez kliknutí se obnova stránky přeruší a teleskop přestane jet. Skript ho potvrdí sám, ale <b>nikdy hned</b> po objevení, až po náhodné pauze v tomto rozmezí:</p>

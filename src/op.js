@@ -45,5 +45,10 @@ export function createOpTracker() {
   const current = (now = Date.now()) =>
     [...active].filter(([, e]) => now - e.lastSeen < CURRENT_MS).map(([id, e]) => ({ id, label: e.label, since: e.firstSeen }));
 
-  return { update, current };
+  /** Všechny svítící tečky se berou jako právě ohlášené (souhrnná zpráva pokryla celou mapu). */
+  function markAllNotified(now = Date.now()) {
+    for (const e of active.values()) e.notifiedAt = now;
+  }
+
+  return { update, current, markAllNotified };
 }

@@ -1,7 +1,10 @@
 const fmt = (n) => Math.round(n).toLocaleString('cs-CZ').replace(/ /g, ' ');
 
 export function formatAlert(a) {
-  if (a.reason === 'op') return a.repeat ? `❗🟠 OP je stále v: ${a.name}` : `🚨🟠 OP! Opuštěná planeta – ${a.name}`;
+  if (a.reason === 'op') {
+    if (a.count == null) return a.repeat ? `❗🟠 OP je stále v: ${a.name}` : `🚨🟠 OP! Opuštěná planeta – ${a.name}`;
+    return a.repeat ? `❗🟠 OP stále na mapě: ${a.count}\n${a.sectors}` : `🚨🟠 OP! Na mapě je ${a.count} OP\n${a.sectors}`;
+  }
   const tag = a.race ? `[${a.race}] ` : '';
   return tag + formatBody(a);
 }
