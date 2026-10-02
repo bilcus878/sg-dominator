@@ -6,8 +6,12 @@ export function formatAlert(a) {
     return a.repeat ? `❗🟠 OP stále na mapě: ${a.count}\n${a.sectors}` : `🚨🟠 OP! Na mapě je ${a.count} OP\n${a.sectors}`;
   }
   const tag = a.race ? `[${a.race}] ` : '';
+  if (a.reason === 'target') return `🎯 K DOBYTÍ: ${tag}${a.name} – síla ${dots(a.power)}${a.planets != null ? ` (${dots(a.planets)} planet)` : ''}`;
+  if (a.reason === 'released') return `✅ ${tag}${a.name} už není k dobytí – síla ${dots(a.power)}${a.since ? ` (cílem byl ${dur(Date.now() - a.since)})` : ''}`;
   return tag + formatBody(a);
 }
+
+const dots = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); // 8.200.000
 
 const dur = (ms) => {
   const s = Math.round(ms / 1000);

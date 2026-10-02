@@ -14,12 +14,14 @@ import { resolveWatch } from './watch.js';
 import { createWatchdog } from './watchdog.js';
 import { BUILDINGS, createBuildRun } from './build.js';
 import { createTelescope } from './telescope.js';
+import { createConquest, CONQUEST_DEFAULTS } from './conquest.js';
 
 // data bydlela dřív ve složce projektu (Dropbox); při prvním spuštění se přesunou mimo ni
 if (USING_DEFAULT_DIR) migrateLegacyData(LEGACY_DATA_DIR, DATA_DIR);
 let cfg = loadConfig();
 if (process.env.SG_PORT) cfg.port = Number(process.env.SG_PORT);
 const state = createState();
+const conquest = createConquest(); // cizí rasy: kdo je k dobytí
 const store = createStore();
 const op = createOpTracker();
 let opLastAt = 0;
@@ -80,10 +82,13 @@ function parsePlayers(body) {
     // počet planet a jeho změna ze hry jsou nepovinné (starší userscript je neposílá)
     if (Number.isInteger(p.planets) && p.planets >= 0 && p.planets < 1e6) q.planets = p.planets;
     if (Number.isInteger(p.planetsDelta) && Math.abs(p.planetsDelta) < 1e6) q.planetsDelta = p.planetsDelta;
+    if (typeof p.attackable === 'boolean') q.attackable = p.attackable; // sloupec Útok ve hře (false = „nelze“)
     out.push(q);
   }
   return out;
 }
+
+const raceRole = (id) => cfg.races[id]?.role ?? 'defend';
 
 /** Rasu při prvním výskytu zaregistruje jako vypnutou (hlídání zapneš v jejím panelu). */
 function registerRace(raceId, name) {
@@ -92,6 +97,7 @@ function registerRace(raceId, name) {
     cfg.races[raceId] = {
       name: name || `Rasa #${raceId}`,
       mode: 'off', // nová rasa se nehlídá, dokud ji nezapneš
+      role: 'attack', // nová rasa je cizí (k dobytí); naši rasu přepneš v jejím panelu
       threshold: null,
       criticalPct: null,
     };
@@ -122,12 +128,20 @@ async function handleIngest(req) {
   db.recordChanges(now, players, lastWritten);
 
   const raceLabel = cfg.races[raceId].name;
+  const attack = raceRole(raceId) === 'attack';
   const resolved = players.map((p) => {
     playerRace.set(p.name, raceId);
     const { watched, threshold, critical } = resolveWatch(cfg, raceId, p.name);
     return { ...p, watched, threshold, critical };
   });
-  const alerts = evaluate(state, resolved, cfg, now);
+  // cizí rasa: hlídá se „k dobytí“, ne pokles pod práh (stav pravidel se ale vede dál, ať přepnutí nespamuje)
+  const alerts = evaluate(state, attack ? resolved.map((p) => ({ ...p, watched: false })) : resolved, cfg, now);
+  if (attack) {
+    for (const ev of conquest.evaluate(raceId, resolved, { ...CONQUEST_DEFAULTS, ...cfg.conquest }, now)) {
+      const p = players.find((x) => x.name === ev.name);
+      alerts.push({ name: ev.name, power: ev.power, prev: null, reason: ev.type, planets: p?.planets ?? null, since: ev.since });
+    }
+  }
   for (const a of alerts) {
     a.race = raceLabel;
     db.recordAlert(now, a);
@@ -226,13 +240,14 @@ function buildState() {
       id,
       name: rec.name,
       mode: rec.mode,
+      role: rec.role ?? 'defend',
       threshold: rec.threshold,
       criticalPct: rec.criticalPct ?? null,
       at: snap.at,
       sources: snap.sources,
       players: snap.players.map((p) => ({
         name: p.name, power: p.power, planets: p.planets ?? null, planetsDelta: p.planetsDelta ?? null,
-        powerDelta: p.powerDelta, powerAt: p.powerAt, ...resolveWatch(cfg, id, p.name),
+        powerDelta: p.powerDelta, powerAt: p.powerAt, attackable: p.attackable ?? null, ...conquest.status(id, p.name), ...resolveWatch(cfg, id, p.name),
       })),
     };
   });
@@ -322,6 +337,7 @@ const routes = {
     saveConfig(cfg);
     store.clear();
     state.clear();
+    conquest.clear();
     playerRace.clear();
     lastWritten.clear();
     return [200, publicConfig(cfg)];

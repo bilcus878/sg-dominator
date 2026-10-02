@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator
 // @namespace    sg-dominator
-// @version      3.1.0
+// @version      3.2.0
 // @description  Čte tabulku hráčů a posílá sílu na lokální notifikační server (bez zásahu do stránky)
 // @match        https://stargate-game.cz/vesmir.php*
 // @match        https://www.stargate-game.cz/vesmir.php*
@@ -49,12 +49,13 @@
     let nameIdx = 1;
     let powerIdx = 4;
     let planetsIdx = -1;
+    let attackIdx = -1;
     for (const tr of document.querySelectorAll('tr')) {
       const td = tr.querySelectorAll(':scope > td, :scope > th');
       const texts = [...td].map((c) => c.textContent.trim());
       const iName = texts.findIndex((t) => /^Jméno/i.test(t));
       const iPower = texts.findIndex((t) => /^Síla/i.test(t));
-      if (iName >= 0 && iPower >= 0) { nameIdx = iName; powerIdx = iPower; planetsIdx = texts.findIndex((t) => /^Planety/i.test(t)); continue; }
+      if (iName >= 0 && iPower >= 0) { nameIdx = iName; powerIdx = iPower; planetsIdx = texts.findIndex((t) => /^Planety/i.test(t)); attackIdx = texts.findIndex((t) => /^Útok/i.test(t)); continue; }
       if (td.length <= Math.max(nameIdx, powerIdx) || !/^\d+\.$/.test(texts[0])) continue;
       const name = (td[nameIdx].querySelector('a')?.textContent ?? td[nameIdx].textContent).trim();
       const power = cellNumber(td[powerIdx]);
@@ -66,6 +67,10 @@
         if (Number.isFinite(planets)) p.planets = planets;
         const d = texts[planetsIdx].match(/([+\-−–])\s*(\d[\d\s ]*)$/);
         if (d) p.planetsDelta = (d[1] === '+' ? 1 : -1) * Number(d[2].replace(/\D/g, ''));
+      }
+      if (attackIdx >= 0 && td[attackIdx]) {
+        // Útok: odkaz/ikona = zaútočit jde, „nelze“ nebo prázdno = nejde
+        p.attackable = !/nelze/i.test(texts[attackIdx]) && !!td[attackIdx].querySelector('a, img');
       }
       players.push(p);
     }

@@ -5,6 +5,7 @@ import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { isBuildingId, isSatKey } from './build.js';
 import { VIGILANCE_DEFAULTS, TELESCOPE_DEFAULTS } from './telescope.js';
+import { CONQUEST_DEFAULTS } from './conquest.js';
 
 /**
  * Datová složka (config s tajnými tokeny + databáze). Záměrně MIMO složku projektu,
@@ -32,11 +33,13 @@ export const DEFAULTS = {
   repeatWhileBelow: true, // opakovat zprávu po každé pauze, dokud je hráč pod prahem
   minDrop: 0, // pod prahem hlásit další pokles jen o aspoň tolik
   notifyRecovery: false, // hlásit i návrat nad práh
-  // rasy: { [id]: { name, mode: 'off'|'all'|'selected', threshold: číslo|null, criticalPct: číslo|null } }
+  // rasy: { [id]: { name, mode: 'off'|'all'|'selected', role: 'defend'|'attack', threshold: číslo|null, criticalPct: číslo|null } }
+  // role: defend = naše rasa (hlídá se pokles pod práh), attack = cizí rasa (hlídá se „k dobytí“ podle conquest)
   races: {},
   // výjimky pro hráče: { [jméno]: { watch?: true|false, threshold?: číslo } }
   players: {},
   op: { enabled: false, repeatSec: 10, vigilance: { ...VIGILANCE_DEFAULTS }, telescope: { ...TELESCOPE_DEFAULTS } }, // alert na tečky OP na mapě; repeatSec = připomínka, dokud svítí (0 = jen jednou); vigilance = automatické potvrzení tlačítka bdělosti po minSec až maxSec
+  conquest: { ...CONQUEST_DEFAULTS }, // cizí rasy: k dobytí pod `below`, konec až nad `above`
   watchdog: { enabled: true, staleSec: 30 }, // hlášení, že hlídaná rasa / mapa přestala dodávat data
   discord: { enabled: false, webhookUrl: '' },
   telegram: { enabled: false, botToken: '', chatId: '' },
@@ -136,6 +139,7 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
         }
         rec.mode = r.mode;
       }
+      if (['defend', 'attack'].includes(r.role)) rec.role = r.role;
       if ('threshold' in r) rec.threshold = r.threshold === null || r.threshold === '' ? null : num(r.threshold, rec.threshold);
       if ('criticalPct' in r) rec.criticalPct = r.criticalPct === null || r.criticalPct === '' ? null : Math.min(100, num(r.criticalPct, rec.criticalPct ?? 0));
       if (typeof r.name === 'string' && r.name.trim()) rec.name = r.name.trim().slice(0, 64);
@@ -183,6 +187,13 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
       if (nt.reactMaxSec < nt.reactMinSec) nt.reactMaxSec = nt.reactMinSec;
       next.op.telescope = nt;
     }
+  }
+  if (body.conquest && typeof body.conquest === 'object') {
+    const c = { ...CONQUEST_DEFAULTS, ...cur.conquest };
+    if ('below' in body.conquest) c.below = Math.min(1e12, num(body.conquest.below, c.below));
+    if ('above' in body.conquest) c.above = Math.min(1e12, num(body.conquest.above, c.above));
+    if (c.above < c.below) c.above = c.below; // konec nikdy pod začátkem
+    next.conquest = c;
   }
   if (body.watchdog && typeof body.watchdog === 'object') {
     next.watchdog = { ...cur.watchdog };
