@@ -166,6 +166,11 @@ async function handleIngestOp(req) {
   // tracker běží i při vypnutém alertu (silent), ať se po zapnutí nehlásí staré tečky
   const { fresh, repeats } = op.update(sectors, now, { repeatMs: cfg.op.repeatSec * 1000, silent: !cfg.op.enabled });
   // jedna souhrnná zpráva za celou mapu (počet OP + sektory), ne zpráva za každý sektor
+  if (fresh.length && cfg.op.enabled) {
+    const r = tele.opAppeared(cfg.op, now);
+    if (r.rest) console.log(`[teleskop] šetření po OP: zastavím za ${Math.round((r.stopAt - now) / 1000)} s, zapnu zpět za ${Math.round((r.restUntil - now) / 1000)} s`);
+    else console.log('[teleskop] šetření po OP tentokrát ne, teleskop jede dál');
+  }
   const notify = fresh.length > 0 || repeats.length > 0;
   if (notify) {
     op.markAllNotified(now); // připomínka pak přijde zase až po repeatSec pro všechny tečky naráz
@@ -224,6 +229,7 @@ async function handleTelescope(req) {
   const state = body.state === 'stopped' ? 'stopped' : 'active';
   if (!cfg.op.enabled) { tele.noteState(state); return [200, { action: 'none' }]; } // OP vypnuto: teleskop se nezapíná
   const r = tele.telescopeState({ state, remainingSec: remaining }, cfg.op, now);
+  if (r.action === 'stop') console.log('[teleskop] šetření po OP: zastavuji');
   if (state !== teleLast) { teleLast = state; console.log(`[teleskop] ${state === 'active' ? 'aktivní' : 'zastavený'}`); }
   if (r.alert === 'zero') console.log('[teleskop] je zastavený a nezbývá mu žádný čas, nelze ho aktivovat'); // na Telegram se o teleskopu nic neposílá
   return [200, r];

@@ -185,6 +185,13 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
       if ('auto' in t) nt.auto = !!t.auto;
       for (const k of ['reactMinSec', 'reactMaxSec']) if (k in t) nt[k] = Math.min(600, Math.max(1, num(t[k], ct[k])));
       if (nt.reactMaxSec < nt.reactMinSec) nt.reactMaxSec = nt.reactMinSec;
+      if ('restEnabled' in t) nt.restEnabled = !!t.restEnabled;
+      if ('restChance' in t) nt.restChance = Math.min(100, num(t.restChance, ct.restChance));
+      for (const k of ['restStopMin', 'restStopMax', 'restResumeMin', 'restResumeMax']) if (k in t) nt[k] = Math.min(240, Math.max(5, num(t[k], ct[k])));
+      if (nt.restStopMax < nt.restStopMin) nt.restStopMax = nt.restStopMin;
+      if (nt.restResumeMax < nt.restResumeMin) nt.restResumeMax = nt.restResumeMin;
+      if (nt.restResumeMin < nt.restStopMax + 60) nt.restResumeMin = Math.min(240, nt.restStopMax + 60); // ať má smysl zastavovat
+      if (nt.restResumeMax < nt.restResumeMin) nt.restResumeMax = nt.restResumeMin;
       next.op.telescope = nt;
     }
   }

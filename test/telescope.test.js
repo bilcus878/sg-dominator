@@ -97,9 +97,52 @@ test('sanitizeUpdate: nastavení vynechávání a teleskopu se čistí a doplňu
   assert.deepEqual([v.skipMin, v.skipMax], [9, 9]); // max nikdy pod min
   assert.deepEqual([v.downMin, v.downMax], [20, 20]);
   assert.deepEqual([v.minSec, v.maxSec], [7, 10]);
-  assert.deepEqual(next.op.telescope, { auto: false, reactMinSec: 30, reactMaxSec: 30 });
+  assert.deepEqual(next.op.telescope, { ...TELESCOPE_DEFAULTS, auto: false, reactMinSec: 30, reactMaxSec: 30 });
+  const rest = sanitizeUpdate(next, { op: { telescope: { restStopMin: 100, restStopMax: 50, restResumeMin: 120, restResumeMax: 999 } } }).op.telescope;
+  assert.deepEqual([rest.restStopMin, rest.restStopMax], [100, 100]); // max nikdy pod min
+  assert.equal(rest.restResumeMin, 160); // zapnout zpět aspoň minutu po zastavení
+  assert.equal(rest.restResumeMax, 240); // nejpozději 4 min od OP, ať teleskop jede před dalším
   const clamped = sanitizeUpdate(next, { op: { vigilance: { skipMin: 999, downMax: 99999 }, telescope: { reactMaxSec: 99999 } } });
   assert.equal(clamped.op.vigilance.skipMin, 50);
   assert.equal(clamped.op.vigilance.downMax, 240);
   assert.equal(clamped.op.telescope.reactMaxSec, 600);
+});
+
+test('šetření po OP: zastaví po prodlevě, zapne zpět včas a vždy jede dřív než za 5 minut', () => {
+  const seq = [0.0, 0.5, 0.5]; // šance projde (0 < 80 %), prodleva a návrat uprostřed rozsahu
+  let i = 0;
+  const tele = createTelescope({ rand: () => seq[i++] ?? 0.99 });
+  const cfg = op({}, { reactMinSec: 10, reactMaxSec: 40 });
+  const r = tele.opAppeared(cfg, 0);
+  assert.equal(r.rest, true);
+  assert.equal(r.stopAt, 55_000); // 20 + 0,5·70 s
+  assert.equal(r.restUntil, 197_500); // 165 + 0,5·65 s
+  assert.deepEqual(tele.telescopeState({ state: 'active', remainingSec: 5000 }, cfg, 30_000), { action: 'none' });
+  const stop = tele.telescopeState({ state: 'active', remainingSec: 5000 }, cfg, 56_000);
+  assert.equal(stop.action, 'stop');
+  assert.deepEqual(tele.telescopeState({ state: 'active', remainingSec: 5000 }, cfg, 60_000), { action: 'none' }, 'zastavit jen jednou');
+  assert.equal(tele.telescopeState({ state: 'stopped', remainingSec: 5000 }, cfg, 100_000).action, 'wait');
+  const act = tele.telescopeState({ state: 'stopped', remainingSec: 5000 }, cfg, 200_000);
+  assert.equal(act.action, 'activate');
+  assert.ok(200_000 + act.delayMs < 5 * 60_000 - 20_000, 'aktivace stihne konec 5min okna');
+});
+
+test('šetření po OP: s pomalou reakcí se aktivace zkrátí, aby teleskop jel před dalším OP', () => {
+  const seq = [0.0, 0.5, 0.99];
+  let i = 0;
+  const tele = createTelescope({ rand: () => seq[i++] ?? 0.99 });
+  const cfg = op({}, { reactMinSec: 500, reactMaxSec: 600 });
+  tele.opAppeared(cfg, 0);
+  tele.telescopeState({ state: 'active', remainingSec: 5000 }, cfg, 60_000);
+  const act = tele.telescopeState({ state: 'stopped', remainingSec: 5000 }, cfg, 235_000);
+  assert.equal(act.action, 'activate');
+  assert.ok(235_000 + act.delayMs <= 5 * 60_000 - 20_000);
+});
+
+test('šetření po OP: někdy (podle šance) teleskop nechá běžet; vypnuté šetření nic nedělá', () => {
+  const tele = createTelescope({ rand: () => 0.95 });
+  assert.equal(tele.opAppeared(op(), 0).rest, false); // 95 % >= 80 % šance
+  assert.deepEqual(tele.telescopeState({ state: 'active', remainingSec: 5000 }, op(), 120_000), { action: 'none' });
+  const off = createTelescope({ rand: () => 0 });
+  assert.equal(off.opAppeared(op({}, { restEnabled: false }), 0).rest, false);
 });

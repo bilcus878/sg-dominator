@@ -369,6 +369,14 @@
         <p class="muted" style="margin-top:0">Když je teleskop zastavený (<b>Stav teleskopu: Zastaven</b>), bot po lidské prodlevě klikne na <b>Aktivovat teleskop</b>. Po záměrně vynechané bdělosti počká celou dobu „pauzy“ výše. Když teleskopu nezbývá žádný čas nebo se aktivace třikrát nepovede, jen to zapíše do logu (na Telegram se o teleskopu nic neposílá). <b>Pozor:</b> když teleskop zastavíš ručně, vypni tenhle přepínač, jinak ho bot zase zapne.</p>
         <div class="two"><div><label for="opReactMin">Aktivovat nejdřív po (s)</label><input type="number" id="opReactMin" min="1" max="600"></div>
           <div><label for="opReactMax">… nejpozději po (s)</label><input type="number" id="opReactMax" min="1" max="600"></div></div>
+        <div class="field" style="margin-top:14px"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
+          <span class="sw"><input type="checkbox" id="opRestEnabled"><span></span></span> Šetřit teleskop po OP</label>
+          <small>Další OP se objeví nejdřív 5 minut po předchozím. Po objevení OP proto bot teleskop po lidské prodlevě <b>zastaví</b> a v náhodném čase ho zase <b>zapne</b> – vždycky tak, aby jel dřív než za 5 minut. Ne pokaždé (podle šance níže), ať to nemá pravidelný vzorec.</small></div>
+        <div class="two"><div><label for="opRestChance">Šance, že šetří (%)</label><input type="number" id="opRestChance" min="0" max="100"></div><div></div></div>
+        <div class="two" style="margin-top:10px"><div><label for="opRestStopMin">Zastavit po OP nejdřív za (s)</label><input type="number" id="opRestStopMin" min="5" max="240"></div>
+          <div><label for="opRestStopMax">… nejpozději za (s)</label><input type="number" id="opRestStopMax" min="5" max="240"></div></div>
+        <div class="two" style="margin-top:10px"><div><label for="opRestResumeMin">Zapnout zpět nejdřív (s od OP)</label><input type="number" id="opRestResumeMin" min="5" max="240"></div>
+          <div><label for="opRestResumeMax">… nejpozději (s od OP, max 240)</label><input type="number" id="opRestResumeMax" min="5" max="240"></div></div>
         <p class="muted" id="opTeleStatus" style="margin-bottom:0"></p>
       </div>
       <p class="muted">Skript pro mapu se instaluje z adresy <code>/mapa.user.js</code> (stejně jako ten pro hráče). Aktuální stav vidíš v kartě „OP na mapě“ na hlavní stránce.</p>
@@ -909,6 +917,10 @@ function renderOp() {
     const inMin = (t) => Math.max(1, Math.round((t - S.serverTime) / 60000));
     const parts = [tl.state === 'active' ? '🔭 Teleskop jede' : tl.state === 'stopped' ? '⏸ Teleskop je zastavený' : 'Stav teleskopu zatím neznám'];
     if (tl.state === 'stopped' && tl.downUntil > S.serverTime) parts.push(`záměrná pauza, zapnu za ~${inMin(tl.downUntil)} min`);
+    const inSec = (t) => Math.max(1, Math.round((t - S.serverTime) / 1000));
+    if (tl.stopAt > S.serverTime) parts.push(`po OP zastavím za ~${inSec(tl.stopAt)} s`);
+    if (tl.restUntil > S.serverTime) parts.push(`šetřím po OP, zapnu za ~${inSec(tl.restUntil)} s`);
+    if (tl.rested) parts.push(`ušetřeno ${tl.rested}×`);
     if (tl.blockedUntil > S.serverTime) parts.push(`aktivace pozastavena na ~${inMin(tl.blockedUntil)} min (nepovedla se)`);
     if (tl.untilSkip !== null) parts.push(`další vynechání bdělosti po ${tl.untilSkip} potvrzeních`);
     if (tl.skipped) parts.push(`vynecháno ${tl.skipped}×`);
@@ -947,7 +959,8 @@ function fillForm() {
   $('opVigSkip').checked = vg.skipEnabled ?? true; $('opSkipMin').value = vg.skipMin ?? 5; $('opSkipMax').value = vg.skipMax ?? 10;
   $('opDownMin').value = vg.downMin ?? 3; $('opDownMax').value = vg.downMax ?? 15;
   const te = cfg.op.telescope ?? { auto: true, reactMinSec: 10, reactMaxSec: 40 };
-  $('opTeleAuto').checked = te.auto; $('opReactMin').value = te.reactMinSec; $('opReactMax').value = te.reactMaxSec; $('dropPct').value = cfg.dropPct; $('dropWindowSec').value = cfg.dropWindowSec;
+  $('opTeleAuto').checked = te.auto; $('opReactMin').value = te.reactMinSec; $('opReactMax').value = te.reactMaxSec;
+  $('opRestEnabled').checked = te.restEnabled ?? true; $('opRestChance').value = te.restChance ?? 80; $('opRestStopMin').value = te.restStopMin ?? 20; $('opRestStopMax').value = te.restStopMax ?? 90; $('opRestResumeMin').value = te.restResumeMin ?? 165; $('opRestResumeMax').value = te.restResumeMax ?? 230; $('dropPct').value = cfg.dropPct; $('dropWindowSec').value = cfg.dropWindowSec;
   $('dEnabled').checked = cfg.discord.enabled; $('dUrl').value = '';
   $('dUrl').placeholder = cfg.discord.configured ? '•••••••• uloženo (nech prázdné)' : 'https://discord.com/api/webhooks/…';
   $('dSaved').textContent = cfg.discord.configured ? '✓ nastaveno' : '';
@@ -1009,7 +1022,7 @@ $('save').onclick = async () => {
       criticalPct: $('criticalPct').value, criticalCooldownSec: $('criticalCooldownSec').value,
       watchdog: { enabled: $('wdEnabled').checked, staleSec: $('wdStale').value },
       notifyRecovery: $('notifyRecovery').checked, repeatWhileBelow: $('repeatWhileBelow').checked,
-      op: { enabled: $('opEnabled2').checked, repeatSec: $('opRepeatSec').value, vigilance: { enabled: $('opVigEnabled').checked, minSec: $('opVigMin').value, maxSec: $('opVigMax').value, skipEnabled: $('opVigSkip').checked, skipMin: $('opSkipMin').value, skipMax: $('opSkipMax').value, downMin: $('opDownMin').value, downMax: $('opDownMax').value }, telescope: { auto: $('opTeleAuto').checked, reactMinSec: $('opReactMin').value, reactMaxSec: $('opReactMax').value } },
+      op: { enabled: $('opEnabled2').checked, repeatSec: $('opRepeatSec').value, vigilance: { enabled: $('opVigEnabled').checked, minSec: $('opVigMin').value, maxSec: $('opVigMax').value, skipEnabled: $('opVigSkip').checked, skipMin: $('opSkipMin').value, skipMax: $('opSkipMax').value, downMin: $('opDownMin').value, downMax: $('opDownMax').value }, telescope: { auto: $('opTeleAuto').checked, reactMinSec: $('opReactMin').value, reactMaxSec: $('opReactMax').value, restEnabled: $('opRestEnabled').checked, restChance: $('opRestChance').value, restStopMin: $('opRestStopMin').value, restStopMax: $('opRestStopMax').value, restResumeMin: $('opRestResumeMin').value, restResumeMax: $('opRestResumeMax').value } },
       dropPct: $('dropPct').value, dropWindowSec: $('dropWindowSec').value,
       discord: { enabled: $('dEnabled').checked, webhookUrl: $('dUrl').value },
       telegram: { enabled: $('tEnabled').checked, botToken: $('tToken').value, chatId: $('tChat').value },

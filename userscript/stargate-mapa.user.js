@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – OP na mapě
 // @namespace    sg-dominator
-// @version      1.2.1
+// @version      1.3.0
 // @description  Hledá na mapě galaxie svítící tečky (opuštěné planety) a hlásí je lokálnímu notifikátoru; potvrzuje tlačítko bdělosti (po náhodné prodlevě) a zapíná zastavený teleskop
 // @match        https://stargate-game.cz/mapa.php*
 // @match        https://www.stargate-game.cz/mapa.php*
@@ -115,7 +115,7 @@
   // se po lidské prodlevě znovu aktivuje, po vynechané bdělosti až po delší „pauze“. Rozhoduje server (drží stav).
   let vig = { enabled: true, minSec: 5, maxSec: 10 }; // přepíše server v odpovědi na /ingest-op
   let vigSeen = false, vigClicking = false, vigTries = 0;
-  let teleScheduled = false, teleClicking = false, teleLastPost = 0, teleLastActive = 0;
+  let teleScheduled = false, teleClicking = false, teleStopping = false, teleLastPost = 0, teleLastActive = 0;
   let mouse = { x: 300 + Math.random() * 400, y: 200 + Math.random() * 200 };
   const rnd = (a, b) => a + Math.random() * (b - a);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -213,7 +213,16 @@
     const now = Date.now();
     if (!t.stopped) {
       teleScheduled = false;
-      if (now - teleLastActive > 30000) { teleLastActive = now; postJson('/telescope', { event: 'state', state: 'active', remainingSec: t.remainingSec }); }
+      if (teleStopping || now - teleLastActive < 10000) return; // jede: hlásit max jednou za 10 s (server může po OP říct „zastav“)
+      teleLastActive = now;
+      const dec = await postJson('/telescope', { event: 'state', state: 'active', remainingSec: t.remainingSec });
+      if (dec?.action !== 'stop') return;
+      teleStopping = true; // šetření po OP: zastavit po krátké lidské prodlevě
+      setTimeout(async () => {
+        const t2 = readTelescope();
+        if (t2 && !t2.stopped) { teleClicking = true; try { await humanClick(t2.btn); } catch (e) { console.error('[dominator teleskop]', e); } teleClicking = false; }
+        teleStopping = false;
+      }, dec.delayMs ?? 1000);
       return;
     }
     if (teleScheduled || now - teleLastPost < 10000) return; // zeptat se serveru max jednou za 10 s
