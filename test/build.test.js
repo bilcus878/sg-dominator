@@ -75,8 +75,53 @@ test('visitReasons: města a důl na maximum – hotovo jen s historií a nezmě
   assert.deepEqual(visitReasons(r, c), ['mesto', 'vyrobna']); // bez historie nevíme
   assert.deepEqual(visitReasons(r, c, entry), []);
   assert.deepEqual(visitReasons(row('1', { mesto: 430, vyrobna: 70000 }), c, entry), ['vyrobna']); // důl se změnil
-  assert.deepEqual(visitReasons(r, c, entry, true), ['mesto', 'vyrobna']); // vynucené ověření
+  assert.deepEqual(visitReasons(r, c, entry, true), ['vynuceno']); // vynucený průchod
   assert.deepEqual(visitReasons(r, cfg({ plan: { mesto: { mode: 'target', n: 500 }, vyrobna: { mode: 'max', n: 0 } } }), entry), ['mesto', 'vyrobna']); // jiný plán
+});
+
+test('visitReasons: s daty ze seznamu planet se rozhoduje bez návštěvy a bez historie', () => {
+  // plán: BS a SDI 1000, parky podle spokojenosti, města a doly na maximum
+  const c = cfg({
+    plan: { bs: { mode: 'target', n: 1000 }, sdi: { mode: 'target', n: 1000 }, mesto: { mode: 'max', n: 0 }, vyrobna: { mode: 'max', n: 0 } },
+    parks: { '-50': 300, '10': 100 },
+  });
+  const done = { bs: 1000, sdi: 1000, mesto: 430, park: 100 };
+  // všechno stojí, města na stropu, žádné volné místo na doly -> přeskočit (i bez historie)
+  assert.deepEqual(visitReasons({ ...row('1', done), sat: 10, townsMax: 430, free: 0 }, c), []);
+  // chybí město
+  assert.deepEqual(visitReasons({ ...row('1', { ...done, mesto: 400 }), sat: 10, townsMax: 430, free: 0 }, c), ['mesto']);
+  // volné místo -> dá se postavit důl
+  assert.deepEqual(visitReasons({ ...row('1', done), sat: 10, townsMax: 430, free: 25 }, c), ['vyrobna']);
+  // park podle spokojenosti: na -50 % má být 300
+  assert.deepEqual(visitReasons({ ...row('1', done), sat: -50, townsMax: 430, free: 0 }, c), ['park']);
+  // BS nedostavěné
+  assert.deepEqual(visitReasons({ ...row('1', { ...done, bs: 300 }), sat: 10, townsMax: 430, free: 0 }, c), ['bs']);
+});
+
+test('visitReasons: nedostupné město/důl se kvůli chybějícím surovinám nenavštěvuje pořád dokola', () => {
+  const c = cfg({ plan: { mesto: { mode: 'max', n: 0 }, vyrobna: { mode: 'max', n: 0 } } });
+  const key = JSON.stringify([c.plan.mesto, c.plan.vyrobna]);
+  const r = { ...row('1', { mesto: 400, vyrobna: 5000 }), townsMax: 430, free: 90 }; // je kam stavět
+  assert.deepEqual(visitReasons(r, c), ['mesto', 'vyrobna']); // nová planeta -> navštívit
+  const entry = { final: { mesto: 400, vyrobna: 5000 }, capsKey: key }; // byli jsme tu a víc nešlo
+  assert.deepEqual(visitReasons(r, c, entry), []);
+  assert.deepEqual(visitReasons({ ...r, c: { ...r.c, vyrobna: 4000 } }, c, entry), ['vyrobna']); // důl se od té doby změnil
+  assert.deepEqual(visitReasons(r, c, entry, true), ['vynuceno']); // po přidání surovin: projít všechno
+});
+
+test('běh: spokojenost a volné místo z tabulky se předají frontě (planeta bez práce se nenavštíví)', () => {
+  const run = mkRun();
+  const c = cfg({ plan: { bs: { mode: 'target', n: 1000 }, mesto: { mode: 'max', n: 0 } }, parks: { '10': 100 } });
+  run.start(c, 0);
+  const full = { bs: 1000, mesto: 430, park: 100 };
+  const t = [
+    { ...row('1', full), sat: 10, townsMax: 430, free: 0 }, // hotová
+    { ...row('2', { ...full, bs: 5 }), sat: 10, townsMax: 430, free: 0 }, // chybí BS
+    { ...row('3', full), sat: 10, townsMax: 430, free: 0 }, // hotová
+  ];
+  const ins = run.report(rep('3', { phase: 'table', table: t }), c, 1);
+  assert.deepEqual([ins.action, ins.plId], ['goto', '2']);
+  assert.deepEqual(run.snapshot().queue, { total: 1, left: 1, skipped: 2, excluded: 0, tableSize: 3 });
 });
 
 test('buildQueue: pořadí z tabulky a počet přeskočených', () => {
@@ -302,14 +347,14 @@ test('sanitizeUpdate: turbo tempo a minimum parků', () => {
 test('sanitizeUpdate: plán staveb, tabulka parků a přepínače se čistí', () => {
   const next = sanitizeUpdate(structuredClone(DEFAULTS), {
     build: {
-      pace: 1.6, dryRun: 1, recheckMax: 1,
+      pace: 1.6, dryRun: 1, forceAll: 1,
       plan: { po: { mode: 'target', n: '1234.9' }, xxx: { mode: 'max' }, mesto: { mode: 'bad', n: -5 } },
       parks: { '-50': '300', '10': 100, '7': 5, '5': 'abc', '0': -3 },
     },
   });
   assert.equal(next.build.pace, 1.6);
   assert.equal(next.build.dryRun, true);
-  assert.equal(next.build.recheckMax, true);
+  assert.equal(next.build.forceAll, true);
   assert.deepEqual(next.build.plan.po, { mode: 'target', n: 1234 });
   assert.equal(next.build.plan.xxx, undefined);
   assert.deepEqual(next.build.plan.mesto, { mode: 'skip', n: 0 });

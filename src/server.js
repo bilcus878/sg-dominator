@@ -268,7 +268,7 @@ setInterval(() => { if (build.staleCheck()) sendText(cfg, '⚠️ Stavění: skr
 async function handleBuildReport(req) {
   if (!authOk(req)) return [401, { error: 'bad token' }];
   const body = await readJson(req);
-  return [200, build.report(body, cfg.build, Date.now(), { recheckMax: !!cfg.build.recheckMax })];
+  return [200, build.report(body, cfg.build, Date.now(), { forceAll: !!cfg.build.forceAll })];
 }
 const buildView = () => [200, { buildings: BUILDINGS, config: cfg.build, run: build.snapshot(), knownPlanets: Object.keys(ledger.planets).length, serverTime: Date.now() }];
 

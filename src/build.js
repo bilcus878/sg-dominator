@@ -92,50 +92,71 @@ export function planChanges(cfgBuild, buildings, sat, phaseIdx) {
 const capsKey = (plan) => JSON.stringify([plan?.mesto ?? null, plan?.vyrobna ?? null]);
 
 /**
- * Musí se planeta navštívit? Rozhoduje se z řádku tabulky (`row.c` = aktuální počty), plánu a historie planety.
- * Z tabulky se nedá poznat strop (max) města a dolu ani spokojenost, proto se spoléhá na historii:
- * planeta, kterou jsme už optimalizovali a od té doby se u ní města a důl nezměnily, je hotová.
+ * Musí se planeta navštívit? Rozhoduje se bez návštěvy z dat, která uživatel vidí v tabulce pod stavěním a v seznamu planet:
+ *   row.c      aktuální počty staveb (tabulka pod stavěním)
+ *   row.free   volné místo (sloupec „Místo“) = kolik dolů se ještě vejde
+ *   row.sat    spokojenost planety ze seznamu planet (-50|-25|0|5|10, null = žádná); undefined = nezjištěno
+ *   row.townsMax  strop měst ze seznamu planet; undefined = nezjištěno
+ * Co se z nich zjistit nedá (nebo chybí), doplňuje historie planety (entry). Planeta, u které se od poslední návštěvy
+ * města a doly nezměnily, se kvůli nim znovu nenavštěvuje (jinak by se hlídaly suroviny, které nejdou).
+ * `forceAll` = projít všechny planety s nějakou prací (třeba po přidání surovin).
  * @returns {string[]} důvody návštěvy; prázdné pole = přeskočit
  */
-export function visitReasons(row, cfgBuild, entry, recheckMax = false) {
+export function visitReasons(row, cfgBuild, entry, forceAll = false) {
   const plan = cfgBuild.plan ?? {};
   const parks = cfgBuild.parks ?? {};
   const why = [];
   const stuck = (id, target) => entry?.tried?.[id] === target && entry.final?.[id] === row.c[id]; // hra víc nedala
+  const sameSince = (id) => entry?.final && entry.capsKey === capsKey(plan) && entry.final[id] === row.c[id]; // beze změny od naší návštěvy
+
+  if (forceAll) {
+    const any = Object.values(plan).some((p) => p && p.mode !== 'skip') || Object.keys(parks).length;
+    return any ? ['vynuceno'] : [];
+  }
 
   for (const id of TARGET_IDS) {
     const p = plan[id];
     if (!p || p.mode === 'skip') continue;
-    if (p.mode === 'max') {
-      if (recheckMax || !entry?.final || entry.final[id] !== row.c[id]) why.push(id);
+    if (p.mode === 'max') { // strop z tabulky neznáme, rozhoduje historie
+      if (!entry?.final || entry.final[id] !== row.c[id]) why.push(id);
       continue;
     }
     if (row.c[id] >= p.n || stuck(id, p.n)) continue;
     why.push(id);
   }
+
   if (Object.keys(parks).length) {
-    if (!entry?.satKnown) why.push('park (spokojenost neznámá)');
-    else if (entry.sat !== null) {
-      const t = parks[String(entry.sat)];
-      if (t !== undefined && t !== null && row.c.park < parkMin(cfgBuild, entry.sat, Number(t)) && !stuck('park', t)) why.push('park');
+    const sat = row.sat !== undefined ? row.sat : entry?.satKnown ? entry.sat : undefined;
+    if (sat === undefined) why.push('park (spokojenost neznámá)');
+    else if (sat !== null) {
+      const t = parks[String(sat)];
+      if (t !== undefined && t !== null && row.c.park < parkMin(cfgBuild, sat, Number(t)) && !stuck('park', t)) why.push('park');
     }
   }
-  for (const id of ['mesto', 'vyrobna']) {
-    const p = plan[id];
-    if (!p || p.mode === 'skip') continue;
-    if (p.mode === 'target' && row.c[id] >= p.n) continue;
-    const unchanged = entry?.final && entry.capsKey === capsKey(plan) && entry.final[id] === row.c[id];
-    if (recheckMax || !unchanged) why.push(id);
+
+  const pm = plan.mesto;
+  if (pm && pm.mode !== 'skip') {
+    if (row.townsMax !== undefined) {
+      const want = pm.mode === 'max' ? row.townsMax : Math.min(Number(pm.n), row.townsMax);
+      if (row.c.mesto < want && !sameSince('mesto')) why.push('mesto');
+    } else if (!(pm.mode === 'target' && row.c.mesto >= pm.n) && !sameSince('mesto')) why.push('mesto');
+  }
+
+  const pv = plan.vyrobna;
+  if (pv && pv.mode !== 'skip') {
+    if (row.free !== undefined && row.free >= 0) { // volné místo = je kam postavit další doly
+      if (row.free > 0 && (pv.mode === 'max' || row.c.vyrobna < pv.n) && !sameSince('vyrobna')) why.push('vyrobna');
+    } else if (!(pv.mode === 'target' && row.c.vyrobna >= pv.n) && !sameSince('vyrobna')) why.push('vyrobna');
   }
   return why;
 }
 
 /** Tabulka -> fronta planet k návštěvě (v pořadí tabulky) + počet přeskočených. */
-export function buildQueue(table, cfgBuild, ledgerPlanets = {}, recheckMax = false) {
+export function buildQueue(table, cfgBuild, ledgerPlanets = {}, forceAll = false) {
   const queue = [];
   let skipped = 0;
   for (const row of table) {
-    const why = visitReasons(row, cfgBuild, ledgerPlanets[row.id], recheckMax);
+    const why = visitReasons(row, cfgBuild, ledgerPlanets[row.id], forceAll);
     if (why.length) queue.push({ id: row.id, name: row.name, why });
     else skipped++;
   }
@@ -278,7 +299,7 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
    *        table?: [{id, name, c:{id:počet}}], error?, scriptError? }
    * Vrací instrukci: idle | ok | done | goto | send-table | build.
    */
-  function report(rep, cfgBuild, now = Date.now(), { recheckMax = false } = {}) {
+  function report(rep, cfgBuild, now = Date.now(), { forceAll = false } = {}) {
     if (!active()) return { action: 'idle' };
     run.lastSeenAt = now;
     run.staleNotified = false;
@@ -303,11 +324,14 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
       const valid = rep.table.filter((r) => r && r.id && r.name);
       const allowed = valid.filter((r) => !NO_BUILD_TAGS.has(String(r.tag ?? '').toUpperCase()));
       run.excluded = valid.length - allowed.length;
+      const opt = (v) => (v === undefined || v === null || !Number.isFinite(Number(v)) ? undefined : Number(v));
       const table = allowed.map((r) => ({
         id: String(r.id), name: String(r.name),
+        free: opt(r.free), townsMax: opt(r.townsMax),
+        sat: r.sat === undefined ? undefined : r.sat === null ? null : opt(r.sat) ?? undefined,
         c: Object.fromEntries(COUNT_IDS.map((id) => [id, Number.isFinite(Number(r.c?.[id])) && r.c?.[id] !== null ? Number(r.c[id]) : -1])),
       }));
-      const { queue, skipped } = buildQueue(table, cfgBuild, ledger.planets, recheckMax);
+      const { queue, skipped } = buildQueue(table, cfgBuild, ledger.planets, forceAll);
       run.queue = queue;
       run.queueTotal = queue.length;
       run.skipped = skipped;

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – stavění
 // @namespace    sg-dominator
-// @version      1.2.2
+// @version      1.3.0
 // @description  Na pokyn z aplikace vyplní počty staveb, klikne na Postavit a přejde na další planetu klikem v tabulce planet (pomalu a nepravidelně, jako člověk)
 // @match        https://stargate-game.cz/stavby.php*
 // @match        https://www.stargate-game.cz/stavby.php*
@@ -78,6 +78,30 @@
     return { plId, planet, satisfaction, buildings };
   }
 
+  /**
+   * Seznam planet (planety.php) jedním načtením: spokojenost (z popisku obrázku) a strop měst každé planety.
+   * Díky tomu se nemusí kvůli těmhle údajům navštěvovat každá planeta. Při chybě vrací null (použije se historie).
+   */
+  async function readPlanetList() {
+    try {
+      const html = await (await fetch('/planety.php', { credentials: 'include' })).text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const out = {};
+      for (const b of doc.querySelectorAll('.seznam-planet .planeta')) {
+        const id = (b.querySelector('a.nazev-planety')?.getAttribute('href') ?? '').match(/id_pl=(\d+)/)?.[1];
+        if (!id) continue;
+        const plain = (b.querySelector('img.obr')?.getAttribute('title') ?? '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+        const m = plain.match(/\(\s*([+\-\u2212\u2013]?)\s*(\d+)\s*%\s*\)/);
+        const sat = m ? (m[1] && m[1] !== '+' ? -Number(m[2]) : Number(m[2])) : /\(\s*~\s*\)/.test(plain) ? 0 : null;
+        const towns = b.textContent.match(/Města:\s*([\d\s]+?)\s*\/\s*([\d\s]+)/);
+        out[id] = { sat, townsMax: towns ? num(towns[2]) : undefined };
+      }
+      return Object.keys(out).length ? out : null;
+    } catch {
+      return null;
+    }
+  }
+
   // sloupce tabulky planet (#seznam-planet): Planeta, Místo, Města, Výrobny, BS, SDI, PO, KAS, LAB, PAR, HB, Iris
   const TABLE_COLS = { mesto: 2, vyrobna: 3, bs: 4, sdi: 5, po: 6, kasarna: 7, laborator: 8, park: 9 };
   /** Tabulka pod stavěním -> [{id, name, c:{stavba: počet}}]. U „430 / 430“ se bere první číslo (postaveno). */
@@ -90,7 +114,7 @@
       }
       // značka za názvem: (DP), (CP), (PP) – takové planety se nestaví
       const tag = tr.querySelector('.nazev-planety')?.textContent.match(/\(([A-Za-z]{1,3})\)/)?.[1] ?? '';
-      return { id: tr.id.slice(3), name: tr.querySelector('.nazev-planety a')?.textContent.trim(), tag, c };
+      return { id: tr.id.slice(3), name: tr.querySelector('.nazev-planety a')?.textContent.trim(), tag, free: num(tr.cells[1]?.textContent), c };
     }).filter((r) => r.id && r.name);
   }
 
@@ -258,7 +282,12 @@
         return;
       }
       let ins = await post('/build/report', { phase: 'load', ...page });
-      if (ins?.action === 'send-table') ins = await post('/build/report', { phase: 'table', ...page, table: readTable() });
+      if (ins?.action === 'send-table') {
+        await sleep(rnd(300, 900));
+        const list = await readPlanetList();
+        const table = readTable().map((r) => ({ ...r, sat: list?.[r.id]?.sat, townsMax: list?.[r.id]?.townsMax }));
+        ins = await post('/build/report', { phase: 'table', ...page, table });
+      }
       for (let first = true; ins && (ins.action === 'build' || ins.action === 'goto'); first = false) ins = await act(ins, first);
     } catch (e) {
       console.error('[dominator stavění]', e);
