@@ -45,6 +45,7 @@
   /* OP pruh v hlavičce */
   .oppill { background:var(--card2); color:var(--mut); border:1px solid var(--line); border-radius:99px; padding:3px 12px; font-size:13px; font-weight:500; display:flex; gap:8px; align-items:center; }
   .oppill.ok { color:var(--ok); border-color:#2c5a46; } .oppill.bad { color:var(--bad); border-color:#6a3030; } .oppill.hit { color:var(--acc); border-color:var(--acc); background:#2b2108; }
+  .opmaster { display:flex; gap:8px; align-items:center; margin:0; color:var(--fg); font-size:13px; font-weight:600; cursor:pointer; }
   .opdotlive { width:8px; height:8px; border-radius:50%; background:#444b5c; }
   .oppill.ok .opdotlive { background:var(--ok); } .oppill.bad .opdotlive { background:var(--bad); }
   .oppill.hit .opdotlive { background:var(--acc); animation:pulse 1s infinite; }
@@ -177,6 +178,7 @@
   <span class="pill" id="status">● čeká na data</span>
   <div class="chips" id="chips"></div>
   <button class="oppill" id="opPill" title="OP na mapě – klikni pro nastavení"><span class="opdotlive"></span><span id="opText">OP: čeká na mapu</span></button>
+  <label class="opmaster" title="Hlavní vypínač OP: zapnuto = bot hlásí OP, sám zapíná zastavený teleskop a potvrzuje tlačítko bdělosti. Vypnuto = bot na mapě nic nedělá."><span class="sw"><input type="checkbox" id="opMaster"><span></span></span> OP automat</label>
   <div class="chips" id="opDots"></div>
   <span class="spacer"></span>
   <button id="openSettings">⚙ Nastavení</button>
@@ -291,8 +293,8 @@
     <div class="pane" id="pane-op">
       <p class="muted" style="margin-top:0">Na mapě galaxie se na chvíli objevují svítící oranžové tečky = opuštěné planety (OP). Appka je hlídá, když máš otevřené okno <b>mapa.php</b>.</p>
       <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
-        <span class="sw"><input type="checkbox" id="opEnabled2"><span></span></span> Hlásit OP do Telegramu / Discordu</label>
-        <small>Zpráva přijde, jakmile se tečka v nějakém sektoru objeví. Tečky, které svítily už při zapnutí, se jako nové nehlásí.</small></div>
+        <span class="sw"><input type="checkbox" id="opEnabled2"><span></span></span> Zapnout OP automat: hlásit OP, sám zapínat teleskop a potvrzovat bdělost</label>
+        <small>Zapnuto = bot na mapě jedná sám: sám zapne zastavený teleskop, potvrzuje tlačítko bdělosti a pošle zprávu, jakmile se tečka v nějakém sektoru objeví. Vypnuto = bot nic nedělá a nehlásí. Stejný vypínač je nahoře v hlavičce. Tečky, které svítily už při zapnutí, se jako nové nehlásí.</small></div>
       <div class="field"><label for="opRepeatSec">Připomínat, dokud tečka svítí – každých (s)</label><input type="number" id="opRepeatSec" min="0">
         <small>Dokud je OP v sektoru vidět, přijde „OP je stále v sektoru …“ po této pauze. 0 = ohlásit jen první objevení.</small></div>
       <div class="chan">
@@ -761,6 +763,7 @@ function renderOp() {
   const age = op.at ? S.serverTime - op.at : null;
   const live = age != null && age < 3000;
   const pill = $('opPill');
+  if (document.activeElement !== $('opMaster')) $('opMaster').checked = !!op.enabled;
   let cls = '', txt;
   if (age == null) txt = 'OP: čeká na mapu';
   else if (!live) { cls = op.enabled ? 'bad' : ''; txt = `OP: mapa bez dat ${Math.round(age / 1000)} s`; }
@@ -788,6 +791,7 @@ function renderOp() {
   }
   $('opDots').innerHTML = op.dots.map((d) => `<span class="opdot sm">🟠 ${esc(d.id)}${/^\d+$/.test(d.label) || !d.label ? '' : ' · ' + esc(d.label)}</span>`).join('');
 }
+$('opMaster').onchange = () => savePartial({ op: { enabled: $('opMaster').checked } });
 $('opPill').onclick = () => { openDrawer(); document.querySelector('[data-tab="op"]').click(); };
 
 function render() {

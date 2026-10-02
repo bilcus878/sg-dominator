@@ -168,6 +168,7 @@ async function handleVigilance(req) {
   const body = await readJson(req);
   const now = Date.now();
   if (body.event === 'seen') {
+    if (!cfg.op.enabled) return [200, { ok: true, action: 'ignore' }]; // OP vypnuto: bot nic nepotvrzuje
     const d = tele.vigilanceSeen(cfg.op.vigilance); // občas záměrně vynechat, ať to nevypadá jako stroj
     if (d.action === 'skip') {
       vig.pending = false;
@@ -205,6 +206,7 @@ async function handleTelescope(req) {
   if (body.event !== 'state') return [400, { error: 'invalid event' }];
   const remaining = Number.isFinite(Number(body.remainingSec)) && body.remainingSec !== null ? Number(body.remainingSec) : null;
   const state = body.state === 'stopped' ? 'stopped' : 'active';
+  if (!cfg.op.enabled) { tele.noteState(state); return [200, { action: 'none' }]; } // OP vypnuto: teleskop se nezapíná
   const r = tele.telescopeState({ state, remainingSec: remaining }, cfg.op, now);
   if (state !== teleLast) { teleLast = state; console.log(`[teleskop] ${state === 'active' ? 'aktivní' : 'zastavený'}`); }
   if (r.alert === 'zero') sendText(cfg, '⚠️ Teleskop je zastavený a nezbývá mu žádný čas, nelze ho aktivovat.');

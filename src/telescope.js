@@ -87,7 +87,12 @@ export function createTelescope({ rand = Math.random } = {}) {
     return {};
   }
 
+  /** Když je OP vypnuté, bot nic nedělá, ale stav teleskopu se pro UI zapamatuje. */
+  function noteState(state) {
+    st.state = state;
+  }
+
   const snapshot = () => ({ state: st.state, untilSkip: st.untilSkip, skipped: st.skipped, downUntil: st.downUntil, blockedUntil: st.blockedUntil });
 
-  return { vigilanceSeen, vigilanceClicked, telescopeState, attempt, snapshot };
+  return { vigilanceSeen, vigilanceClicked, telescopeState, attempt, noteState, snapshot };
 }

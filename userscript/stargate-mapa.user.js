@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – OP na mapě
 // @namespace    sg-dominator
-// @version      1.2.0
+// @version      1.2.1
 // @description  Hledá na mapě galaxie svítící tečky (opuštěné planety) a hlásí je lokálnímu notifikátoru; potvrzuje tlačítko bdělosti (po náhodné prodlevě) a zapíná zastavený teleskop
 // @match        https://stargate-game.cz/mapa.php*
 // @match        https://www.stargate-game.cz/mapa.php*
@@ -182,6 +182,7 @@
     const hi = Math.max(lo, Number(vig.maxSec) || 10);
     const delay = rnd(lo, hi) * 1000;
     const dec = await postJson('/vigilance', { event: 'seen', delayMs: Math.round(delay) });
+    if (dec?.action === 'ignore') { setTimeout(() => { vigSeen = false; }, 4000); return; } // OP je vypnuté; za chvíli se zeptá znovu
     if (dec?.action === 'skip') return; // záměrně vynecháno; vigSeen zůstane, dokud tlačítko nezmizí
     setTimeout(async () => {
       const b = document.getElementById('kliknout');
