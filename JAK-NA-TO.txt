@@ -14,6 +14,9 @@ V PRÁCI
 
 Další dny stačí jen start.cmd. Zastavení: stop.cmd.
 
+SKRIPTY
+  - Když se skript z odkazu v Tampermonkey nenainstaluje, otevři  http://127.0.0.1:3940/install  a použij "Zkopírovat kód" + ruční vložení.
+
 STAVĚNÍ
   - Bot si z tabulky planet pod stavěním sestaví frontu jen planet, kde je ještě co stavět, a přechází klikem na řádek tabulky.
     Historie planet (spokojenost, co už nejde postavit) je v  %LOCALAPPDATA%\sg-dominatoruild-planets.json  (tlačítko "Zapomenout historii" v aplikaci).

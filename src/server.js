@@ -342,9 +342,39 @@ const routes = {
   ],
 };
 
+// záložní cesta, když Tampermonkey instalaci z odkazu nenabídne: zkopírovat kód a vložit ho ručně
+const INSTALL_PAGE = `<!doctype html><html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Instalace skriptů – Stargate dominator</title>
+<style>body{margin:0;background:#0b0d12;color:#e7e9ee;font:15px/1.55 system-ui,sans-serif;padding:24px;max-width:860px}h1{font-size:20px;color:#e0b84c}
+.card{background:#151922;border:1px solid #272d3b;border-radius:10px;padding:16px;margin:14px 0}code{background:#10141b;padding:1px 6px;border-radius:4px}
+a.btn,button{display:inline-block;background:#e0b84c;color:#1a1405;border:0;padding:7px 14px;border-radius:6px;font-weight:600;cursor:pointer;font-size:14px;text-decoration:none;margin:4px 8px 4px 0}
+button.ghost{background:transparent;color:#e7e9ee;border:1px solid #272d3b}.muted{color:#8b93a5;font-size:13px}.ok{color:#5ad19a}ol{padding-left:20px}</style></head><body>
+<h1>Instalace skriptů do Tampermonkey</h1>
+<p class="muted">Když odkaz „Instalovat“ nic neotevře (jen to bliká), použij ruční cestu níže.</p>
+<div class="card"><b>Ruční vložení (funguje vždy)</b><ol>
+<li>Klikni u skriptu na <b>Zkopírovat kód</b>.</li>
+<li>Ikona Tampermonkey → <b>Přehled</b> (Dashboard). Když skript už v seznamu je, klikni na jeho název; jinak ikona → <b>Vytvořit nový skript</b>.</li>
+<li>V editoru <code>Ctrl+A</code>, <code>Ctrl+V</code> (nahradí se celý obsah) a <code>Ctrl+S</code>.</li>
+<li>V Přehledu zkontroluj číslo verze u skriptu a že je zapnutý. Otevřené stránky hry pak obnov (<code>F5</code>).</li></ol>
+<p class="muted">Kód už obsahuje tvůj token a adresu serveru, proto ho kopíruj odsud, ne ze souboru ve složce. Chrome musí mít v <code>chrome://extensions</code> u Tampermonkey povolené „Uživatelské skripty“ (Allow user scripts).</p></div>
+<div id="list"></div>
+<script>
+const S=[['Stavění','/stavby.user.js','Vyplňuje a staví na planetách.'],['Mapa (OP, bdělost, teleskop)','/mapa.user.js','Hlídá OP, potvrzuje bdělost a zapíná teleskop.'],['Síla hráčů','/userscript.user.js','Posílá sílu hráčů do hlídání.']];
+const el=document.getElementById('list');
+for(const [name,path,desc] of S){const d=document.createElement('div');d.className='card';
+ d.innerHTML='<b></b> <span class="muted"></span><div class="v muted" style="margin:6px 0"></div><a class="btn"></a><button class="copy">Zkopírovat kód</button><button class="ghost show">Zobrazit kód</button><span class="msg ok"></span><textarea hidden readonly style="width:100%;height:200px;margin-top:8px;background:#10141b;color:#e7e9ee;border:1px solid #272d3b;border-radius:6px"></textarea>';
+ d.querySelector('b').textContent=name;d.querySelector('span.muted').textContent='– '+desc;const a=d.querySelector('a');a.href=path;a.textContent='Instalovat odkazem';
+ const ta=d.querySelector('textarea'),msg=d.querySelector('.msg');
+ const load=()=>fetch(path).then(r=>r.text());
+ load().then(t=>{d.querySelector('.v').textContent='Verze na serveru: '+(t.match(/@version\\s+(\\S+)/)||[])[1];ta.value=t;});
+ d.querySelector('.copy').onclick=async()=>{try{await navigator.clipboard.writeText(ta.value||await load());msg.textContent='Zkopírováno ✓';}catch(e){ta.hidden=false;ta.select();msg.textContent='Kopírování se nepovedlo, označ kód níže a zkopíruj ručně (Ctrl+C).';}};
+ d.querySelector('.show').onclick=()=>{ta.hidden=!ta.hidden;};
+ el.appendChild(d);}
+</script></body></html>`;
+
 async function serveFile(res, file, type, transform = (x) => x) {
   const body = transform(await readFile(file, 'utf8'));
-  res.writeHead(200, { 'content-type': `${type}; charset=utf-8` });
+  res.writeHead(200, { 'content-type': `${type}; charset=utf-8`, 'cache-control': 'no-store' });
   res.end(body);
 }
 
@@ -352,6 +382,10 @@ const server = createServer(async (req, res) => {
   const path = new URL(req.url, 'http://x').pathname;
   try {
     if (req.method === 'GET' && path === '/') return await serveFile(res, pub('public/index.html'), 'text/html');
+    if (req.method === 'GET' && path === '/install') {
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+      return res.end(INSTALL_PAGE);
+    }
     const scripts = { '/userscript.user.js': 'stargate-notifikator.user.js', '/mapa.user.js': 'stargate-mapa.user.js', '/stavby.user.js': 'stargate-stavby.user.js' };
     if (req.method === 'GET' && scripts[path]) {
       return await serveFile(res, pub(`userscript/${scripts[path]}`), 'text/javascript', (s) =>
