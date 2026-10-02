@@ -6,7 +6,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { loadConfig, saveConfig, sanitizeUpdate, publicConfig, DATA_DIR, LEGACY_DATA_DIR, USING_DEFAULT_DIR } from './config.js';
 import { migrateLegacyData } from './migrate.js';
 import { createState, evaluate, rebaseline } from './rules.js';
-import { formatAlert, sendText, findTelegramChats } from './notifiers.js';
+import { formatAlert, sendText, sendService, findTelegramChats } from './notifiers.js';
 import { openDb } from './db.js';
 import { createStore } from './store.js';
 import { createOpTracker } from './op.js';
@@ -45,8 +45,8 @@ function saveLedger() {
     } catch (e) { console.error('historie planet se neuložila:', e.message); }
   }, 500);
 }
-// o stavění se na Telegram nic neposílá (dostavěno, zastaveno…): jen log a stav v aplikaci
-const build = createBuildRun({ notify: (t) => console.log(`[stavění] ${t}`), ledger, onLedger: saveLedger });
+// stavění (dostavěno, zastaveno…) je systémová věc: jen do servisního chatu, do hlavní skupiny nikdy
+const build = createBuildRun({ notify: (t) => { console.log(`[stavění] ${t}`); sendService(cfg, t); }, ledger, onLedger: saveLedger });
 const db = openDb();
 const ingestTimes = []; // časy posledních příjmů pro výpočet frekvence
 
@@ -184,9 +184,10 @@ async function handleIngestOp(req) {
   return [200, { ok: true, alerts: notify ? 1 : 0, vigilance: cfg.op.vigilance, telescope: cfg.op.telescope }];
 }
 
-// tlačítko bdělosti na mapě: skript hlásí, že se objevilo a že ho potvrdil; na Telegram se o bdělosti nic neposílá (jen log)
-const vig = { seenAt: 0, clickedAt: 0, count: 0, pending: false };
+// tlačítko bdělosti na mapě: skript hlásí, že se objevilo a že ho potvrdil; zaseknuté potvrzení jde do servisního chatu
+const vig = { seenAt: 0, clickedAt: 0, count: 0, pending: false, alerted: false };
 const tele = createTelescope();
+const VIG_ALERT_MS = 150_000; // hra dává ~5 minut, upozornit dřív, než je pozdě
 
 async function handleVigilance(req) {
   if (!authOk(req)) return [401, { error: 'bad token' }];
@@ -200,16 +201,19 @@ async function handleVigilance(req) {
       console.log('[bdělost] tlačítko se objevilo, tentokrát ho záměrně nepotvrdím (teleskop se zastaví a chvíli zůstane vypnutý)');
       return [200, { ok: true, action: 'skip' }];
     }
-    vig.pending = true; vig.seenAt = now;
+    vig.pending = true; vig.seenAt = now; vig.alerted = false;
     console.log(`[bdělost] tlačítko se objevilo, kliknu za ${Math.round(Number(body.delayMs) / 100) / 10} s`);
     return [200, { ok: true, action: 'click' }];
   } else if (body.event === 'clicked') {
     tele.vigilanceClicked();
     vig.pending = false; vig.clickedAt = now; vig.count++;
     console.log('[bdělost] potvrzeno');
+    if (vig.alerted) sendService(cfg, '✅ Tlačítko bdělosti je potvrzené (se zpožděním).');
+    vig.alerted = false;
   } else if (body.event === 'failed') {
     const err = typeof body.error === 'string' ? body.error.slice(0, 120) : '';
     console.log(`[bdělost] potvrzení selhalo: ${err}`);
+    sendService(cfg, `⚠️ Tlačítko bdělosti se nepodařilo potvrdit${err ? ` (${err})` : ''}. Zkontroluj mapu, hrozí přerušení teleskopu.`);
   } else return [400, { error: 'invalid event' }];
   return [200, { ok: true }];
 }
@@ -222,7 +226,7 @@ async function handleTelescope(req) {
   if (body.event === 'attempt') {
     const r = tele.attempt(now);
     console.log('[teleskop] klikám na Aktivovat');
-    if (r.alert === 'failed') console.log('[teleskop] aktivace se nepovedla ani na několikátý pokus, příštích 30 minut to zkoušet nebudu');
+    if (r.alert === 'failed') { console.log('[teleskop] aktivace se nepovedla ani na několikátý pokus'); sendService(cfg, '⚠️ Teleskop se nepodařilo aktivovat ani na několikátý pokus. Zkontroluj mapu, příštích 30 minut to zkoušet nebudu.'); }
     return [200, { ok: true }];
   }
   if (body.event !== 'state') return [400, { error: 'invalid event' }];
@@ -232,9 +236,17 @@ async function handleTelescope(req) {
   const r = tele.telescopeState({ state, remainingSec: remaining }, cfg.op, now);
   if (r.action === 'stop') console.log('[teleskop] šetření po OP: zastavuji');
   if (state !== teleLast) { teleLast = state; console.log(`[teleskop] ${state === 'active' ? 'aktivní' : 'zastavený'}`); }
-  if (r.alert === 'zero') console.log('[teleskop] je zastavený a nezbývá mu žádný čas, nelze ho aktivovat'); // na Telegram se o teleskopu nic neposílá
+  if (r.alert === 'zero') { console.log('[teleskop] nezbývá žádný čas'); sendService(cfg, '⚠️ Teleskop je zastavený a nezbývá mu žádný čas, nelze ho aktivovat.'); }
   return [200, r];
 }
+
+setInterval(() => {
+  const now = Date.now();
+  if (vig.pending && !vig.alerted && now - vig.seenAt > VIG_ALERT_MS) {
+    vig.alerted = true;
+    sendService(cfg, `⚠️ Tlačítko bdělosti čeká na potvrzení už ${Math.round((now - vig.seenAt) / 1000)} s. Zkontroluj mapu, hrozí přerušení teleskopu.`);
+  }
+}, 10_000);
 
 /** Stav pro UI: rasy s hráči a jejich efektivním nastavením hlídání. */
 function buildState() {
@@ -280,11 +292,11 @@ function watchdogTick(now = Date.now()) {
     const a = { name: ev.name, power: 0, prev: null, reason: ev.type, race: null, ageMs: ev.ageMs };
     db.recordAlert(now, a);
     console.log(`[watchdog] ${ev.type === 'down' ? 'VÝPADEK' : 'obnoveno'}: ${ev.name} (${Math.round(ev.ageMs / 1000)} s)`);
-    if (ev.key !== 'op') sendText(cfg, formatAlert(a)); // výpadek mapy jen v aplikaci, na Telegram ne
+    sendService(cfg, formatAlert(a)); // výpadek dat (rasy i mapa) je systémová věc: jen servisní chat
   }
 }
 setInterval(watchdogTick, 5000);
-setInterval(() => { if (build.staleCheck()) console.log('[stavění] skript přestal hlásit (zavřená karta nebo odhlášení?)'); }, 10_000);
+setInterval(() => { if (build.staleCheck()) { console.log('[stavění] skript přestal hlásit'); sendService(cfg, '⚠️ Stavění: skript přestal hlásit (zavřená karta nebo odhlášení?)'); } }, 10_000);
 
 /** Hlášení ze stránky stavby.php -> instrukce, co dělat dál. */
 async function handleBuildReport(req) {
@@ -363,10 +375,13 @@ const routes = {
       return [400, { error: e.message }];
     }
   },
-  'POST /api/test': async () => [
-    200,
-    await sendText(cfg, '✅ Stargate dominator: testovací zpráva'),
-  ],
+  'POST /api/test': async () => {
+    const [main, service] = await Promise.all([
+      sendText(cfg, '✅ Stargate dominator: testovací zpráva'),
+      sendService(cfg, 'Stargate dominator: testovací zpráva do servisního chatu'),
+    ]);
+    return [200, { sent: main.sent + service.sent, total: main.total + service.total, service }];
+  },
 };
 
 // záložní cesta, když Tampermonkey instalaci z odkazu nenabídne: zkopírovat kód a vložit ho ručně

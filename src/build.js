@@ -371,7 +371,7 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
     // starý skript (neumí poznat neobyvatelnou planetu) -> nestavět vůbec; hláška jen v aplikaci a na stránce, ne na Telegram
     if (typeof rep.uninhabitable !== 'boolean' || olderThan(rep.ver, MIN_SCRIPT)) {
       const msg = `Zastaralý skript stavění${rep.ver ? ` ${rep.ver}` : ''} – nainstaluj novou verzi (aspoň ${MIN_SCRIPT}) z http://127.0.0.1:3940/install a obnov stránku (F5).`;
-      fail(msg, now, { silent: true });
+      fail(msg, now); // zpráva jde do servisního chatu, ne do hlavní skupiny
       return { action: 'idle', message: msg };
     }
     run.current = name;

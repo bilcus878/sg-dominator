@@ -65,6 +65,22 @@ export async function sendText(cfg, text, log = console) {
   return { sent: results.filter((r) => r.status === 'fulfilled').length, total: jobs.length };
 }
 
+/**
+ * Systémové zprávy (výpadek dat, bdělost, teleskop, stavění…) jen do servisního chatu Telegramu.
+ * Bez vyplněného servisního chatu se nepošlou nikam (hlavní skupina je jen pro herní události).
+ */
+export async function sendService(cfg, text, log = console) {
+  const chatId = cfg.telegram.serviceChatId;
+  if (!cfg.telegram.enabled || !cfg.telegram.botToken || !chatId) return { sent: 0, total: 0 };
+  try {
+    await post(`https://api.telegram.org/bot${cfg.telegram.botToken}/sendMessage`, { chat_id: chatId, text: `🛠 ${text}` });
+    return { sent: 1, total: 1 };
+  } catch (e) {
+    log.error(`[telegram servis] odeslání selhalo: ${e.message}`);
+    return { sent: 0, total: 1 };
+  }
+}
+
 /** Vrátí skupiny/chaty, do kterých bot nedávno dostal zprávu (pro snadné zjištění chat ID). */
 export async function findTelegramChats(botToken) {
   const res = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates`, { signal: AbortSignal.timeout(8000) });

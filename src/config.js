@@ -42,7 +42,7 @@ export const DEFAULTS = {
   conquest: { ...CONQUEST_DEFAULTS }, // cizí rasy: k dobytí pod `below`, konec až nad `above`
   watchdog: { enabled: true, staleSec: 30 }, // hlášení, že hlídaná rasa / mapa přestala dodávat data
   discord: { enabled: false, webhookUrl: '' },
-  telegram: { enabled: false, botToken: '', chatId: '' },
+  telegram: { enabled: false, botToken: '', chatId: '', serviceChatId: '' }, // serviceChatId = servisní chat pro systémové zprávy
   // automatické stavění: plan = { [id stavby]: { mode: 'skip'|'target'|'max', n } }, parks = { [spokojenost -50|-25|0|5|10]: cílový počet }, parksMinAll = globální minimum parků (od něj výš je park hotový, planeta se kvůli němu nenavštěvuje),
   // pace = násobek lidského tempa
   build: { plan: {}, parks: {}, parksMinAll: null, dryRun: false, forceAll: false, pace: 1 },
@@ -241,6 +241,7 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
       enabled: !!body.telegram.enabled,
       botToken: body.telegram.clear ? '' : str(body.telegram.botToken) || cur.telegram.botToken,
       chatId: str(body.telegram.chatId),
+      serviceChatId: 'serviceChatId' in body.telegram ? str(body.telegram.serviceChatId) : cur.telegram.serviceChatId ?? '',
     };
   }
   return next;
@@ -252,6 +253,6 @@ export function publicConfig(cfg) {
   return {
     ...rest,
     discord: { enabled: cfg.discord.enabled, configured: !!cfg.discord.webhookUrl },
-    telegram: { enabled: cfg.telegram.enabled, configured: !!cfg.telegram.botToken, chatId: cfg.telegram.chatId },
+    telegram: { enabled: cfg.telegram.enabled, configured: !!cfg.telegram.botToken, chatId: cfg.telegram.chatId, serviceChatId: cfg.telegram.serviceChatId ?? '' },
   };
 }

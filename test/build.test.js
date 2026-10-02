@@ -445,7 +445,7 @@ test('starý skript stavění (nehlásí neobyvatelnost) běh hned zastaví a ni
   assert.equal(run.snapshot().status, 'error');
 });
 
-test('zastaralý skript stavění: hláška jde do skriptu na stránce, na Telegram NIC', () => {
+test('zastaralý skript stavění: hláška jde do skriptu na stránce a do notify (server ji pošle jen do servisního chatu)', () => {
   const sent = [];
   const run = createBuildRun({ notify: (t) => sent.push(t) });
   const c = cfg({ plan: { bs: { mode: 'target', n: 1000 } } });
@@ -459,7 +459,7 @@ test('zastaralý skript stavění: hláška jde do skriptu na stránce, na Teleg
   run.start(c, 10);
   const r2 = run.report(rep('1', { phase: 'load', ver: '1.3.9' }), c, 11);
   assert.match(r2.message, /1\.3\.9/);
-  assert.deepEqual(sent.filter((t) => /zastaral/i.test(t)), [], 'žádná zpráva o zastaralém skriptu na Telegram');
+  assert.equal(sent.filter((t) => /Zastaralý skript/.test(t)).length, 2);
   run.start(c, 20);
   assert.notEqual(run.report(rep('1', { phase: 'load', ver: '1.4.1' }), c, 21).action, 'idle'); // nová verze jede
 });

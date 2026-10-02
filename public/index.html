@@ -366,7 +366,7 @@
       </div>
       <div class="chan">
         <div class="chan-head"><span>Teleskop</span><label class="sw"><input type="checkbox" id="opTeleAuto"><span></span></label></div>
-        <p class="muted" style="margin-top:0">Když je teleskop zastavený (<b>Stav teleskopu: Zastaven</b>), bot po lidské prodlevě klikne na <b>Aktivovat teleskop</b>. Po záměrně vynechané bdělosti počká celou dobu „pauzy“ výše. Když teleskopu nezbývá žádný čas nebo se aktivace třikrát nepovede, jen to zapíše do logu (na Telegram se o teleskopu nic neposílá). <b>Pozor:</b> když teleskop zastavíš ručně, vypni tenhle přepínač, jinak ho bot zase zapne.</p>
+        <p class="muted" style="margin-top:0">Když je teleskop zastavený (<b>Stav teleskopu: Zastaven</b>), bot po lidské prodlevě klikne na <b>Aktivovat teleskop</b>. Po záměrně vynechané bdělosti počká celou dobu „pauzy“ výše. Když teleskopu nezbývá žádný čas nebo se aktivace třikrát nepovede, pošle zprávu do <b>servisního chatu</b> (do hlavní skupiny nikdy). <b>Pozor:</b> když teleskop zastavíš ručně, vypni tenhle přepínač, jinak ho bot zase zapne.</p>
         <div class="two"><div><label for="opReactMin">Aktivovat nejdřív po (s)</label><input type="number" id="opReactMin" min="1" max="600"></div>
           <div><label for="opReactMax">… nejpozději po (s)</label><input type="number" id="opReactMax" min="1" max="600"></div></div>
         <div class="field" style="margin-top:14px"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
@@ -385,7 +385,7 @@
     <div class="pane" id="pane-data">
       <div class="chan">
         <div class="chan-head"><span>Hlídač výpadku dat</span><label class="sw"><input type="checkbox" id="wdEnabled"><span></span></label></div>
-        <p class="muted" style="margin-top:0">Když hlídaná rasa přestane dodávat data, pošle se zpráva, a další, až se data vrátí. Ticho z prohlížeče tak nevypadá jako klid. Výpadek mapy (OP) se ukáže jen v alertech v aplikaci, na Telegram nejde.</p>
+        <p class="muted" style="margin-top:0">Když hlídaná rasa (nebo mapa při zapnutém OP) přestane dodávat data, pošle se zpráva do <b>servisního chatu</b>, a další, až se data vrátí. Do hlavní skupiny nejde. Ticho z prohlížeče tak nevypadá jako klid.</p>
         <label for="wdStale">Hlásit po (s) bez dat</label><input type="number" id="wdStale" min="10">
       </div>
       <div class="chan">
@@ -420,12 +420,16 @@
         <label for="tToken">Token bota</label><input type="password" id="tToken" autocomplete="off">
         <label for="tChat" style="margin-top:10px">ID skupiny</label>
         <div style="display:flex;gap:8px"><input type="text" id="tChat" placeholder="např. -1001234567890"><button class="ghost" id="findChats" style="white-space:nowrap">Najít skupinu</button></div>
+        <label for="tService" style="margin-top:10px">ID servisního chatu <span class="muted">(systémové zprávy)</span></label>
+        <input type="text" id="tService" placeholder="prázdné = systémové zprávy na Telegram nechodí">
+        <small class="muted" style="display:block;margin-top:5px">Sem jdou jen systémové věci: výpadek dat ras a mapy, tlačítko bdělosti, teleskop a stavění. Do hlavní skupiny jen OP, síla a k dobytí.</small>
         <div id="chatList" style="margin-top:8px"></div>
         <details open><summary>Postup</summary><p>
           1) V Telegramu najdi <b>@BotFather</b>, napiš mu <code>/newbot</code> a dostaneš <b>token</b>, vlož ho výše.<br>
           2) Najdi svého bota (hledej podle jeho jména), otevři skupinu → <b>Přidat členy</b> → přidej bota.<br>
           3) Ve skupině napiš <code>/start</code> (nebo zmiň bota, např. <code>@jmeno_bota ahoj</code>) a tady klikni <b>Najít skupinu</b> → vyber ji. Obyčejné zprávy bot nevidí.<br>
-          4) Zapni přepínač, dej Uložit a pak „Poslat testovací zprávu“.</p></details>
+          4) Zapni přepínač, dej Uložit a pak „Poslat testovací zprávu“.<br><br>
+          <b>Servisní chat</b> (jen pro pár lidí): v Telegramu ☰ → <b>Nová skupina</b>, přidej ty lidi a svého bota, skupinu pojmenuj (např. „Dominator – servis“). Ve skupině napiš <code>/start</code>, tady klikni <b>Najít skupinu</b> a u ní dej <b>→ servisní</b>. Ulož a pošli testovací zprávu.</p></details>
       </div>
       <p class="muted">Uložené tokeny se z bezpečnostních důvodů znovu nezobrazují. Prázdné pole = ponechat uložené.</p>
       <button class="ghost" id="test">Poslat testovací zprávu</button>
@@ -966,7 +970,7 @@ function fillForm() {
   $('dSaved').textContent = cfg.discord.configured ? '✓ nastaveno' : '';
   $('tEnabled').checked = cfg.telegram.enabled; $('tToken').value = '';
   $('tToken').placeholder = cfg.telegram.configured ? '•••••••• uloženo (nech prázdné)' : '123456:ABC…';
-  $('tChat').value = cfg.telegram.chatId; $('tSaved').textContent = cfg.telegram.configured ? '✓ nastaveno' : '';
+  $('tChat').value = cfg.telegram.chatId; $('tService').value = cfg.telegram.serviceChatId ?? ''; $('tSaved').textContent = cfg.telegram.configured ? '✓ nastaveno' : '';
   $('dirtyNote').textContent = '';
 }
 const openDrawer = () => { fillForm(); document.body.classList.add('open'); };
@@ -1025,7 +1029,7 @@ $('save').onclick = async () => {
       op: { enabled: $('opEnabled2').checked, repeatSec: $('opRepeatSec').value, vigilance: { enabled: $('opVigEnabled').checked, minSec: $('opVigMin').value, maxSec: $('opVigMax').value, skipEnabled: $('opVigSkip').checked, skipMin: $('opSkipMin').value, skipMax: $('opSkipMax').value, downMin: $('opDownMin').value, downMax: $('opDownMax').value }, telescope: { auto: $('opTeleAuto').checked, reactMinSec: $('opReactMin').value, reactMaxSec: $('opReactMax').value, restEnabled: $('opRestEnabled').checked, restChance: $('opRestChance').value, restStopMin: $('opRestStopMin').value, restStopMax: $('opRestStopMax').value, restResumeMin: $('opRestResumeMin').value, restResumeMax: $('opRestResumeMax').value } },
       dropPct: $('dropPct').value, dropWindowSec: $('dropWindowSec').value,
       discord: { enabled: $('dEnabled').checked, webhookUrl: $('dUrl').value },
-      telegram: { enabled: $('tEnabled').checked, botToken: $('tToken').value, chatId: $('tChat').value },
+      telegram: { enabled: $('tEnabled').checked, botToken: $('tToken').value, chatId: $('tChat').value, serviceChatId: $('tService').value },
     });
     fillForm(); renderChips(); toast('Uloženo'); closeDrawer(); refresh();
   } catch (e) { toast('Uložení selhalo: ' + e.message, true); }
@@ -1036,10 +1040,14 @@ $('findChats').onclick = async () => {
     const { chats } = await api('/api/telegram/chats', 'POST', { botToken: $('tToken').value });
     box.innerHTML = chats.length ? '' : '<span class="muted">Nic nenalezeno. Napiš do skupiny <b>/start</b> nebo zmiň bota (@jmeno_bota ahoj) a zkus to znovu.</span>';
     for (const c of chats) {
-      const b = document.createElement('button'); b.className = 'ghost'; b.style.margin = '0 6px 6px 0';
-      b.textContent = `${c.title || c.type} (${c.id})`;
-      b.onclick = () => { $('tChat').value = c.id; box.innerHTML = '<span class="muted">Vybráno ✓ – teď zapni přepínač a ulož.</span>'; $('dirtyNote').textContent = 'neuložené změny'; };
-      box.appendChild(b);
+      // každý nalezený chat jde nastavit jako hlavní skupina, nebo jako servisní chat
+      const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:6px;align-items:center;margin:0 0 6px';
+      const t = document.createElement('span'); t.textContent = `${c.title || c.type} (${c.id})`; t.style.flex = '1';
+      const pick = (field, label) => { const b = document.createElement('button'); b.className = 'ghost'; b.textContent = label;
+        b.onclick = () => { $(field).value = c.id; box.innerHTML = `<span class="muted">Vybráno ✓ (${label.replace('→ ', '')}) – teď ulož.</span>`; $('dirtyNote').textContent = 'neuložené změny'; };
+        return b; };
+      row.append(t, pick('tChat', '→ hlavní'), pick('tService', '→ servisní'));
+      box.appendChild(row);
     }
   } catch (e) { box.innerHTML = `<span style="color:var(--bad)">${esc(e.message)}</span>`; }
 };
