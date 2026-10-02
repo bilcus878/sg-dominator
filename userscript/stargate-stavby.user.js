@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – stavění
 // @namespace    sg-dominator
-// @version      1.4.0
+// @version      1.4.1
 // @description  Na pokyn z aplikace vyplní počty staveb, klikne na Postavit a přejde na další planetu klikem v tabulce planet (pomalu a nepravidelně, jako člověk)
 // @match        https://stargate-game.cz/stavby.php*
 // @match        https://www.stargate-game.cz/stavby.php*
@@ -30,15 +30,35 @@
   const pause = (ms) => sleep(Math.max(40, ms * (1 + gauss() * 0.3)) + (Math.random() < 0.06 ? rnd(1500, 4500) * Math.min(1, tempo) : 0));
 
   // ---------- komunikace se serverem ----------
+  const VERSION = '1.4.1'; // stejné jako @version; server podle ní pozná zastaralý skript
+
+  /** Hláška přímo na stránce (např. zastaralý skript). Stejný text se neopakuje; křížek ji zavře. */
+  let bannerText = '';
+  function showBanner(text) {
+    if (!text || text === bannerText) return;
+    bannerText = text;
+    document.getElementById('sgd-banner')?.remove();
+    const d = document.createElement('div');
+    d.id = 'sgd-banner';
+    d.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:99999;max-width:720px;background:#3a0d0d;color:#fff;border:2px solid #ff4d4d;border-radius:8px;padding:12px 40px 12px 16px;font:15px/1.45 system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.6)';
+    d.textContent = '⚠️ Dominator – stavění: ' + text;
+    const x = document.createElement('button');
+    x.textContent = '✕';
+    x.style.cssText = 'position:absolute;top:6px;right:8px;background:none;border:0;color:#fff;font-size:18px;cursor:pointer';
+    x.onclick = () => d.remove();
+    d.appendChild(x);
+    document.body.appendChild(d);
+  }
+
   function post(path, data) {
     return new Promise((resolve) => {
       GM_xmlhttpRequest({
         method: 'POST',
         url: `${SERVER}${path}`,
         headers: { 'content-type': 'application/json', 'x-token': TOKEN },
-        data: JSON.stringify(data),
+        data: JSON.stringify({ ver: VERSION, ...data }),
         timeout: 8000,
-        onload: (r) => { try { resolve(JSON.parse(r.responseText)); } catch { resolve(null); } },
+        onload: (r) => { try { const j = JSON.parse(r.responseText); if (j?.message) showBanner(j.message); resolve(j); } catch { resolve(null); } },
         onerror: () => resolve(null),
         ontimeout: () => resolve(null),
       });

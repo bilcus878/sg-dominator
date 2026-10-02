@@ -23,6 +23,15 @@ const MAX_FAILED_IN_ROW = 5; // tolik planet po sobě bez úspěchu = nejspíš 
 /** Planety s těmito značkami za názvem v tabulce ((CP), (DP), (PP)) se nestaví – hra to nedovolí. */
 const NO_BUILD_TAGS = new Set(['CP', 'DP', 'PP']);
 const MAX_GOTO_TRIES = 3; // tolikrát se zkusí přejít na planetu, než se přeskočí
+/** Nejstarší verze skriptu stavění, se kterou se smí stavět (starší neumí poznat neobyvatelné planety). */
+export const MIN_SCRIPT = '1.4.0';
+/** a < b podle čísel verze („1.3.2“ < „1.4.0“); chybějící verze se nekontroluje (řeší ji příznak uninhabitable). */
+const olderThan = (a, b) => {
+  if (typeof a !== 'string' || !a) return false;
+  const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) < (pb[i] || 0);
+  return false;
+};
 
 /** Spokojenost z typu planety -> klíč v plánu parků ('~' ve hře = 0). */
 export const SATISFACTIONS = [-50, -25, 0, 5, 10];
@@ -225,11 +234,12 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
     addLog(reason, now);
   }
 
-  function fail(reason, now) {
+  /** silent = jen v aplikaci a ve skriptu na stránce, na Telegram nic. */
+  function fail(reason, now, { silent = false } = {}) {
     run.status = 'error';
     run.pending = null;
     addLog(reason, now);
-    notify(`⚠️ Stavění zastaveno: ${reason}`);
+    if (!silent) notify(`⚠️ Stavění zastaveno: ${reason}`);
   }
 
   const counts = () => {
@@ -358,8 +368,12 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
     const plId = String(rep.plId ?? '');
     const name = String(rep.planet ?? '').trim();
     if (!plId || !name || !rep.buildings || typeof rep.buildings !== 'object') { fail('nepodařilo se přečíst planetu nebo formulář', now); return { action: 'idle' }; }
-    // starý skript neumí poznat neobyvatelnou planetu -> raději nestavět vůbec
-    if (typeof rep.uninhabitable !== 'boolean') { fail('zastaralý skript stavění (neumí poznat neobyvatelné planety) – nainstaluj novou verzi z /install', now); return { action: 'idle' }; }
+    // starý skript (neumí poznat neobyvatelnou planetu) -> nestavět vůbec; hláška jen v aplikaci a na stránce, ne na Telegram
+    if (typeof rep.uninhabitable !== 'boolean' || olderThan(rep.ver, MIN_SCRIPT)) {
+      const msg = `Zastaralý skript stavění${rep.ver ? ` ${rep.ver}` : ''} – nainstaluj novou verzi (aspoň ${MIN_SCRIPT}) z http://127.0.0.1:3940/install a obnov stránku (F5).`;
+      fail(msg, now, { silent: true });
+      return { action: 'idle', message: msg };
+    }
     run.current = name;
 
     if (rep.phase === 'table') {
