@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – stavění
 // @namespace    sg-dominator
-// @version      1.3.2
+// @version      1.4.0
 // @description  Na pokyn z aplikace vyplní počty staveb, klikne na Postavit a přejde na další planetu klikem v tabulce planet (pomalu a nepravidelně, jako člověk)
 // @match        https://stargate-game.cz/stavby.php*
 // @match        https://www.stargate-game.cz/stavby.php*
@@ -75,7 +75,13 @@
       // defaultValue = počet z HTML (aktuálně postaveno), ne to, co jsme zrovna napsali
       buildings[id] = { cur: num(inp.defaultValue), max: num(inp.closest('.stavba')?.querySelector('.max')?.textContent) };
     }
-    return { plId, planet, satisfaction, buildings };
+    return { plId, planet, satisfaction, buildings, uninhabitable: isUninhabitable() };
+  }
+
+  /** Neobyvatelná planeta: hra píše „neobyvatelná“ u spokojenosti nebo hlášku „Planeta je neobyvatelná“. Na takové se NIKDY nestaví. */
+  function isUninhabitable() {
+    const typ = document.querySelector('.typ-planety')?.textContent ?? '';
+    return /neobyvateln/i.test(typ) || /Planeta je neobyvateln/i.test(document.body.textContent ?? '');
   }
 
   /**
@@ -244,6 +250,9 @@
     if (Math.random() < 0.03) await sleep(rnd(15000, 45000) * speed); // občas se na chvíli „zdrží“
 
     if (ins.action === 'build') {
+      if (isUninhabitable()) { // pojistka nezávislá na serveru: na neobyvatelné planetě nic nevyplnit ani neodeslat
+        return await post('/build/report', { phase: 'load', ...readPage() });
+      }
       for (const id of fillOrder(IDS.filter((i) => i in ins.values))) {
         const inp = document.getElementById(id);
         if (!inp || !(await stillActive())) return null;
@@ -251,7 +260,7 @@
         await pause(rnd(500, 1600) * speed);
       }
       await pause(rnd(1200, 3500) * speed); // zkontroluje, co napsal
-      if (!(await stillActive())) return null;
+      if (!(await stillActive()) || isUninhabitable()) return null;
       if (ins.dry) return await post('/build/report', { phase: 'filled', ...readPage() });
       holdUntil = Date.now() + 25000;
       await clickEl(submitBtn(), speed); // stránka se přenačte, další fázi řeší nové načtení

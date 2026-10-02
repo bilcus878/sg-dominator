@@ -358,11 +358,16 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
     const plId = String(rep.plId ?? '');
     const name = String(rep.planet ?? '').trim();
     if (!plId || !name || !rep.buildings || typeof rep.buildings !== 'object') { fail('nepodařilo se přečíst planetu nebo formulář', now); return { action: 'idle' }; }
+    // starý skript neumí poznat neobyvatelnou planetu -> raději nestavět vůbec
+    if (typeof rep.uninhabitable !== 'boolean') { fail('zastaralý skript stavění (neumí poznat neobyvatelné planety) – nainstaluj novou verzi z /install', now); return { action: 'idle' }; }
     run.current = name;
 
     if (rep.phase === 'table') {
       if (!Array.isArray(rep.table) || !rep.table.length) { fail('nepodařilo se přečíst tabulku planet', now); return { action: 'idle' }; }
-      const { table, valid, excluded } = normalizeTable(rep.table);
+      const norm = normalizeTable(rep.table);
+      const table = norm.table.filter((r) => !ledger.planets[r.id]?.uninhabitable); // neobyvatelné z dřívějška
+      const { valid } = norm;
+      const excluded = norm.excluded + (norm.table.length - table.length);
       const { queue, skipped } = buildQueue(table, cfgBuild, ledger.planets, forceAll);
       run.queue = queue;
       run.queueTotal = queue.length;
@@ -373,6 +378,21 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
       addLog(`Tabulka: ${valid} planet (${excluded} se nestaví: (CP)/(DP)/(PP) nebo neobyvatelné), k návštěvě ${queue.length}, přeskočeno ${skipped} (hotové podle tabulky a historie)`, now);
     }
     if (!run.queue) return { action: 'send-table' };
+
+    if (rep.uninhabitable) { // neobyvatelná planeta: nikdy nic nestavět, zapamatovat a jít dál
+      if (!ledger.planets[plId]?.uninhabitable) {
+        ledger.planets[plId] = { ...(ledger.planets[plId] ?? {}), name, at: now, uninhabitable: true };
+        onLedger();
+      }
+      const inQueue = run.queue.some((q) => q.id === plId);
+      run.queue = run.queue.filter((q) => q.id !== plId);
+      if (run.cur?.id === plId || inQueue) {
+        run.planets.push({ name, state: 'nothing', note: 'neobyvatelná, přeskočeno' });
+        addLog(`${name}: neobyvatelná planeta, nic se nestaví – přeskočeno`, now);
+      }
+      if (run.cur?.id === plId) { run.cur = null; run.pending = null; }
+      if (!run.cur) return routeNext(cfgBuild, now);
+    }
 
     if (run.cur && run.cur.id !== plId) { // někdo (ručně) přepnul planetu uprostřed práce
       addLog(`${run.cur.name}: přerušeno (stránka se přepnula na ${name})`, now);

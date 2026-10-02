@@ -134,7 +134,7 @@ test('buildQueue: pořadí z tabulky a počet přeskočených', () => {
 // ---------- průběh běhu ----------
 
 const mkRun = (opts = {}) => createBuildRun({ rand: () => 0.5, ...opts });
-const rep = (plId, extra = {}) => ({ plId, planet: `P${plId}`, satisfaction: -50, buildings: page(), ...extra });
+const rep = (plId, extra = {}) => ({ plId, planet: `P${plId}`, satisfaction: -50, buildings: page(), uninhabitable: false, ...extra });
 
 test('běh: tabulka -> fronta -> města -> ostatní (bez dolu) -> důl -> přechod na další planetu -> konec', () => {
   const sent = [];
@@ -410,4 +410,37 @@ test('neobyvatelné planety (červený řádek ve hře) se z fronty vyřadí ste
   const p = run.snapshot().preview;
   assert.deepEqual([p.tableSize, p.excluded, p.visit], [4, 2, 2]);
   assert.deepEqual(p.sample, ['P1', 'P4']);
+});
+
+test('neobyvatelná planeta nahlášená ze stránky: nic se nestaví, zapamatuje se a příště se do fronty nezařadí', () => {
+  const ledger = { planets: {} };
+  const run = createBuildRun({ ledger });
+  const c = cfg({ plan: { bs: { mode: 'target', n: 1000 } } });
+  run.start(c, 0);
+  run.report(rep('1', { phase: 'load' }), c, 1);
+  const t = [row('1'), row('2')];
+  const first = run.report(rep('1', { phase: 'table', table: t }), c, 2);
+  assert.deepEqual([first.action, first.plId], ['goto', '2']); // P1 nemá co stavět, jde se na P2
+  // P2 se v tabulce tváří normálně, ale stránka planety hlásí neobyvatelnou
+  const ins = run.report(rep('2', { phase: 'load', uninhabitable: true }), c, 10);
+  assert.notEqual(ins.action, 'build');
+  assert.equal(ledger.planets['2'].uninhabitable, true);
+  assert.ok(run.snapshot().log.some((l) => /P2: neobyvatelná/.test(l.msg)));
+
+  // další běh: P2 se do fronty nezařadí ani bez značky v tabulce
+  const run2 = createBuildRun({ ledger });
+  run2.start(c, 100);
+  run2.report(rep('1', { phase: 'load' }), c, 101);
+  run2.report(rep('1', { phase: 'table', table: [row('1'), row('2')] }), c, 102);
+  assert.equal(run2.snapshot().queue.excluded, 1);
+});
+
+test('starý skript stavění (nehlásí neobyvatelnost) běh hned zastaví a nic nepostaví', () => {
+  const run = mkRun();
+  const c = cfg({ plan: { bs: { mode: 'target', n: 1000 } } });
+  run.start(c, 0);
+  const old = rep('1', { phase: 'load' });
+  delete old.uninhabitable;
+  assert.equal(run.report(old, c, 1).action, 'idle');
+  assert.equal(run.snapshot().status, 'error');
 });
