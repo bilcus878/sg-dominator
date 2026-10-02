@@ -38,6 +38,8 @@
   td.target.noatk { background:rgba(139,147,165,.10); box-shadow:inset 3px 0 0 var(--mut); color:var(--mut); }
   .tg { font-size:11px; margin-left:6px; color:var(--acc); font-weight:600; white-space:nowrap; } .tg.noatk { color:var(--mut); font-weight:400; }
   .rpanel[data-role=attack] .thcol { display:none; } /* vlastní práh u cizí rasy nemá smysl */
+  td.pname .on { display:inline-block; width:8px; height:8px; margin-right:5px; border-radius:50%; vertical-align:middle; }
+  td.pname .on.yes { background:#2ecc40; box-shadow:0 0 4px #2ecc40; }
   .rpanel[data-role=defend] .dcol { display:none; } /* D (dobýt) má smysl jen u cizí rasy */
   .rbody th.dcol, .rbody td.dcol { width:30px; padding-left:2px; padding-right:2px; }
   .dmark { display:inline-block; min-width:20px; font-weight:800; font-size:13px; line-height:20px; border-radius:4px; }
@@ -593,15 +595,15 @@ function makeRow(v, r, p) {
     <td class="c dcol"><span class="dmark"></span></td>
     <td class="c"><label class="sw"><input type="checkbox"><span></span></label></td>`;
   const nameTd = tr.children[0];
-  nameTd.innerHTML = '<span class="nm"></span><span class="tg"></span>';
-  nameTd.firstChild.textContent = p.name;
+  nameTd.innerHTML = '<span class="on"></span><span class="nm"></span><span class="tg"></span>';
+  nameTd.querySelector('.nm').textContent = p.name;
   nameTd.addEventListener('click', () => copyName(p.name));
   if (v.isW) tr.children[1].textContent = r.name;
   const input = tr.querySelector('td.n input'), sw = tr.querySelector('.sw input');
   for (const el of [input, sw]) { el.dataset.name = p.name; el.dataset.race = r.id; }
   input.dataset.kind = 'th'; sw.dataset.kind = 'watch';
   const cell = (td) => ({ td, v: td.querySelector('.pv'), d: td.querySelector('.pd') });
-  return { tr, tag: nameTd.querySelector('.tg'), dmark: tr.querySelector('.dmark'), planets: cell(tr.children[v.isW ? 2 : 1]), pw: cell(tr.children[v.isW ? 3 : 2]), power: tr.children[v.isW ? 3 : 2], input, sw };
+  return { tr, on: nameTd.querySelector('.on'), tag: nameTd.querySelector('.tg'), dmark: tr.querySelector('.dmark'), planets: cell(tr.children[v.isW ? 2 : 1]), pw: cell(tr.children[v.isW ? 3 : 2]), power: tr.children[v.isW ? 3 : 2], input, sw };
 }
 
 async function copyName(name) {
@@ -701,6 +703,9 @@ function updatePanel(id) {
     row.power.classList.toggle('below', !atk && p.power < p.threshold);
     const isCrit = !atk && p.critical > 0 && p.power < p.critical;
     row.power.classList.toggle('crit', isCrit);
+    // zelená tečka před jménem = hráč je online (stejně jako ve hře)
+    row.on.classList.toggle('yes', p.online === true);
+    row.on.title = p.online ? 'Online' : '';
     // sloupec D (jen cizí rasa): oranžové D = dobýt jde, červený ✕ = nejde, prázdné = zatím nevíme (starý skript)
     const dTxt = !atk || p.attackable == null ? '' : p.attackable ? 'D' : '✕';
     if (row.dmark.textContent !== dTxt) row.dmark.textContent = dTxt;

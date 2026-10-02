@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator
 // @namespace    sg-dominator
-// @version      3.3.0
+// @version      3.4.0
 // @description  Čte tabulku hráčů a posílá sílu na lokální notifikační server (bez zásahu do stránky)
 // @match        https://stargate-game.cz/vesmir.php*
 // @match        https://www.stargate-game.cz/vesmir.php*
@@ -60,7 +60,7 @@
       const name = (td[nameIdx].querySelector('a')?.textContent ?? td[nameIdx].textContent).trim();
       const power = cellNumber(td[powerIdx]);
       if (!name || !Number.isFinite(power)) continue;
-      const p = { name, power };
+      const p = { name, power, online: !!td[nameIdx].querySelector('img[src*="online"]') }; // zelená tečka před jménem = online
       if (planetsIdx >= 0 && td[planetsIdx]) {
         // buňka typu "468 +19": počet planet a změna, kterou ukazuje hra (zelená +, červená −)
         const planets = cellNumber(td[planetsIdx]);
