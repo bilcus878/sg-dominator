@@ -198,7 +198,7 @@ async function handleTelescope(req) {
   if (body.event === 'attempt') {
     const r = tele.attempt(now);
     console.log('[teleskop] klikám na Aktivovat');
-    if (r.alert === 'failed') sendText(cfg, '⚠️ Teleskop se nepodařilo aktivovat ani na několikátý pokus. Zkontroluj mapu, příštích 30 minut to zkoušet nebudu.');
+    if (r.alert === 'failed') console.log('[teleskop] aktivace se nepovedla ani na několikátý pokus, příštích 30 minut to zkoušet nebudu');
     return [200, { ok: true }];
   }
   if (body.event !== 'state') return [400, { error: 'invalid event' }];
@@ -207,7 +207,7 @@ async function handleTelescope(req) {
   if (!cfg.op.enabled) { tele.noteState(state); return [200, { action: 'none' }]; } // OP vypnuto: teleskop se nezapíná
   const r = tele.telescopeState({ state, remainingSec: remaining }, cfg.op, now);
   if (state !== teleLast) { teleLast = state; console.log(`[teleskop] ${state === 'active' ? 'aktivní' : 'zastavený'}`); }
-  if (r.alert === 'zero') sendText(cfg, '⚠️ Teleskop je zastavený a nezbývá mu žádný čas, nelze ho aktivovat.');
+  if (r.alert === 'zero') console.log('[teleskop] je zastavený a nezbývá mu žádný čas, nelze ho aktivovat'); // na Telegram se o teleskopu nic neposílá
   return [200, r];
 }
 
