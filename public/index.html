@@ -29,6 +29,10 @@
   th.sortable { cursor:pointer; user-select:none; } th.sortable:hover { color:var(--fg); }
   tr.off td:not(.c) { opacity:.45; }
   .below { color:var(--bad); font-weight:600; }
+  /* změna jako ve hře: nárůst zeleně, ztráta červeně */
+  .plus { color:var(--ok); } .minus { color:var(--bad); }
+  .pd { font-size:12px; margin-left:4px; } .pd.plus, .pd.minus { font-weight:600; }
+  td.pname { cursor:copy; } td.pname:hover { color:var(--acc); }
   .muted { color:var(--mut); font-size:13px; }
   .empty { color:var(--mut); text-align:center; padding:24px 8px; }
   input[type=text],input[type=number],input[type=password],input[type=search] { width:100%; padding:8px 10px; background:var(--card2); color:var(--fg); border:1px solid var(--line); border-radius:6px; font:inherit; }
@@ -525,7 +529,7 @@ function buildPanel(id) {
       <span class="muted rcount"></span>
     </div>
     <div class="rbody"><table>
-      <thead><tr><th>Jméno</th>${isW ? '<th>Rasa</th>' : ''}<th class="n sortable" data-act="sort" title="Řadit podle síly">Síla ↕</th><th class="n">Vlastní práh</th><th class="c">Hlídat</th></tr></thead>
+      <thead><tr><th>Jméno</th>${isW ? '<th>Rasa</th>' : ''}<th class="n" title="Počet planet a změna, jak ji ukazuje hra">Planety</th><th class="n sortable" data-act="sort" title="Řadit podle síly">Síla ↕</th><th class="n">Vlastní práh</th><th class="c">Hlídat</th></tr></thead>
       <tbody></tbody></table><div class="empty rempty"></div></div>`;
   const q = (s) => root.querySelector(s);
   const v = { root, isW, rows: new Map(), dot: q('.dot'), name: q('.rname'), info: q('.rinfo'), th: q('.rth'), crit: q('.rcrit'),
@@ -538,15 +542,33 @@ function buildPanel(id) {
 
 function makeRow(v, r, p) {
   const tr = document.createElement('tr');
-  tr.innerHTML = `<td></td>${v.isW ? '<td></td>' : ''}<td class="n"></td>
+  tr.innerHTML = `<td class="pname" title="Klikni pro zkopírování jména"></td>${v.isW ? '<td></td>' : ''}<td class="n"><span class="pv"></span><span class="pd"></span></td>
+    <td class="n"><span class="pv"></span><span class="pd"></span></td>
     <td class="n"><input type="number" min="0"></td>
     <td class="c"><label class="sw"><input type="checkbox"><span></span></label></td>`;
-  tr.children[0].textContent = p.name;
+  const nameTd = tr.children[0];
+  nameTd.textContent = p.name;
+  nameTd.addEventListener('click', () => copyName(p.name));
   if (v.isW) tr.children[1].textContent = r.name;
   const input = tr.querySelector('td.n input'), sw = tr.querySelector('.sw input');
   for (const el of [input, sw]) { el.dataset.name = p.name; el.dataset.race = r.id; }
   input.dataset.kind = 'th'; sw.dataset.kind = 'watch';
-  return { tr, power: tr.children[v.isW ? 2 : 1], input, sw };
+  const cell = (td) => ({ td, v: td.querySelector('.pv'), d: td.querySelector('.pd') });
+  return { tr, planets: cell(tr.children[v.isW ? 2 : 1]), pw: cell(tr.children[v.isW ? 3 : 2]), power: tr.children[v.isW ? 3 : 2], input, sw };
+}
+
+async function copyName(name) {
+  try { await navigator.clipboard.writeText(name); toast(`Zkopírováno: ${name}`); }
+  catch { toast('Kopírování se nepovedlo', true); }
+}
+
+const CHANGE_MS = 10 * 60_000; // jak dlouho je změna síly vidět barevně
+const signed = (n) => (n > 0 ? '+' : '−') + fmt(Math.abs(n));
+/** Číslo + změna jako ve hře: nárůst zeleně, ztráta červeně (cls '' = beze změny). */
+function setDelta(c, delta) {
+  const txt = delta ? ` ${signed(delta)}` : '';
+  if (c.d.textContent !== txt) c.d.textContent = txt;
+  c.d.className = 'pd' + (delta > 0 ? ' plus' : delta < 0 ? ' minus' : '');
 }
 
 function panelItems(id) {
@@ -608,11 +630,21 @@ function updatePanel(id) {
     if (!row) { row = makeRow(v, pr, p); v.rows.set(key, row); }
     if (v.tbody.children[i] !== row.tr) v.tbody.insertBefore(row.tr, v.tbody.children[i] ?? null);
     const txt = fmt(p.power);
-    if (row.power.textContent !== txt) row.power.textContent = txt;
+    if (row.pw.v.textContent !== txt) row.pw.v.textContent = txt;
+    const recent = p.powerDelta && p.powerAt && S.serverTime - p.powerAt < CHANGE_MS ? p.powerDelta : 0;
+    setDelta(row.pw, recent);
+    row.pw.v.classList.toggle('plus', recent > 0);
+    row.pw.v.classList.toggle('minus', recent < 0);
+    const pl = p.planets == null ? '' : fmt(p.planets);
+    if (row.planets.v.textContent !== pl) row.planets.v.textContent = pl;
+    setDelta(row.planets, p.planetsDelta || 0);
     row.power.classList.toggle('below', p.power < p.threshold);
     const isCrit = p.critical > 0 && p.power < p.critical;
     row.power.classList.toggle('crit', isCrit);
-    row.power.title = p.critical > 0 ? `Kritická hranice ${fmt(p.critical)}` : '';
+    row.power.title = [
+      recent ? `Změna síly ${signed(recent)} před ${Math.max(1, Math.round((S.serverTime - p.powerAt) / 60_000))} min` : '',
+      p.critical > 0 ? `Kritická hranice ${fmt(p.critical)}` : '',
+    ].filter(Boolean).join('\n');
     row.tr.classList.toggle('off', !p.watched);
     row.input.placeholder = fmt(p.threshold);
     if (!pending) { // ovládací prvky se synchronizují jen když se nic neukládá a uživatel v nich nepíše

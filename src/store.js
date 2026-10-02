@@ -7,6 +7,7 @@ const SOURCE_ACTIVE_MS = 5_000;
 
 export function createStore() {
   const pages = new Map(); // "raceId:page" -> { raceId, page, at, players, sources: Map(src -> ts) }
+  const changes = new Map(); // "raceId|jméno" -> { power, delta, at } poslední změna síly (pro barvu v UI)
 
   function ingest({ raceId, page = 1, src = 'unknown', players }, now = Date.now()) {
     const key = `${raceId}:${page}`;
@@ -14,6 +15,12 @@ export function createStore() {
     if (!e) pages.set(key, (e = { raceId, page, at: now, players: [], sources: new Map() }));
     e.at = now;
     e.players = players;
+    for (const p of players) {
+      const ck = `${raceId}|${p.name}`;
+      const c = changes.get(ck);
+      if (!c) changes.set(ck, { power: p.power, delta: 0, at: 0 }); // první údaj není změna
+      else if (c.power !== p.power) changes.set(ck, { power: p.power, delta: p.power - c.power, at: now });
+    }
     e.sources.set(src, now);
     for (const [k, v] of pages) if (now - v.at > PAGE_TTL_MS) pages.delete(k);
   }
@@ -28,10 +35,15 @@ export function createStore() {
     for (const e of entries) {
       at = Math.max(at, e.at);
       for (const [s, ts] of e.sources) if (now - ts < SOURCE_ACTIVE_MS) srcs.add(s);
-      for (const p of e.players) if (!seen.has(p.name)) { seen.add(p.name); players.push(p); }
+      for (const p of e.players) {
+        if (seen.has(p.name)) continue;
+        seen.add(p.name);
+        const c = changes.get(`${raceId}|${p.name}`);
+        players.push({ ...p, powerDelta: c?.delta ?? 0, powerAt: c?.at ?? 0 });
+      }
     }
     return { at, sources: srcs.size, players };
   }
 
-  return { ingest, snapshot, clear: () => pages.clear(), raceIds: () => [...new Set([...pages.values()].map((e) => e.raceId))] };
+  return { ingest, snapshot, clear: () => { pages.clear(); changes.clear(); }, raceIds: () => [...new Set([...pages.values()].map((e) => e.raceId))] };
 }

@@ -76,7 +76,11 @@ function parsePlayers(body) {
   for (const p of body.players) {
     const power = Number(p?.power);
     if (typeof p?.name !== 'string' || !p.name || p.name.length > 64 || !Number.isFinite(power) || power < 0) return null;
-    out.push({ name: p.name.trim(), power: Math.round(power) });
+    const q = { name: p.name.trim(), power: Math.round(power) };
+    // počet planet a jeho změna ze hry jsou nepovinné (starší userscript je neposílá)
+    if (Number.isInteger(p.planets) && p.planets >= 0 && p.planets < 1e6) q.planets = p.planets;
+    if (Number.isInteger(p.planetsDelta) && Math.abs(p.planetsDelta) < 1e6) q.planetsDelta = p.planetsDelta;
+    out.push(q);
   }
   return out;
 }
@@ -226,7 +230,10 @@ function buildState() {
       criticalPct: rec.criticalPct ?? null,
       at: snap.at,
       sources: snap.sources,
-      players: snap.players.map((p) => ({ name: p.name, power: p.power, ...resolveWatch(cfg, id, p.name) })),
+      players: snap.players.map((p) => ({
+        name: p.name, power: p.power, planets: p.planets ?? null, planetsDelta: p.planetsDelta ?? null,
+        powerDelta: p.powerDelta, powerAt: p.powerAt, ...resolveWatch(cfg, id, p.name),
+      })),
     };
   });
   const recent = ingestTimes.filter((t) => t > now - 10_000);
