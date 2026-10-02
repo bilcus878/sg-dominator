@@ -5,8 +5,8 @@
  *  - target:   hráč se stal cílem a jde na něj zaútočit -> jedna zpráva
  *  - released: hráč vylezl nad `above` -> jedna zpráva „už není k dobytí“ (jen když se předtím hlásil)
  * Vstup i výstup musí potvrdit 2 po sobě jdoucí čtení (filtr výkyvů při obnově stránky).
- * Cíl, na kterého hra útok nedovolí (attackable === false), se ukazuje, ale nehlásí; ohlásí se,
- * jakmile útok půjde a je pořád cílem. Čistá logika bez I/O.
+ * Cíl, kterého nelze dobýt (attackable === false: ve hře chybí ikona D), se ukazuje, ale nehlásí; ohlásí se,
+ * jakmile D bude a je pořád cílem. Čistá logika bez I/O.
  */
 export const CONQUEST_DEFAULTS = { below: 10_000_000, above: 20_000_000 };
 

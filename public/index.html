@@ -319,7 +319,7 @@
         <small>Platí pro všechny hlídané hráče, pokud rasa nebo hráč nemá vlastní práh. Klesne-li síla <b>pod toto číslo</b>, pošle se zpráva.</small></div>
       <div class="chan" style="margin-bottom:16px">
         <div class="chan-head"><span>🎯 Cizí rasy – k dobytí</span></div>
-        <p class="muted" style="margin-top:0">U ras přepnutých na <b>🎯 Cizí</b> se nehlídá pokles, ale kdo je k dobytí. Jedna zpráva přijde, když hráči spadne síla pod spodní hranici (a hra útok dovolí), a jedna, když vyleze nad horní. Mezi nimi zůstává k dobytí, ať zprávy neskáčou.</p>
+        <p class="muted" style="margin-top:0">U ras přepnutých na <b>🎯 Cizí</b> se nehlídá pokles, ale kdo je k dobytí. Jedna zpráva přijde, když hráči spadne síla pod spodní hranici (a jde ho dobýt – ve hře svítí D), a jedna, když vyleze nad horní. Mezi nimi zůstává k dobytí, ať zprávy neskáčou.</p>
         <div class="two"><div><label for="conqBelow">K dobytí pod (síla)</label><input type="text" inputmode="numeric" class="num" id="conqBelow"></div>
           <div><label for="conqAbove">Konec nad (síla)</label><input type="text" inputmode="numeric" class="num" id="conqAbove"></div></div></div>
       <div class="field"><label for="cooldownSec">Pauza mezi zprávami o jednom hráči (s)</label><input type="number" id="cooldownSec" min="0">
@@ -705,14 +705,14 @@ function updatePanel(id) {
     const dTxt = !atk || p.attackable == null ? '' : p.attackable ? 'D' : '✕';
     if (row.dmark.textContent !== dTxt) row.dmark.textContent = dTxt;
     row.dmark.className = 'dmark' + (dTxt === 'D' ? ' dyes' : dTxt ? ' dno' : '');
-    row.dmark.title = dTxt === 'D' ? 'Dobýt jde (ve hře svítí D)' : dTxt ? 'Dobýt nejde (ve hře chybí D)' : '';
+    row.dmark.title = dTxt === 'D' ? 'Dobýt jde (ve hře svítí D)' : dTxt ? 'Nelze dobýt (ve hře chybí D) – zaútočit jde, ale ne dobývacím útokem' : '';
     const tgt = atk && p.target, noatk = tgt && p.attackable === false;
     row.power.classList.toggle('target', tgt);
     row.power.classList.toggle('noatk', noatk);
-    const tagTxt = tgt ? (noatk ? '🎯 útok nelze' : '🎯 k dobytí') : '';
+    const tagTxt = tgt ? (noatk ? '🎯 nelze dobýt' : '🎯 k dobytí') : '';
     if (row.tag.textContent !== tagTxt) row.tag.textContent = tagTxt;
     row.tag.className = 'tg' + (noatk ? ' noatk' : '');
-    row.tag.title = tgt ? `K dobytí ${ago(p.since)}${noatk ? ' – hra teď útok nedovolí, zpráva přijde, až půjde' : ''}` : '';
+    row.tag.title = tgt ? `K dobytí ${ago(p.since)}${noatk ? ' – teď nelze dobýt (chybí D), zpráva přijde, až D bude' : ''}` : '';
     row.power.title = [
       recent ? `Změna síly ${signed(recent)} před ${Math.max(1, Math.round((S.serverTime - p.powerAt) / 1000))} s` : '',
       !atk && p.critical > 0 ? `Kritická hranice ${fmt(p.critical)}` : '',
