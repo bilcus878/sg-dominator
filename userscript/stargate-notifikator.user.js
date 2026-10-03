@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator
 // @namespace    sg-dominator
-// @version      3.6.1
+// @version      3.7.0
 // @description  Čte tabulku hráčů a posílá sílu na lokální notifikační server (bez zásahu do stránky)
 // @match        https://stargate-game.cz/vesmir.php*
 // @match        https://www.stargate-game.cz/vesmir.php*
@@ -85,6 +85,18 @@
           dDebug = td[attackIdx].innerHTML.replace(/\s+/g, ' ').replace(/(token|[?&]t)=[^&"'\s>]*/g, '$1=X').slice(0, 400); // pro ladění: jak D vypadá
         }
       }
+      // všechny druhy útoku jako ve hře (D P Z U N L S T): písmeno z ikony, id útoku z odkazu, svítí = ikona bez třídy .pruhledny
+      if (attackIdx >= 0 && td[attackIdx]) {
+        const attacks = [];
+        for (const a of td[attackIdx].querySelectorAll('a[href*="utok_id"]')) {
+          const img = a.querySelector('img');
+          const t = (img?.alt ?? '').trim();
+          let id = NaN;
+          try { id = parseInt(new URL(a.getAttribute('href'), location.href).searchParams.get('utok_id'), 10); } catch { /* neplatný odkaz */ }
+          if (/^[A-Z]$/.test(t) && id > 0) attacks.push({ t, id, ok: !img.classList.contains('pruhledny') });
+        }
+        if (attacks.length) p.attacks = attacks;
+      }
       // hodnost podle barvy jména ve hře: vůdce (žlutá), zástupce (bílá), ministr (zelená), občan
       const rank = ['vudce', 'zastupce', 'ministr', 'obcan'].find((r) => td[nameIdx].querySelector('a')?.classList.contains(r));
       if (rank) p.rank = rank;
@@ -102,7 +114,7 @@
   function tick() {
     const players = readPlayers();
     if (!players.length) return;
-    const body = JSON.stringify({ raceId, raceName: findRaceName(), page, src, ver: '3.6.1', dDebug, players });
+    const body = JSON.stringify({ raceId, raceName: findRaceName(), page, src, ver: '3.7.0', dDebug, players });
     const now = Date.now();
     const changed = body !== lastBody;
     if (inFlight || (!changed && now - lastSendAt < 800)) return; // 800 ms rezerva na jitter intervalu

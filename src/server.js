@@ -17,6 +17,7 @@ import { createTelescope } from './telescope.js';
 import { createConquest, CONQUEST_DEFAULTS } from './conquest.js';
 import { createArmy } from './army.js';
 import { mergeSeenUnits, sanitizeReport, sanitizeSeenUnits } from './attack.js';
+import { createAttackJobs } from './attackjob.js';
 
 // data bydlela dřív ve složce projektu (Dropbox); při prvním spuštění se přesunou mimo ni
 if (USING_DEFAULT_DIR) migrateLegacyData(LEGACY_DATA_DIR, DATA_DIR);
@@ -91,6 +92,10 @@ function parsePlayers(body) {
     if (typeof p.attackable === 'boolean') q.attackable = p.attackable; // sloupec Útok ve hře (false = „nelze“)
     if (Number.isInteger(p.hracId) && p.hracId > 0 && p.hracId < 1e12) q.hracId = p.hracId; // id hráče z odkazu D (utok.php?hrac_id=…)
     if (Number.isInteger(p.utokId) && p.utokId > 0 && p.utokId < 100) q.utokId = p.utokId;
+    if (Array.isArray(p.attacks)) { // všechny druhy útoku jako ve hře (D P Z U N L S T): písmeno, id útoku, svítí = jde zahájit
+      const at = p.attacks.slice(0, 12).filter((a) => /^[A-Z]$/.test(a?.t) && Number.isInteger(a.id) && a.id > 0 && a.id < 100).map((a) => ({ t: a.t, id: a.id, ok: !!a.ok }));
+      if (at.length) q.attacks = at;
+    }
     out.push(q);
   }
   return out;
@@ -285,7 +290,7 @@ function buildState() {
       sources: snap.sources,
       players: snap.players.map((p) => ({
         name: p.name, power: p.power, planets: p.planets ?? null, planetsChange: p.planetsChange ?? 0, planetsAt: p.planetsAt ?? 0,
-        powerDelta: p.powerDelta, powerAt: p.powerAt, attackable: p.attackable ?? null, online: p.online ?? null, rank: p.rank ?? null, hracId: p.hracId ?? null, utokId: p.utokId ?? null, ...conquest.status(id, p.name), ...resolveWatch(cfg, id, p.name),
+        powerDelta: p.powerDelta, powerAt: p.powerAt, attackable: p.attackable ?? null, online: p.online ?? null, rank: p.rank ?? null, hracId: p.hracId ?? null, utokId: p.utokId ?? null, attacks: p.attacks ?? null, ...conquest.status(id, p.name), ...resolveWatch(cfg, id, p.name),
       })),
     };
   });
@@ -328,9 +333,10 @@ const buildView = () => [200, { buildings: BUILDINGS, config: cfg.build, run: bu
 /** Dobývací útok: skript na stránce utok.php si bere nastavení a hlásí, co našel a vyplnil. */
 let attackSeen = { at: 0, units: [] }; // jednotky z poslední navštívené stránky útoku
 let attackReport = null; // poslední hlášení o vyplnění
+const attackJobs = createAttackJobs(); // útok řízený z aplikace (okno s průběhem)
 
 const routes = {
-  'GET /attack/config': async (req) => (authOk(req) ? [200, { units: cfg.attack.units, autoSubmit: cfg.attack.autoSubmit, randomPlanet: cfg.attack.randomPlanet }] : [401, { error: 'bad token' }]),
+  'GET /attack/config': async (req) => (authOk(req) ? [200, { units: cfg.attack.units, autoSubmit: cfg.attack.autoSubmit, randomPlanet: cfg.attack.randomPlanet, closeTab: cfg.attack.closeTab }] : [401, { error: 'bad token' }]),
   'POST /attack/seen': async (req) => {
     if (!authOk(req)) return [401, { error: 'bad token' }];
     const units = sanitizeSeenUnits((await readJson(req)).units);
@@ -344,6 +350,40 @@ const routes = {
     attackReport = { ...sanitizeReport(await readJson(req)), at: Date.now() };
     console.log(`[útok] ${attackReport.ok ? 'vyplněno' : 'nevyplněno'}${attackReport.submitted ? ', odesláno' : ''}${attackReport.problems.length ? ': ' + attackReport.problems.join('; ') : ''}`);
     return [200, { ok: true }];
+  },
+  // útok z aplikace: okno s průběhem a tlačítkem Zaútočit
+  'POST /api/attack/start': async (req) => {
+    const b = await readJson(req);
+    const hracId = Number(b.hracId), utokId = Number(b.utokId);
+    if (!Number.isInteger(hracId) || hracId <= 0 || !Number.isInteger(utokId) || utokId <= 0 || utokId >= 100) return [400, { error: 'chybí ID hráče nebo útoku' }];
+    const id = attackJobs.start({ hracId, utokId, name: b.name, type: b.type, power: Number(b.power), lit: b.lit !== false }, Date.now());
+    console.log(`[útok] otevírám ${b.type ?? ''} na ${String(b.name ?? '').slice(0, 40)}`);
+    return [200, { id, url: `https://www.stargate-game.cz/utok.php?page=0&hrac_id=${hracId}&utok_id=${utokId}#dominator=${id}` }];
+  },
+  'GET /api/attack/job': async () => [200, { job: attackJobs.snapshot(Date.now()) }],
+  'POST /api/attack/command': async (req) => {
+    const cmd = String((await readJson(req)).cmd ?? '');
+    const r = attackJobs.command(cmd, Date.now());
+    if (r.ok) console.log(`[útok] příkaz z aplikace: ${cmd}`);
+    return [r.ok ? 200 : 409, r];
+  },
+  'POST /attack/job/report': async (req) => {
+    if (!authOk(req)) return [401, { error: 'bad token' }];
+    const b = await readJson(req);
+    const ok = attackJobs.report(String(b.id ?? ''), b, Date.now());
+    if (ok && b.phase === 'ready' && cfg.attack.autoSubmit) attackJobs.command('submit', Date.now()); // automatické odeslání je vypnuté, dokud ho nezapneš v nastavení
+    return [200, { ok }];
+  },
+  // dlouhé dotazování: odpoví, jakmile je příkaz (nebo po ~20 s), takže nezávisí na časovačích karty na pozadí
+  'POST /attack/job/poll': async (req) => {
+    if (!authOk(req)) return [401, { error: 'bad token' }];
+    const id = String((await readJson(req)).id ?? '');
+    const end = Date.now() + 20_000;
+    for (;;) {
+      const r = attackJobs.poll(id, Date.now());
+      if (!r.ok || r.cmd || Date.now() > end) return [200, r];
+      await new Promise((ok) => setTimeout(ok, 150));
+    }
   },
   'GET /api/attack': async () => [200, { seen: attackSeen, report: attackReport, scripts: Object.fromEntries(scriptInfo) }],
   // dohození rasové armády: skript na stránce Jednotky → Rasová armáda (s tokenem) a tlačítko v aplikaci

@@ -10,6 +10,7 @@ test('normUnit: bez diakritiky, malá písmena, jedna mezera', () => {
 test('výchozí nastavení: nic se neodesílá samo, planeta se losuje', () => {
   assert.equal(ATTACK_DEFAULTS.autoSubmit, false);
   assert.equal(ATTACK_DEFAULTS.randomPlanet, true);
+  assert.equal(ATTACK_DEFAULTS.closeTab, true);
   assert.deepEqual(ATTACK_DEFAULTS.units, []);
 });
 

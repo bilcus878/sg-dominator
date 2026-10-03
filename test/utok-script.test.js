@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 /** Čistá logika je v userscriptu mezi značkami <logic>; tady ji vytáhneme a spustíme. */
 const src = readFileSync(new URL('../userscript/stargate-utok.user.js', import.meta.url), 'utf8');
 const block = src.slice(src.indexOf('// <logic>'), src.indexOf('// </logic>'));
-const { strip, toNum, pickPlanet, planFill } = new Function(`${block}; return { strip, toNum, pickPlanet, planFill };`)();
+const { strip, toNum, pickPlanet, planFill, parseHash } = new Function(`${block}; return { strip, toNum, pickPlanet, planFill, parseHash };`)();
 
 test('toNum čte čísla ze hry: mezery, pevná mezera, desetinná čárka', () => {
   assert.equal(toNum('18 822 832'), 18822832);
@@ -65,4 +65,19 @@ test('planFill: neznámé jednotky v nastavení se ignorují, neznámý počet k
 
 test('strip sjednotí názvy', () => {
   assert.equal(strip('  Bedrosiánský   Křižník '), 'bedrosiansky kriznik');
+});
+
+test('pickPlanet: při přelosování se nevybere stejná planeta, jediná možnost se vrátí i tak', () => {
+  const opts = [{ value: 'a' }, { value: 'b' }, { value: 'c' }];
+  for (let i = 0; i < 100; i++) assert.notEqual(pickPlanet(opts, Math.random, 'b').value, 'b');
+  assert.equal(pickPlanet([{ value: 'x' }], Math.random, 'x').value, 'x');
+});
+
+test('parseHash: #dominator = jen vyplnit, #dominator=<id> = práce řízená aplikací, cokoli jiného nic', () => {
+  assert.deepEqual(parseHash('#dominator'), { fill: true, jobId: null });
+  assert.deepEqual(parseHash('#dominator=usrspqv1b4zp'), { fill: true, jobId: 'usrspqv1b4zp' });
+  assert.deepEqual(parseHash(''), { fill: false, jobId: null });
+  assert.deepEqual(parseHash('#jinak'), { fill: false, jobId: null });
+  assert.deepEqual(parseHash('#dominator=ab'), { fill: false, jobId: null }); // příliš krátké id
+  assert.deepEqual(parseHash('#dominator=a/b<script>'), { fill: false, jobId: null });
 });
