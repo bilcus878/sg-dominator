@@ -34,7 +34,7 @@
   try { backAt = Number(sessionStorage.getItem(BACK_KEY)) || 0; sessionStorage.removeItem(BACK_KEY); } catch { /* bez sessionStorage se Zpět neklikne */ }
   if (backAt && Date.now() - backAt < 60_000) {
     const back = [...document.querySelectorAll('a, button, input[type="button"], input[type="submit"], input[type="image"]')]
-      .find((e) => /^s*(«s*)?zpět/i.test(e.textContent || e.value || e.alt || e.title || ''));
+      .find((e) => /^\s*(«\s*)?zpět(\s|$)/i.test(e.textContent || e.value || e.alt || e.title || ''));
     if (back) { setTimeout(() => clickEl(back), rnd(300, 700)); return; }
   }
 
