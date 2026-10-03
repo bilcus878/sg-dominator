@@ -16,6 +16,7 @@ import { BUILDINGS, createBuildRun } from './build.js';
 import { createTelescope } from './telescope.js';
 import { createConquest, CONQUEST_DEFAULTS } from './conquest.js';
 import { createArmy } from './army.js';
+import { mergeSeenUnits, sanitizeReport, sanitizeSeenUnits } from './attack.js';
 
 // data bydlela dřív ve složce projektu (Dropbox); při prvním spuštění se přesunou mimo ni
 if (USING_DEFAULT_DIR) migrateLegacyData(LEGACY_DATA_DIR, DATA_DIR);
@@ -88,6 +89,8 @@ function parsePlayers(body) {
     if (['vudce', 'zastupce', 'ministr', 'obcan'].includes(p.rank)) q.rank = p.rank; // hodnost (barva jména ve hře)
     if (typeof p.online === 'boolean') q.online = p.online; // zelená tečka ve hře
     if (typeof p.attackable === 'boolean') q.attackable = p.attackable; // sloupec Útok ve hře (false = „nelze“)
+    if (Number.isInteger(p.hracId) && p.hracId > 0 && p.hracId < 1e12) q.hracId = p.hracId; // id hráče z odkazu D (utok.php?hrac_id=…)
+    if (Number.isInteger(p.utokId) && p.utokId > 0 && p.utokId < 100) q.utokId = p.utokId;
     out.push(q);
   }
   return out;
@@ -270,7 +273,7 @@ function buildState() {
       sources: snap.sources,
       players: snap.players.map((p) => ({
         name: p.name, power: p.power, planets: p.planets ?? null, planetsChange: p.planetsChange ?? 0, planetsAt: p.planetsAt ?? 0,
-        powerDelta: p.powerDelta, powerAt: p.powerAt, attackable: p.attackable ?? null, online: p.online ?? null, rank: p.rank ?? null, ...conquest.status(id, p.name), ...resolveWatch(cfg, id, p.name),
+        powerDelta: p.powerDelta, powerAt: p.powerAt, attackable: p.attackable ?? null, online: p.online ?? null, rank: p.rank ?? null, hracId: p.hracId ?? null, utokId: p.utokId ?? null, ...conquest.status(id, p.name), ...resolveWatch(cfg, id, p.name),
       })),
     };
   });
@@ -310,7 +313,27 @@ async function handleBuildReport(req) {
 }
 const buildView = () => [200, { buildings: BUILDINGS, config: cfg.build, run: build.snapshot(), knownPlanets: Object.keys(ledger.planets).length, serverTime: Date.now() }];
 
+/** Dobývací útok: skript na stránce utok.php si bere nastavení a hlásí, co našel a vyplnil. */
+let attackSeen = { at: 0, units: [] }; // jednotky z poslední navštívené stránky útoku
+let attackReport = null; // poslední hlášení o vyplnění
+
 const routes = {
+  'GET /attack/config': async (req) => (authOk(req) ? [200, { units: cfg.attack.units, autoSubmit: cfg.attack.autoSubmit, randomPlanet: cfg.attack.randomPlanet }] : [401, { error: 'bad token' }]),
+  'POST /attack/seen': async (req) => {
+    if (!authOk(req)) return [401, { error: 'bad token' }];
+    const units = sanitizeSeenUnits((await readJson(req)).units);
+    attackSeen = { at: Date.now(), units };
+    const merged = mergeSeenUnits(cfg.attack, units); // nové názvy jednotek se doplní do nastavení s počtem 0
+    if (merged) { cfg.attack = merged; saveConfig(cfg); }
+    return [200, { ok: true }];
+  },
+  'POST /attack/report': async (req) => {
+    if (!authOk(req)) return [401, { error: 'bad token' }];
+    attackReport = { ...sanitizeReport(await readJson(req)), at: Date.now() };
+    console.log(`[útok] ${attackReport.ok ? 'vyplněno' : 'nevyplněno'}${attackReport.submitted ? ', odesláno' : ''}${attackReport.problems.length ? ': ' + attackReport.problems.join('; ') : ''}`);
+    return [200, { ok: true }];
+  },
+  'GET /api/attack': async () => [200, { seen: attackSeen, report: attackReport }],
   // dohození rasové armády: skript na stránce Jednotky → Rasová armáda (s tokenem) a tlačítko v aplikaci
   'POST /army/poll': async (req) => (authOk(req) ? [200, army.poll()] : [401, { error: 'bad token' }]),
   'POST /army/report': async (req) => {
@@ -420,7 +443,7 @@ button.ghost{background:transparent;color:#e7e9ee;border:1px solid #272d3b}.mute
 <p class="muted">Kód už obsahuje tvůj token a adresu serveru, proto ho kopíruj odsud, ne ze souboru ve složce. Chrome musí mít v <code>chrome://extensions</code> u Tampermonkey povolené „Uživatelské skripty“ (Allow user scripts).</p></div>
 <div id="list"></div>
 <script>
-const S=[['Rasová armáda','/armada.user.js','Tlačítko Dohodit: vepíše jméno hráče a odešle rasovou armádu.'],['Stavění','/stavby.user.js','Vyplňuje a staví na planetách.'],['Mapa (OP, bdělost, teleskop)','/mapa.user.js','Hlídá OP, potvrzuje bdělost a zapíná teleskop.'],['Síla hráčů','/userscript.user.js','Posílá sílu hráčů do hlídání.']];
+const S=[['Rasová armáda','/armada.user.js','Tlačítko Dohodit: vepíše jméno hráče a odešle rasovou armádu.'],['Stavění','/stavby.user.js','Vyplňuje a staví na planetách.'],['Mapa (OP, bdělost, teleskop)','/mapa.user.js','Hlídá OP, potvrzuje bdělost a zapíná teleskop.'],['Síla hráčů','/userscript.user.js','Posílá sílu hráčů do hlídání.'],['Útok (D)','/utok.user.js','Vyplní dobývací útok: jednotky podle nastavení a náhodnou planetu cíle.']];
 const el=document.getElementById('list');
 for(const [name,path,desc] of S){const d=document.createElement('div');d.className='card';
  d.innerHTML='<b></b> <span class="muted"></span><div class="v muted" style="margin:6px 0"></div><a class="btn"></a><button class="copy">Zkopírovat kód</button><button class="ghost show">Zobrazit kód</button><span class="msg ok"></span><textarea hidden readonly style="width:100%;height:200px;margin-top:8px;background:#10141b;color:#e7e9ee;border:1px solid #272d3b;border-radius:6px"></textarea>';
@@ -447,7 +470,7 @@ const server = createServer(async (req, res) => {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
       return res.end(INSTALL_PAGE);
     }
-    const scripts = { '/userscript.user.js': 'stargate-notifikator.user.js', '/mapa.user.js': 'stargate-mapa.user.js', '/stavby.user.js': 'stargate-stavby.user.js', '/armada.user.js': 'stargate-armada.user.js' };
+    const scripts = { '/userscript.user.js': 'stargate-notifikator.user.js', '/mapa.user.js': 'stargate-mapa.user.js', '/stavby.user.js': 'stargate-stavby.user.js', '/armada.user.js': 'stargate-armada.user.js', '/utok.user.js': 'stargate-utok.user.js' };
     if (req.method === 'GET' && scripts[path]) {
       return await serveFile(res, pub(`userscript/${scripts[path]}`), 'text/javascript', (s) =>
         s.replace('__TOKEN__', cfg.token).replace('__SERVER__', `http://127.0.0.1:${cfg.port}`),

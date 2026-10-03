@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator
 // @namespace    sg-dominator
-// @version      3.5.0
+// @version      3.6.0
 // @description  Čte tabulku hráčů a posílá sílu na lokální notifikační server (bez zásahu do stránky)
 // @match        https://stargate-game.cz/vesmir.php*
 // @match        https://www.stargate-game.cz/vesmir.php*
@@ -72,6 +72,15 @@
         // Útok: dobýt jde jen se svítící ikonou D (dobytí); chybí, je průhledná (.pruhledny) nebo „nelze“ = nejde
         const d = [...td[attackIdx].querySelectorAll('img')].find((i) => i.alt === 'D');
         p.attackable = !!d && !d.classList.contains('pruhledny') && !/nelze/i.test(texts[attackIdx]);
+        // odkaz D vede na utok.php?page=0&hrac_id=…&utok_id=1: z něj bereme id hráče pro tlačítko D v aplikaci
+        const link = td[attackIdx].querySelector('a[href*="hrac_id"]') ?? d?.closest('a');
+        if (link) {
+          try {
+            const q = new URL(link.getAttribute('href'), location.href).searchParams;
+            const hid = parseInt(q.get('hrac_id'), 10), uid = parseInt(q.get('utok_id'), 10);
+            if (hid > 0) { p.hracId = hid; if (uid > 0) p.utokId = uid; }
+          } catch { /* neplatný odkaz = D v aplikaci prostě nepůjde otevřít */ }
+        }
       }
       // hodnost podle barvy jména ve hře: vůdce (žlutá), zástupce (bílá), ministr (zelená), občan
       const rank = ['vudce', 'zastupce', 'ministr', 'obcan'].find((r) => td[nameIdx].querySelector('a')?.classList.contains(r));

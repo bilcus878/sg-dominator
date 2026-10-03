@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { isBuildingId, isSatKey } from './build.js';
 import { VIGILANCE_DEFAULTS, TELESCOPE_DEFAULTS } from './telescope.js';
 import { CONQUEST_DEFAULTS } from './conquest.js';
+import { ATTACK_DEFAULTS, sanitizeAttack } from './attack.js';
 
 /**
  * Datová složka (config s tajnými tokeny + databáze). Záměrně MIMO složku projektu,
@@ -46,6 +47,8 @@ export const DEFAULTS = {
   // automatické stavění: plan = { [id stavby]: { mode: 'skip'|'target'|'max', n } }, parks = { [spokojenost -50|-25|0|5|10]: cílový počet }, parksMinAll = globální minimum parků (od něj výš je park hotový, planeta se kvůli němu nenavštěvuje),
   // pace = násobek lidského tempa
   build: { plan: {}, parks: {}, parksMinAll: null, dryRun: false, forceAll: false, pace: 1 },
+  // dobývací útok přes D: units = [{ name, count, max }], autoSubmit = po vyplnění útok i odeslat (výchozí ne), randomPlanet = náhodná planeta cíle
+  attack: { ...ATTACK_DEFAULTS, units: [] },
 };
 
 function readJson(path) {
@@ -69,6 +72,7 @@ export function loadConfig() {
   // uložená podobjekty se s výchozími slučují jen mělce, takže chybějící nová pole se doplní tady
   cfg.op.vigilance = { ...VIGILANCE_DEFAULTS, ...cfg.op.vigilance };
   cfg.op.telescope = { ...TELESCOPE_DEFAULTS, ...cfg.op.telescope };
+  cfg.attack = sanitizeAttack(ATTACK_DEFAULTS, cfg.attack);
   migrateLegacy(cfg, stored);
   if (!cfg.token) {
     cfg.token = randomBytes(16).toString('hex');
@@ -229,6 +233,7 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
       next.build.parksMinAll = v === null || v === '' ? null : Number.isFinite(Number(v)) && Number(v) >= 0 ? Math.min(1e9, Math.floor(Number(v))) : cur.build.parksMinAll ?? null;
     }
   }
+  if (body.attack && typeof body.attack === 'object') next.attack = sanitizeAttack(cur.attack, body.attack);
   // tajné hodnoty UI nikdy nedostane zpět, takže prázdné pole = ponechat uloženou hodnotu
   if (body.discord) {
     next.discord = {

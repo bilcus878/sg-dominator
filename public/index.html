@@ -47,6 +47,8 @@
   .dohodit.busy { opacity:.6; pointer-events:none; } /* D (dobýt) má smysl jen u cizí rasy */
   .rbody th.dcol, .rbody td.dcol { width:30px; padding-left:2px; padding-right:2px; }
   .dmark { display:inline-block; min-width:20px; font-weight:800; font-size:13px; line-height:20px; border-radius:4px; }
+  a.dmark { text-decoration:none; cursor:default; } a.dmark.go { cursor:pointer; } a.dmark.go:hover { filter:brightness(1.15); box-shadow:0 0 0 2px rgba(243,156,18,.55); }
+  .atktable { width:100%; margin-bottom:8px; } .atktable td, .atktable th { padding:4px 6px; } .atktable input[type=text] { padding:5px 8px; } .atktable input.num { width:130px; }
   .dmark.dyes { color:#1a1405; background:#f39c12; } .dmark.dno { color:var(--bad); font-size:15px; }
   .rbody td.n { white-space:nowrap; }
   .rrole { white-space:nowrap; } .rpanel[data-role=attack] .rrole { color:var(--acc); border-color:var(--acc); }
@@ -326,6 +328,7 @@
   <div class="tabs">
     <button class="tab on" data-tab="rules">Síla</button>
     <button class="tab" data-tab="op">OP</button>
+    <button class="tab" data-tab="attack">Útok</button>
     <button class="tab" data-tab="channels">Kanály</button>
     <button class="tab" data-tab="data">Data</button>
     <button class="tab" data-tab="look">Vzhled</button>
@@ -413,6 +416,22 @@
         <small>0 = automaticky (panel se vejde do výšky okna). Vyšší hodnota drží výšku pevnou.</small></div>
       <div class="field"><button class="ghost" id="lookReset">Vrátit všechny panely na výchozí velikost</button></div>
       <p class="muted">Panel můžeš měnit i tažením pravého dolního rohu (dvojklik na roh = výchozí velikost) a sbalit tlačítkem ▾ v hlavičce (nebo dvojklikem na název). Sbalený panel ukáže jen souhrn, třeba počet hráčů k dobytí.</p>
+    </div>
+
+    <div class="pane" id="pane-attack">
+      <p class="muted" style="margin-top:0">Tlačítko <b>D</b> u cizího hráče otevře ve hře jeho dobývací útok a skript na stránce ho podle tohoto nastavení připraví: vyplní jednotky a vybere planetu cíle. Ve výchozím stavu útok <b>jen připraví</b>. Zkontrolovat ho a kliknout na „Zaútočit“ děláš ty.</p>
+      <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
+        <span class="sw"><input type="checkbox" id="atkRandom"><span></span></span> Vybrat náhodnou planetu cíle</label>
+        <small>Z výběru planet cíle se vybere jedna náhodně, ať neútočíš pořád na stejnou.</small></div>
+      <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
+        <span class="sw"><input type="checkbox" id="atkAuto"><span></span></span> Odeslat útok automaticky po vyplnění</label>
+        <small>Pozor: odeslaný útok se nedá vzít zpět. Doporučuju nechat vypnuté a kliknout na „Zaútočit“ sám.</small></div>
+      <h3 style="font-size:13px;color:var(--acc);margin:6px 0">Jednotky k poslání</h3>
+      <table class="atktable"><thead><tr><th>Jednotka</th><th class="n">Kolik poslat</th><th class="c">Max</th><th class="c"></th></tr></thead><tbody id="atkUnits"></tbody></table>
+      <p class="muted" id="atkNone" hidden>Zatím žádná jednotka. Klikni u cizí rasy na D, stránka útoku se otevře a jednotky se tu objeví samy (nebo je přidej ručně).</p>
+      <button class="ghost" id="atkAdd" type="button">＋ Přidat jednotku</button>
+      <p class="muted" style="margin-top:10px">„Max“ pošle všechny jednotky toho typu. Víc, než je k dispozici, se neposílá. Jednotka s počtem 0 a bez Max se přeskočí.</p>
+      <div class="chan" style="margin-top:14px"><div class="chan-head"><span>Poslední stránka útoku</span><button class="ghost" id="atkRefresh" type="button">Obnovit</button></div><div id="atkReport" class="muted">…</div></div>
     </div>
 
     <div class="pane" id="pane-data">
@@ -652,7 +671,7 @@ function makeRow(v, r, p) {
   tr.innerHTML = `<td class="pname" title="Klikni pro zkopírování jména"></td>${v.isW ? '<td></td>' : ''}<td class="n"><span class="pv"></span><span class="pd"></span></td>
     <td class="n"><span class="pv"></span><span class="pd"></span></td>
     <td class="n thcol"><input type="text" inputmode="numeric" class="num"></td>
-    <td class="c dcol"><span class="dmark"></span></td>
+    <td class="c dcol"><a class="dmark" target="_blank" rel="noopener"></a></td>
     <td class="c hcol"><button class="ghost dohodit" data-act="dohodit" title="Pošle hráči rasovou armádu">Dohodit</button></td>
     <td class="c"><label class="sw"><input type="checkbox"><span></span></label></td>`;
   const nameTd = tr.children[0];
@@ -806,7 +825,11 @@ function updatePanel(id) {
     const dTxt = !atk || p.attackable == null ? '' : p.attackable ? 'D' : '✕';
     if (row.dmark.textContent !== dTxt) row.dmark.textContent = dTxt;
     row.dmark.className = 'dmark' + (dTxt === 'D' ? ' dyes' : dTxt ? ' dno' : '');
-    row.dmark.title = dTxt === 'D' ? 'Dobýt jde (ve hře svítí D)' : dTxt ? 'Nelze dobýt (ve hře chybí D) – zaútočit jde, ale ne dobývacím útokem' : '';
+    // D je odkaz na dobývací útok; otevře se s #dominator a skript na stránce útoku ho vyplní podle Nastavení → Útok
+    const durl = dTxt === 'D' && p.hracId ? `https://www.stargate-game.cz/utok.php?page=0&hrac_id=${p.hracId}&utok_id=${p.utokId ?? 1}#dominator` : '';
+    if (row.dmark.dataset.href !== durl) { row.dmark.dataset.href = durl; if (durl) row.dmark.setAttribute('href', durl); else row.dmark.removeAttribute('href'); }
+    row.dmark.classList.toggle('go', !!durl);
+    row.dmark.title = durl ? 'Otevře dobývací útok a vyplní ho podle Nastavení → Útok' : dTxt === 'D' ? 'Dobýt jde (ve hře svítí D)' : dTxt ? 'Nelze dobýt (ve hře chybí D) – zaútočit jde, ale ne dobývacím útokem' : '';
     const tgt = atk && p.target, noatk = tgt && p.attackable === false;
     row.power.classList.toggle('target', tgt);
     row.power.classList.toggle('noatk', noatk);
@@ -1145,12 +1168,64 @@ function fillForm() {
   $('tEnabled').checked = cfg.telegram.enabled; $('tToken').value = '';
   $('tToken').placeholder = cfg.telegram.configured ? '•••••••• uloženo (nech prázdné)' : '123456:ABC…';
   $('tChat').value = cfg.telegram.chatId; $('tService').value = cfg.telegram.serviceChatId ?? ''; $('tSaved').textContent = cfg.telegram.configured ? '✓ nastaveno' : '';
+  renderAtk(cfg.attack ?? { units: [], autoSubmit: false, randomPlanet: true });
   $('dirtyNote').textContent = '';
 }
 const openDrawer = () => { fillForm(); document.body.classList.add('open'); };
 const closeDrawer = () => document.body.classList.remove('open');
 $('openSettings').onclick = openDrawer; $('closeSettings').onclick = closeDrawer; $('cancel').onclick = closeDrawer; $('scrim').onclick = closeDrawer;
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
+/* ---------- Útok (D): nastavení jednotek ---------- */
+const markDirty = () => ($('dirtyNote').textContent = 'neuložené změny');
+function atkRow(u) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td><input type="text" class="aname" placeholder="Název jednotky"></td>
+    <td class="n"><input type="text" inputmode="numeric" class="num acount"></td>
+    <td class="c"><label class="sw"><input type="checkbox" class="amax"><span></span></label></td>
+    <td class="c"><button type="button" class="icon adel" title="Odebrat jednotku">✕</button></td>`;
+  tr.querySelector('.aname').value = u.name;
+  tr.querySelector('.acount').value = dots(u.count || '');
+  tr.querySelector('.amax').checked = !!u.max;
+  return tr;
+}
+function renderAtk(a) {
+  const body = $('atkUnits');
+  body.innerHTML = '';
+  for (const u of a.units) body.appendChild(atkRow(u));
+  $('atkNone').hidden = a.units.length > 0;
+  $('atkRandom').checked = !!a.randomPlanet;
+  $('atkAuto').checked = !!a.autoSubmit;
+}
+function readAtk() {
+  return {
+    randomPlanet: $('atkRandom').checked,
+    autoSubmit: $('atkAuto').checked,
+    units: [...$('atkUnits').rows].map((tr) => ({ name: tr.querySelector('.aname').value.trim(), count: undots(tr.querySelector('.acount').value) ?? 0, max: tr.querySelector('.amax').checked })).filter((u) => u.name),
+  };
+}
+$('atkAdd').onclick = () => { $('atkUnits').appendChild(atkRow({ name: '', count: 0, max: false })); $('atkNone').hidden = true; markDirty(); };
+$('atkUnits').addEventListener('click', (e) => { const b = e.target.closest('.adel'); if (b) { b.closest('tr').remove(); markDirty(); } });
+async function loadAtkInfo() {
+  try {
+    const { seen, report } = await api('/api/attack');
+    const when = (t) => new Date(t).toLocaleTimeString('cs-CZ');
+    const parts = [];
+    parts.push(seen.at
+      ? `Jednotky na stránce útoku (${when(seen.at)}): ${seen.units.map((u) => `${esc(u.name)}${u.available != null ? ` (${dots(u.available)})` : ''}`).join(', ') || '–'}`
+      : 'Stránku útoku jsi zatím neotevřel (klikni u cizí rasy na D).');
+    if (report) {
+      const filled = report.filled.map((f) => `${esc(f.name)} ${f.value === 'max' ? 'max' : dots(f.value)}`).join(', ');
+      parts.push(`<br>Poslední vyplnění (${when(report.at)}): ${report.ok ? '<span style="color:var(--ok)">✓ v pořádku</span>' : '<span style="color:var(--bad)">✗ s problémem</span>'}`
+        + `${report.target ? ` · cíl ${esc(report.target)}` : ''}${report.planet ? ` · planeta ${esc(report.planet)}` : ''}`
+        + `${filled ? `<br>Vyplněno: ${filled}` : ''}${report.submitted ? ' · <b>odesláno</b>' : ' · neodesláno'}`
+        + `${report.problems.length ? `<br><span style="color:var(--bad)">${report.problems.map(esc).join('; ')}</span>` : ''}`);
+    }
+    $('atkReport').innerHTML = parts.join('');
+  } catch (e) { $('atkReport').textContent = 'Nelze načíst: ' + e.message; }
+}
+$('atkRefresh').onclick = loadAtkInfo;
+document.querySelector('[data-tab="attack"]').addEventListener('click', loadAtkInfo);
+
 /* ---------- skripty pro Tampermonkey ---------- */
 (() => {
   const SCRIPTS = [
@@ -1158,6 +1233,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawe
     ['Mapa', '/mapa.user.js', 'OP, tlačítko bdělosti, teleskop'],
     ['Síla hráčů', '/userscript.user.js', 'posílá sílu hráčů do hlídání'],
     ['Rasová armáda', '/armada.user.js', 'tlačítko Dohodit u našich hráčů'],
+    ['Útok (D)', '/utok.user.js', 'vyplní dobývací útok po kliknutí na D'],
   ];
   let loaded = false;
   async function loadScripts() {
@@ -1203,6 +1279,7 @@ $('save').onclick = async () => {
       notifyRecovery: $('notifyRecovery').checked, repeatWhileBelow: $('repeatWhileBelow').checked,
       op: { enabled: $('opEnabled2').checked, repeatSec: $('opRepeatSec').value, vigilance: { enabled: $('opVigEnabled').checked, minSec: $('opVigMin').value, maxSec: $('opVigMax').value, skipEnabled: $('opVigSkip').checked, skipMin: $('opSkipMin').value, skipMax: $('opSkipMax').value, downMin: $('opDownMin').value, downMax: $('opDownMax').value }, telescope: { auto: $('opTeleAuto').checked, reactMinSec: $('opReactMin').value, reactMaxSec: $('opReactMax').value, restEnabled: $('opRestEnabled').checked, restChance: $('opRestChance').value, restStopMin: $('opRestStopMin').value, restStopMax: $('opRestStopMax').value, restResumeMin: $('opRestResumeMin').value, restResumeMax: $('opRestResumeMax').value } },
       dropPct: $('dropPct').value, dropWindowSec: $('dropWindowSec').value,
+      attack: readAtk(),
       discord: { enabled: $('dEnabled').checked, webhookUrl: $('dUrl').value },
       telegram: { enabled: $('tEnabled').checked, botToken: $('tToken').value, chatId: $('tChat').value, serviceChatId: $('tService').value },
     });
