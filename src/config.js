@@ -34,6 +34,7 @@ export const DEFAULTS = {
   repeatWhileBelow: true, // opakovat zprávu po každé pauze, dokud je hráč pod prahem
   minDrop: 0, // pod prahem hlásit další pokles jen o aspoň tolik
   notifyRecovery: false, // hlásit i návrat nad práh
+  notify: true, // hlavní vypínač: vypnuto = bot neposílá nic do Telegramu ani Discordu
   // rasy: { [id]: { name, mode: 'off'|'all'|'selected', role: 'defend'|'attack', threshold: číslo|null, criticalPct: číslo|null } }
   // role: defend = naše rasa (hlídá se pokles pod práh), attack = cizí rasa (hlídá se „k dobytí“ podle conquest)
   races: {},
@@ -128,6 +129,7 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
   next.minDrop = num(body.minDrop, cur.minDrop);
   if ('repeatWhileBelow' in body) next.repeatWhileBelow = !!body.repeatWhileBelow;
   if ('notifyRecovery' in body) next.notifyRecovery = !!body.notifyRecovery;
+  if ('notify' in body) next.notify = !!body.notify;
   next.dropWindowSec = num(body.dropWindowSec, cur.dropWindowSec) || 300;
   // rasy a hráči se aktualizují po částech (merge), null maže hodnotu / celý záznam
   if (body.races && typeof body.races === 'object') {

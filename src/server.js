@@ -449,8 +449,8 @@ const routes = {
   },
   'POST /api/test': async () => {
     const [main, service] = await Promise.all([
-      sendText(cfg, '✅ Stargate dominator: testovací zpráva'),
-      sendService(cfg, 'Stargate dominator: testovací zpráva do servisního chatu'),
+      sendText({ ...cfg, notify: true }, '✅ Stargate dominator: testovací zpráva'), // test jde i při vypnutém hlavním vypínači
+      sendService({ ...cfg, notify: true }, 'Stargate dominator: testovací zpráva do servisního chatu'),
     ]);
     return [200, { sent: main.sent + service.sent, total: main.total + service.total, service }];
   },

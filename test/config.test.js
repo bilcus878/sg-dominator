@@ -48,3 +48,11 @@ test('konfigurace uložená s BOM (Poznámkový blok, PowerShell) se načte', as
   });
   assert.equal(out.trim(), 't1 77');
 });
+
+test('notify: výchozí zapnuto, jde vypnout a zapnout', () => {
+  assert.equal(DEFAULTS.notify, true);
+  const off = sanitizeUpdate(base(), { notify: false }, ctx);
+  assert.equal(off.notify, false);
+  assert.equal(sanitizeUpdate(off, { notify: true }, ctx).notify, true);
+  assert.equal(sanitizeUpdate(off, { threshold: 5 }, ctx).notify, false); // jiná změna ho nezmění
+});

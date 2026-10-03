@@ -45,6 +45,7 @@ async function post(url, body) {
 }
 
 export async function sendText(cfg, text, log = console) {
+  if (cfg.notify === false) return { sent: 0, total: 0 }; // hlavní vypínač upozornění
   const jobs = [];
   if (cfg.discord.enabled && cfg.discord.webhookUrl) {
     jobs.push(['discord', post(cfg.discord.webhookUrl, { content: text })]);
@@ -71,6 +72,7 @@ export async function sendText(cfg, text, log = console) {
  */
 export async function sendService(cfg, text, log = console) {
   const chatId = cfg.telegram.serviceChatId;
+  if (cfg.notify === false) return { sent: 0, total: 0 }; // hlavní vypínač upozornění
   if (!cfg.telegram.enabled || !cfg.telegram.botToken || !chatId) return { sent: 0, total: 0 };
   try {
     await post(`https://api.telegram.org/bot${cfg.telegram.botToken}/sendMessage`, { chat_id: chatId, text: `🛠 ${text}` });

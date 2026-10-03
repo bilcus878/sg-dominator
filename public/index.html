@@ -103,7 +103,10 @@
   /* OP pruh v hlavičce */
   .oppill { background:var(--card2); color:var(--mut); border:1px solid var(--line); border-radius:99px; padding:3px 12px; font-size:13px; font-weight:500; display:flex; gap:8px; align-items:center; }
   .oppill.ok { color:var(--ok); border-color:#2c5a46; } .oppill.bad { color:var(--bad); border-color:#6a3030; } .oppill.hit { color:var(--acc); border-color:var(--acc); background:#2b2108; }
-  .opmaster { display:flex; gap:8px; align-items:center; margin:0; color:var(--fg); font-size:13px; font-weight:600; cursor:pointer; }
+  .switches { display:flex; gap:8px; align-items:center; }
+  .tgl { display:flex; gap:9px; align-items:center; margin:0; background:var(--card2); border:1px solid var(--line); border-radius:99px; padding:4px 13px 4px 9px; color:var(--mut); font-size:13px; font-weight:600; cursor:pointer; user-select:none; }
+  .tgl.on { color:var(--fg); border-color:#2c5a46; } .tgl:hover { filter:brightness(1.15); }
+  .bar.sub { padding-top:0; }
   .opdotlive { width:8px; height:8px; border-radius:50%; background:#444b5c; }
   .oppill.ok .opdotlive { background:var(--ok); } .oppill.bad .opdotlive { background:var(--bad); }
   .oppill.hit .opdotlive { background:var(--acc); animation:pulse 1s infinite; }
@@ -280,13 +283,18 @@
 <header><div class="bar">
   <h1>Stargate dominator</h1>
   <nav class="nav"><button class="navbtn on" data-nav="watch">Sledování</button><button class="navbtn" data-nav="build">Stavění<span class="dot" id="navDot"></span></button></nav>
+  <span class="spacer"></span>
+  <div class="switches">
+    <label class="tgl" id="notifyTgl" title="Hlavní vypínač upozornění: zapnuto = bot posílá zprávy do Telegramu / Discordu. Vypnuto = bot nepošle vůbec nic (sledování a data v aplikaci jedou dál)."><span class="sw"><input type="checkbox" id="notifyMaster"><span></span></span> Upozornění</label>
+    <label class="tgl" id="opTgl" title="OP: zapnuto = bot hlásí OP na mapě, sám zapíná zastavený teleskop a potvrzuje tlačítko bdělosti. Vypnuto = bot na mapě nic nedělá."><span class="sw"><input type="checkbox" id="opMaster"><span></span></span> OP</label>
+  </div>
+  <button id="openSettings">⚙ Nastavení</button>
+</div>
+<div class="bar sub">
   <span class="pill" id="status">● čeká na data</span>
   <div class="chips" id="chips"></div>
   <button class="oppill" id="opPill" title="OP na mapě – klikni pro nastavení"><span class="opdotlive"></span><span id="opText">OP: čeká na mapu</span></button>
-  <label class="opmaster" title="Hlavní vypínač OP: zapnuto = bot hlásí OP, sám zapíná zastavený teleskop a potvrzuje tlačítko bdělosti. Vypnuto = bot na mapě nic nedělá."><span class="sw"><input type="checkbox" id="opMaster"><span></span></span> OP automat</label>
   <div class="chips" id="opDots"></div>
-  <span class="spacer"></span>
-  <button id="openSettings">⚙ Nastavení</button>
 </div></header>
 
 <main>
@@ -410,7 +418,7 @@
     <div class="pane" id="pane-op">
       <p class="muted" style="margin-top:0">Na mapě galaxie se na chvíli objevují svítící oranžové tečky = opuštěné planety (OP). Appka je hlídá, když máš otevřené okno <b>mapa.php</b>.</p>
       <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
-        <span class="sw"><input type="checkbox" id="opEnabled2"><span></span></span> Zapnout OP automat: hlásit OP, sám zapínat teleskop a potvrzovat bdělost</label>
+        <span class="sw"><input type="checkbox" id="opEnabled2"><span></span></span> Zapnout OP: hlásit OP, sám zapínat teleskop a potvrzovat bdělost</label>
         <small>Zapnuto = bot na mapě jedná sám: sám zapne zastavený teleskop, potvrzuje tlačítko bdělosti a pošle zprávu, jakmile se tečka v nějakém sektoru objeví. Vypnuto = bot nic nedělá a nehlásí. Stejný vypínač je nahoře v hlavičce. Tečky, které svítily už při zapnutí, se jako nové nehlásí.</small></div>
       <div class="field"><label for="opRepeatSec">Připomínat, dokud tečka svítí – každých (s)</label><input type="number" id="opRepeatSec" min="0">
         <small>Při objevení nového OP přijde jedna zpráva s celkovým počtem OP na mapě a seznamem sektorů. Dokud nějaký OP svítí, přijde po této pauze jedna připomínka „OP stále na mapě: počet“. 0 = ohlásit jen objevení.</small></div>
@@ -590,7 +598,10 @@ function savePartial(patch, quiet = false) {
 
 /* ---------- hlavička ---------- */
 function renderChips() {
-  const chip = (t, on) => `<span class="pill ${on ? 'ok' : ''}">${t}</span>`;
+  const notify = cfg.notify !== false;
+  if (document.activeElement !== $('notifyMaster')) $('notifyMaster').checked = notify;
+  $('notifyTgl').classList.toggle('on', notify);
+  const chip = (t, on) => `<span class="pill ${on && notify ? 'ok' : ''}">${t}</span>`;
   $('chips').innerHTML =
     `<span class="pill">Výchozí hranice ${fmt(cfg.threshold)}</span>` +
     chip('Discord ' + (cfg.discord.enabled && cfg.discord.configured ? '✓' : '✗'), cfg.discord.enabled && cfg.discord.configured) +
@@ -1217,6 +1228,7 @@ function renderOp() {
   const live = age != null && age < 3000;
   const pill = $('opPill');
   if (document.activeElement !== $('opMaster')) $('opMaster').checked = !!op.enabled;
+  $('opTgl').classList.toggle('on', !!op.enabled);
   let cls = '', txt;
   if (age == null) txt = 'OP: čeká na mapu';
   else if (!live) { cls = op.enabled ? 'bad' : ''; txt = `OP: mapa bez dat ${Math.round(age / 1000)} s`; }
@@ -1249,6 +1261,7 @@ function renderOp() {
   $('opDots').innerHTML = op.dots.map((d) => `<span class="opdot sm">🟠 ${esc(d.id)}${/^\d+$/.test(d.label) || !d.label ? '' : ' · ' + esc(d.label)}</span>`).join('');
 }
 $('opMaster').onchange = () => savePartial({ op: { enabled: $('opMaster').checked } });
+$('notifyMaster').onchange = () => { $('notifyTgl').classList.toggle('on', $('notifyMaster').checked); savePartial({ notify: $('notifyMaster').checked }); };
 $('opPill').onclick = () => { openDrawer(); document.querySelector('[data-tab="op"]').click(); };
 
 function render() {

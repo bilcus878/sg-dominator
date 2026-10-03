@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { sendService } from '../src/notifiers.js';
+import { sendService, sendText } from '../src/notifiers.js';
 
 const cfg = (tg) => ({ telegram: { enabled: true, botToken: 'T', chatId: '-1', serviceChatId: '', ...tg }, discord: { enabled: false } });
 
@@ -16,5 +16,19 @@ test('servisní chat: bez vyplněného ID se nic neposílá (ani do hlavní skup
     assert.equal(calls[0].body.chat_id, '-200');
     assert.equal(calls[0].body.text, '🛠 Výpadek');
     assert.deepEqual(await sendService(cfg({ serviceChatId: '-200', enabled: false }), 'x'), { sent: 0, total: 0 });
+  } finally { globalThis.fetch = orig; }
+});
+
+test('hlavní vypínač upozornění: notify=false nepošle nic (ani hlavní, ani servisní chat)', async () => {
+  const orig = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls += 1; return { ok: true, text: async () => '' }; };
+  try {
+    const off = { ...cfg({ serviceChatId: '-2' }), notify: false, discord: { enabled: true, webhookUrl: 'http://x' } };
+    assert.deepEqual(await sendText(off, 'x'), { sent: 0, total: 0 });
+    assert.deepEqual(await sendService(off, 'x'), { sent: 0, total: 0 });
+    assert.equal(calls, 0);
+    await sendText({ ...off, notify: true }, 'x'); // zapnuto = posílá
+    assert.ok(calls >= 1);
   } finally { globalThis.fetch = orig; }
 });
