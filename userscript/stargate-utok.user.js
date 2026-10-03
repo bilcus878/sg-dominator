@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – útok (D)
 // @namespace    sg-dominator
-// @version      2.1.0
+// @version      2.1.1
 // @description  Na stránce dobývacího útoku vyplní jednotky a vybere náhodnou planetu cíle; průběh a tlačítko Zaútočit jsou v aplikaci (jen když se otevře tlačítkem D v aplikaci)
 // @match        https://stargate-game.cz/utok.php*
 // @match        https://www.stargate-game.cz/utok.php*
@@ -200,6 +200,7 @@
     if (!filled.length) { await report('failed', { error: problems[0] ?? 'nic se nevyplnilo', problems }); return; }
     if (!findSubmit()) problems.push('tlačítko Zaútočit nenalezeno');
     await report('ready', { target: targetText(), planet: planetLabel(sel), planetsTotal, filled, problems });
+    try { window.opener?.focus(); } catch { /* prohlížeč přepnutí karty nemusí dovolit */ } // zkus vrátit do aplikace, odkud karta vznikla
 
     // čekání na příkaz z aplikace: dlouhé dotazování (server odpoví hned, jak příkaz přijde), takže ho nezpomalí
     // ani zpomalené časovače karty na pozadí
