@@ -40,7 +40,10 @@
   .rpanel[data-role=attack] .thcol { display:none; } /* vlastní práh u cizí rasy nemá smysl */
   td.pname .on { display:inline-block; width:8px; height:8px; margin-right:5px; border-radius:50%; vertical-align:middle; }
   td.pname .on.yes { background:#2ecc40; box-shadow:0 0 4px #2ecc40; }
-  .rpanel[data-role=defend] .dcol { display:none; } /* D (dobýt) má smysl jen u cizí rasy */
+  .rpanel[data-role=defend] .dcol { display:none; }
+  .rpanel[data-role=attack] .hcol { display:none; } /* dohodit jen naší rase */
+  .rbody td.hcol { width:1%; white-space:nowrap; } .dohodit { padding:3px 9px; font-size:12px; }
+  .dohodit.busy { opacity:.6; pointer-events:none; } /* D (dobýt) má smysl jen u cizí rasy */
   .rbody th.dcol, .rbody td.dcol { width:30px; padding-left:2px; padding-right:2px; }
   .dmark { display:inline-block; min-width:20px; font-weight:800; font-size:13px; line-height:20px; border-radius:4px; }
   .dmark.dyes { color:#1a1405; background:#f39c12; } .dmark.dno { color:var(--bad); font-size:15px; }
@@ -576,7 +579,7 @@ function buildPanel(id) {
       <span class="muted rcount"></span>
     </div>
     <div class="rbody"><table>
-      <thead><tr><th>Jméno</th>${isW ? '<th>Rasa</th>' : ''}<th class="n" title="Počet planet; získaná planeta zeleně +1, ztracená červeně −1 (30 s od poslední změny)">Planety</th><th class="n sortable" data-act="sort" title="Řadit podle síly">Síla ↕</th><th class="n thcol">Vlastní práh</th><th class="c dcol" title="Dobýt: oranžové D = jde, červený ✕ = nejde">D</th><th class="c">Hlídat</th></tr></thead>
+      <thead><tr><th>Jméno</th>${isW ? '<th>Rasa</th>' : ''}<th class="n" title="Počet planet; získaná planeta zeleně +1, ztracená červeně −1 (30 s od poslední změny)">Planety</th><th class="n sortable" data-act="sort" title="Řadit podle síly">Síla ↕</th><th class="n thcol">Vlastní práh</th><th class="c dcol" title="Dobýt: oranžové D = jde, červený ✕ = nejde">D</th><th class="c hcol" title="Pošle hráči rasovou armádu (stránka Jednotky → Rasová armáda musí být otevřená a vyplněná)"></th><th class="c">Hlídat</th></tr></thead>
       <tbody></tbody></table><div class="empty rempty"></div></div>`;
   const q = (s) => root.querySelector(s);
   const v = { root, isW, rows: new Map(), dot: q('.dot'), name: q('.rname'), info: q('.rinfo'), th: q('.rth'), crit: q('.rcrit'),
@@ -593,6 +596,7 @@ function makeRow(v, r, p) {
     <td class="n"><span class="pv"></span><span class="pd"></span></td>
     <td class="n thcol"><input type="text" inputmode="numeric" class="num"></td>
     <td class="c dcol"><span class="dmark"></span></td>
+    <td class="c hcol"><button class="ghost dohodit" data-act="dohodit" title="Pošle hráči rasovou armádu">Dohodit</button></td>
     <td class="c"><label class="sw"><input type="checkbox"><span></span></label></td>`;
   const nameTd = tr.children[0];
   nameTd.innerHTML = '<span class="on"></span><span class="nm"></span><span class="tg"></span>';
@@ -603,7 +607,29 @@ function makeRow(v, r, p) {
   for (const el of [input, sw]) { el.dataset.name = p.name; el.dataset.race = r.id; }
   input.dataset.kind = 'th'; sw.dataset.kind = 'watch';
   const cell = (td) => ({ td, v: td.querySelector('.pv'), d: td.querySelector('.pd') });
-  return { tr, on: nameTd.querySelector('.on'), tag: nameTd.querySelector('.tg'), dmark: tr.querySelector('.dmark'), planets: cell(tr.children[v.isW ? 2 : 1]), pw: cell(tr.children[v.isW ? 3 : 2]), power: tr.children[v.isW ? 3 : 2], input, sw };
+  const hb = tr.querySelector('.dohodit'); hb.dataset.name = p.name;
+  return { tr, hb, on: nameTd.querySelector('.on'), tag: nameTd.querySelector('.tg'), dmark: tr.querySelector('.dmark'), planets: cell(tr.children[v.isW ? 2 : 1]), pw: cell(tr.children[v.isW ? 3 : 2]), power: tr.children[v.isW ? 3 : 2], input, sw };
+}
+
+/** Dohodit: pošle hráči rasovou armádu přes skript na stránce Jednotky → Rasová armáda a počká na výsledek. */
+async function dohodit(btn) {
+  const name = btn.dataset.name;
+  btn.classList.add('busy');
+  try {
+    const r = await fetch('/api/army', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) }).then((x) => x.json());
+    if (!r.ok) return toast(r.error || 'Dohodit nejde', true);
+    toast(`Dohazuji ${name}…`);
+    for (let i = 0; i < 40; i++) { // max ~20 s
+      await new Promise((ok) => setTimeout(ok, 500));
+      const st = (await api('/api/army')).req;
+      if (!st || st.id !== r.id) continue;
+      if (st.status === 'sent') return toast(`Odesláno: ${name} ✓`);
+      if (st.status === 'error') return toast(`Neodesláno (${name}): ${st.error}`, true);
+      if (st.status === 'expired') return toast('Stránka Rasová armáda si požadavek nevyzvedla, nic se neodeslalo', true);
+    }
+    toast('Nevím, jestli se odeslalo – zkontroluj stránku Rasová armáda', true);
+  } catch (e) { toast('Dohodit selhalo: ' + e.message, true); }
+  finally { btn.classList.remove('busy'); }
 }
 
 async function copyName(name) {
@@ -703,6 +729,7 @@ function updatePanel(id) {
     row.power.classList.toggle('below', !atk && p.power < p.threshold);
     const isCrit = !atk && p.critical > 0 && p.power < p.critical;
     row.power.classList.toggle('crit', isCrit);
+    row.hb.hidden = atk; // dohodit jen hráčům naší rasy
     // zelená tečka před jménem = hráč je online (stejně jako ve hře)
     row.on.classList.toggle('yes', p.online === true);
     row.on.title = p.online ? 'Online' : '';
@@ -825,6 +852,7 @@ $('board').addEventListener('click', (e) => {
     const i = panels.indexOf(id), j = act === 'left' ? i - 1 : i + 1;
     if (j >= 0 && j < panels.length) { [panels[i], panels[j]] = [panels[j], panels[i]]; saveUi(); renderBoard(); }
   } else if (act === 'mode') setMode(id, btn.dataset.mode);
+  else if (act === 'dohodit') dohodit(btn);
   else if (act === 'role') {
     const r = raceOf(id); if (!r) return;
     const role = r.role === 'attack' ? 'defend' : 'attack';
@@ -1003,6 +1031,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawe
     ['Stavění', '/stavby.user.js', 'vyplňuje a staví na planetách'],
     ['Mapa', '/mapa.user.js', 'OP, tlačítko bdělosti, teleskop'],
     ['Síla hráčů', '/userscript.user.js', 'posílá sílu hráčů do hlídání'],
+    ['Rasová armáda', '/armada.user.js', 'tlačítko Dohodit u našich hráčů'],
   ];
   let loaded = false;
   async function loadScripts() {

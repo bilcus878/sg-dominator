@@ -15,6 +15,7 @@ import { createWatchdog } from './watchdog.js';
 import { BUILDINGS, createBuildRun } from './build.js';
 import { createTelescope } from './telescope.js';
 import { createConquest, CONQUEST_DEFAULTS } from './conquest.js';
+import { createArmy } from './army.js';
 
 // data bydlela dřív ve složce projektu (Dropbox); při prvním spuštění se přesunou mimo ni
 if (USING_DEFAULT_DIR) migrateLegacyData(LEGACY_DATA_DIR, DATA_DIR);
@@ -22,6 +23,7 @@ let cfg = loadConfig();
 if (process.env.SG_PORT) cfg.port = Number(process.env.SG_PORT);
 const state = createState();
 const conquest = createConquest(); // cizí rasy: kdo je k dobytí
+const army = createArmy(); // tlačítko Dohodit -> skript na stránce Rasová armáda
 const store = createStore();
 const op = createOpTracker();
 let opLastAt = 0;
@@ -308,6 +310,21 @@ async function handleBuildReport(req) {
 const buildView = () => [200, { buildings: BUILDINGS, config: cfg.build, run: build.snapshot(), knownPlanets: Object.keys(ledger.planets).length, serverTime: Date.now() }];
 
 const routes = {
+  // dohození rasové armády: skript na stránce Jednotky → Rasová armáda (s tokenem) a tlačítko v aplikaci
+  'POST /army/poll': async (req) => (authOk(req) ? [200, army.poll()] : [401, { error: 'bad token' }]),
+  'POST /army/report': async (req) => {
+    if (!authOk(req)) return [401, { error: 'bad token' }];
+    const body = await readJson(req);
+    army.report({ id: Number(body.id), ok: !!body.ok, error: body.error });
+    console.log(`[dohodit] ${body.ok ? 'odesláno' : `neodesláno: ${String(body.error ?? '').slice(0, 120)}`}`);
+    return [200, { ok: true }];
+  },
+  'POST /api/army': async (req) => {
+    const r = army.request((await readJson(req)).name);
+    if (r.ok) console.log(`[dohodit] požadavek: ${army.status().req?.name}`);
+    return [r.ok ? 200 : 409, r];
+  },
+  'GET /api/army': async () => [200, army.status()],
   'POST /ingest': handleIngest,
   'POST /ingest-op': handleIngestOp,
   'POST /vigilance': handleVigilance,
@@ -402,7 +419,7 @@ button.ghost{background:transparent;color:#e7e9ee;border:1px solid #272d3b}.mute
 <p class="muted">Kód už obsahuje tvůj token a adresu serveru, proto ho kopíruj odsud, ne ze souboru ve složce. Chrome musí mít v <code>chrome://extensions</code> u Tampermonkey povolené „Uživatelské skripty“ (Allow user scripts).</p></div>
 <div id="list"></div>
 <script>
-const S=[['Stavění','/stavby.user.js','Vyplňuje a staví na planetách.'],['Mapa (OP, bdělost, teleskop)','/mapa.user.js','Hlídá OP, potvrzuje bdělost a zapíná teleskop.'],['Síla hráčů','/userscript.user.js','Posílá sílu hráčů do hlídání.']];
+const S=[['Rasová armáda','/armada.user.js','Tlačítko Dohodit: vepíše jméno hráče a odešle rasovou armádu.'],['Stavění','/stavby.user.js','Vyplňuje a staví na planetách.'],['Mapa (OP, bdělost, teleskop)','/mapa.user.js','Hlídá OP, potvrzuje bdělost a zapíná teleskop.'],['Síla hráčů','/userscript.user.js','Posílá sílu hráčů do hlídání.']];
 const el=document.getElementById('list');
 for(const [name,path,desc] of S){const d=document.createElement('div');d.className='card';
  d.innerHTML='<b></b> <span class="muted"></span><div class="v muted" style="margin:6px 0"></div><a class="btn"></a><button class="copy">Zkopírovat kód</button><button class="ghost show">Zobrazit kód</button><span class="msg ok"></span><textarea hidden readonly style="width:100%;height:200px;margin-top:8px;background:#10141b;color:#e7e9ee;border:1px solid #272d3b;border-radius:6px"></textarea>';
@@ -429,7 +446,7 @@ const server = createServer(async (req, res) => {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
       return res.end(INSTALL_PAGE);
     }
-    const scripts = { '/userscript.user.js': 'stargate-notifikator.user.js', '/mapa.user.js': 'stargate-mapa.user.js', '/stavby.user.js': 'stargate-stavby.user.js' };
+    const scripts = { '/userscript.user.js': 'stargate-notifikator.user.js', '/mapa.user.js': 'stargate-mapa.user.js', '/stavby.user.js': 'stargate-stavby.user.js', '/armada.user.js': 'stargate-armada.user.js' };
     if (req.method === 'GET' && scripts[path]) {
       return await serveFile(res, pub(`userscript/${scripts[path]}`), 'text/javascript', (s) =>
         s.replace('__TOKEN__', cfg.token).replace('__SERVER__', `http://127.0.0.1:${cfg.port}`),

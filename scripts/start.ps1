@@ -40,6 +40,7 @@ if (-not $NoBrowser) {
         $urls += "$ui/userscript.user.js"
         $urls += "$ui/mapa.user.js"
         $urls += "$ui/stavby.user.js"
+        $urls += "$ui/armada.user.js"
         New-Item -ItemType File -Force $marker | Out-Null
         Say 'Poprvé: otevřely se i stránky pro instalaci skriptů. U každé klikni "Instalovat" v Tampermonkey.' Yellow
     }
