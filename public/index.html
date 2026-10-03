@@ -14,7 +14,7 @@
   .bar h1 { font-size:18px; margin:0 8px 0 0; }
   .spacer { flex:1; }
   main { max-width:none; margin:0 auto; padding:16px; display:grid; grid-template-columns:minmax(0,1fr); gap:16px; }
-  @media (max-width:700px) { .board { grid-template-columns:1fr; } }
+  @media (max-width:700px) { .rpanel { width:100% !important; } }
   h2 { font-size:14px; margin:0; color:var(--acc); letter-spacing:.03em; text-transform:uppercase; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
   .card-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px; }
@@ -31,7 +31,7 @@
   .below { color:var(--bad); font-weight:600; }
   /* změna jako ve hře: nárůst zeleně, ztráta červeně */
   .plus { color:var(--ok); } .minus { color:var(--bad); }
-  .pd { font-size:12px; margin-left:4px; } .pd.plus, .pd.minus { font-weight:600; }
+  .pd { display:block; height:14px; line-height:14px; font-size:11px; text-align:right; font-variant-numeric:tabular-nums; } .pd.plus, .pd.minus { font-weight:600; }
   td.pname { cursor:copy; } td.pname:hover { color:var(--acc); }
   /* cizí rasa: hráč k dobytí */
   td.target { background:rgba(224,184,76,.13); box-shadow:inset 3px 0 0 var(--acc); color:var(--acc); font-weight:600; }
@@ -111,8 +111,20 @@
 
   /* nástěnka: panel na rasu, vedle sebe */
   .board-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
-  .board { display:grid; grid-template-columns:repeat(auto-fill,minmax(400px,1fr)); gap:16px; align-items:start; }
-  .rpanel { padding:0; overflow:hidden; display:flex; flex-direction:column; }
+  .board { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
+  .rpanel { padding:0; overflow:hidden; display:flex; flex-direction:column; position:relative; width:520px; max-width:100%; flex:0 0 auto; }
+  /* sbalení panelu: zůstane jen hlavička se souhrnem */
+  .rfsum { display:none; font-size:12px; color:var(--mut); white-space:nowrap; } .rpanel.folded .rfsum { display:inline; } .rfsum.hot { color:var(--acc); font-weight:600; }
+  .rpanel.folded > :not(.rhead) { display:none; } .rpanel.folded .rhead { padding-bottom:12px; }
+  .rhead .rtitle { cursor:default; }
+  /* roh pro změnu velikosti */
+  .rgrip { position:absolute; right:0; bottom:0; width:20px; height:20px; cursor:nwse-resize; z-index:3; opacity:.35; touch-action:none;
+    background:linear-gradient(135deg, transparent 0 50%, var(--mut) 50% 58%, transparent 58% 70%, var(--mut) 70% 78%, transparent 78%); }
+  .rpanel:hover .rgrip { opacity:.9; }
+  .rgrip.e { right:0; top:0; bottom:20px; width:8px; height:auto; background:none; cursor:ew-resize; opacity:1; }
+  .rgrip.s { left:0; right:20px; bottom:0; height:8px; width:auto; background:none; cursor:ns-resize; opacity:1; }
+  .rgrip.e:hover, .rgrip.s:hover, .rgrip.on { background:rgba(224,184,76,.35); }
+  .rpanel.folded .rgrip.s, .rpanel.folded .rgrip.se { display:none; }
   .rhead { display:flex; align-items:center; gap:10px; padding:12px 14px 8px; }
   .rtitle { flex:1; min-width:0; } .rname { font-size:16px; } .rinfo { font-size:12px; }
   .rtools { display:flex; gap:2px; }
@@ -122,9 +134,9 @@
   .rctl label { margin:0; } .rctl input[type=number] { width:140px; padding:5px 8px; }
   .rpanel .toolbar { padding:0 14px; margin-bottom:6px; }
   .rpanel .toolbar input[type=search] { max-width:170px; padding:5px 8px; }
-  .rbody { max-height:68vh; overflow:auto; border-top:1px solid var(--line); }
+  .rbody { max-height:max(220px, calc(100vh - 330px)); overflow:auto; border-top:1px solid var(--line); } /* celý panel se vejde do okna */
   .rbody thead th { position:sticky; top:0; background:var(--card); z-index:1; }
-  .rbody td, .rbody th { padding:5px 7px; } .rbody td.n input { width:100px; } .rbody th.c, .rbody td.c { width:54px; }
+  .rbody td, .rbody th { padding:5px 7px; vertical-align:middle; } .rbody td.n input { width:100px; } .rbody th.c, .rbody td.c { width:54px; }
   .rbody .empty { padding:18px 8px; }
   .big { padding:40px 20px; font-size:15px; line-height:1.7; }
   .addwrap { position:relative; }
@@ -316,6 +328,7 @@
     <button class="tab" data-tab="op">OP</button>
     <button class="tab" data-tab="channels">Kanály</button>
     <button class="tab" data-tab="data">Data</button>
+    <button class="tab" data-tab="look">Vzhled</button>
     <button class="tab" data-tab="scripts">Skripty</button>
   </div>
   <div class="d-body">
@@ -390,6 +403,16 @@
         <p class="muted" id="opTeleStatus" style="margin-bottom:0"></p>
       </div>
       <p class="muted">Skript pro mapu se instaluje z adresy <code>/mapa.user.js</code> (stejně jako ten pro hráče). Aktuální stav vidíš v kartě „OP na mapě“ na hlavní stránce.</p>
+    </div>
+
+    <div class="pane" id="pane-look">
+      <p class="muted" style="margin-top:0">Velikost panelů ras se pamatuje <b>zvlášť pro každý monitor</b> (poznává ho podle rozlišení a polohy okna). Tenhle monitor: <b id="lookMon"></b>. Změny platí hned, nemusíš ukládat.</p>
+      <div class="field"><label for="lookW">Výchozí šířka panelu: <b id="lookWv"></b> px</label><input type="range" id="lookW" min="320" max="1100" step="10">
+        <small>Platí pro panely, které sis neroztáhl ručně.</small></div>
+      <div class="field"><label for="lookH">Výchozí výška tabulky: <b id="lookHv"></b></label><input type="range" id="lookH" min="0" max="1600" step="20">
+        <small>0 = automaticky (panel se vejde do výšky okna). Vyšší hodnota drží výšku pevnou.</small></div>
+      <div class="field"><button class="ghost" id="lookReset">Vrátit všechny panely na výchozí velikost</button></div>
+      <p class="muted">Panel můžeš měnit i tažením pravého dolního rohu (dvojklik na roh = výchozí velikost) a sbalit tlačítkem ▾ v hlavičce (nebo dvojklikem na název). Sbalený panel ukáže jen souhrn, třeba počet hráčů k dobytí.</p>
     </div>
 
     <div class="pane" id="pane-data">
@@ -549,6 +572,34 @@ function short(n) {
   return n >= 1e9 ? `${t(n / 1e9)} mld` : n >= 1e6 ? `${t(n / 1e6)} mil` : n >= 1e3 ? `${t(n / 1e3)} tis` : String(n);
 }
 
+/* ---------- rozložení: velikost a sbalení panelů, zvlášť pro každý monitor ---------- */
+// klíč monitoru: rozlišení + poloha okna (screen.availLeft/Top ukazují na monitor, kde okno leží)
+const monKey = () => `${screen.width}x${screen.height}@${screen.availLeft ?? 0},${screen.availTop ?? 0}`;
+const readLayouts = () => loadJson('layouts', {});
+let layouts = readLayouts();
+const lay = () => (layouts[monKey()] ??= { defW: 520, defH: 0, panels: {} });
+const lp = (id) => (lay().panels[id] ??= {});
+/** Uloží jen klíč tohoto monitoru; ostatní se čtou znovu, ať okno na jiném monitoru nepřepíše cizí změny. */
+function saveLayouts() {
+  const latest = readLayouts();
+  latest[monKey()] = lay();
+  layouts = latest;
+  store.set('layouts', JSON.stringify(latest));
+}
+window.addEventListener('storage', (e) => { if (e.key === 'layouts') layouts = readLayouts(); });
+
+const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
+function applyLayout(v, id) {
+  const L = lay(), P = lp(id);
+  const w = clamp(P.w ?? L.defW, 320, 1800);
+  const h = P.h ?? L.defH;
+  if (v._w !== w) { v.root.style.width = w + 'px'; v._w = w; }
+  if (v._h !== h) { v.body.style.height = h ? h + 'px' : ''; v.body.style.maxHeight = h ? 'none' : ''; v._h = h; }
+  v.root.classList.toggle('folded', !!P.folded);
+  v.foldBtn.textContent = P.folded ? '▸' : '▾';
+}
+function applyAllLayouts() { for (const [id, v] of view) applyLayout(v, id); }
+
 function buildPanel(id) {
   const isW = id === WATCHED;
   const root = document.createElement('section');
@@ -559,7 +610,9 @@ function buildPanel(id) {
     <div class="rhead">
       <span class="dot"></span>
       <div class="rtitle"><b class="rname"></b><div class="muted rinfo"></div></div>
+      <span class="rfsum"></span>
       <div class="rtools">
+        <button class="icon" data-act="fold" title="Sbalit / rozbalit panel">▾</button>
         <button class="icon" data-act="left" title="Posunout doleva">◀</button>
         <button class="icon" data-act="right" title="Posunout doprava">▶</button>
         <button class="icon" data-act="close" title="Odebrat panel">✕</button>
@@ -581,9 +634,12 @@ function buildPanel(id) {
     </div>
     <div class="rbody"><table>
       <thead><tr><th>Jméno</th>${isW ? '<th>Rasa</th>' : ''}<th class="n" title="Počet planet; získaná planeta zeleně +1, ztracená červeně −1 (30 s od poslední změny)">Planety</th><th class="n sortable" data-act="sort" title="Řadit podle síly">Síla ↕</th><th class="n thcol">Vlastní práh</th><th class="c dcol" title="Dobýt: oranžové D = jde, červený ✕ = nejde">D</th><th class="c hcol" title="Pošle hráči rasovou armádu (stránka Jednotky → Rasová armáda musí být otevřená a vyplněná)"></th><th class="c">Hlídat</th></tr></thead>
-      <tbody></tbody></table><div class="empty rempty"></div></div>`;
+      <tbody></tbody></table><div class="empty rempty"></div></div>
+    <div class="rgrip e" data-dir="e" title="Táhni pro změnu šířky (dvojklik = výchozí)"></div>
+    <div class="rgrip s" data-dir="s" title="Táhni pro změnu výšky (dvojklik = výchozí)"></div>
+    <div class="rgrip se" data-dir="se" title="Táhni pro změnu velikosti (dvojklik = výchozí)"></div>`;
   const q = (s) => root.querySelector(s);
-  const v = { root, isW, rows: new Map(), dot: q('.dot'), name: q('.rname'), info: q('.rinfo'), th: q('.rth'), crit: q('.rcrit'),
+  const v = { root, isW, rows: new Map(), body: q('.rbody'), fsum: q('.rfsum'), foldBtn: q('[data-act=fold]'), dot: q('.dot'), name: q('.rname'), info: q('.rinfo'), th: q('.rth'), crit: q('.rcrit'),
     watchTxt: q('.rwatch'), cfgBtn: q('.rcfgbtn'), cfgBox: q('.rcfg'), roleBtn: q('.rrole'), belowTxt: q('.rbelowtxt'),
     filter: q('.rfilter'), below: q('.rbelow'), count: q('.rcount'), tbody: q('tbody'), empty: q('.rempty'), sort: q('[data-act=sort]') };
   v.filter.value = ps(id).filter;
@@ -661,6 +717,7 @@ function updatePanel(id) {
   const r = v.isW ? null : raceOf(id);
   const st = ps(id);
   const items = panelItems(id);
+  applyLayout(v, id);
 
   // hlavička
   if (v.isW) {
@@ -699,6 +756,14 @@ function updatePanel(id) {
     if (document.activeElement !== v.crit && !pending) v.crit.value = r?.criticalPct ?? '';
   }
   v.sort.textContent = 'Síla ' + { game: '↕', desc: '↓', asc: '↑' }[st.sort];
+  // souhrn pro sbalený panel: kolik hráčů je k dobytí / pod prahem
+  if (v.isW) { v.fsum.textContent = `${items.length} hráčů`; v.fsum.classList.remove('hot'); }
+  else {
+    const atkR = r?.role === 'attack';
+    const n = !r ? 0 : atkR ? r.players.filter((p) => p.target).length : r.players.filter((p) => p.watched && p.power < p.threshold).length;
+    v.fsum.textContent = atkR ? `🎯 ${n} k dobytí` : `${n} pod prahem`;
+    v.fsum.classList.toggle('hot', n > 0);
+  }
 
   // filtr a řazení
   const q = st.filter.trim().toLowerCase();
@@ -851,7 +916,8 @@ $('board').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-act]'); if (!btn) return;
   const id = btn.closest('.rpanel').dataset.p;
   const act = btn.dataset.act;
-  if (act === 'close') { panels = panels.filter((x) => x !== id); saveUi(); renderBoard(); }
+  if (act === 'fold') { const P = lp(id); P.folded = !P.folded; saveLayouts(); updatePanel(id); }
+  else if (act === 'close') { panels = panels.filter((x) => x !== id); saveUi(); renderBoard(); }
   else if (act === 'left' || act === 'right') {
     const i = panels.indexOf(id), j = act === 'left' ? i - 1 : i + 1;
     if (j >= 0 && j < panels.length) { [panels[i], panels[j]] = [panels[j], panels[i]]; saveUi(); renderBoard(); }
@@ -866,6 +932,50 @@ $('board').addEventListener('click', (e) => {
   else if (act === 'cfg' && raceOf(id)?.role === 'attack') { $('openSettings').click(); }
   else if (act === 'cfg') { const st = ps(id); st.cfgOpen = !st.cfgOpen; saveUi(); updatePanel(id); }
   else if (act === 'sort') { const st = ps(id); st.sort = { game: 'desc', desc: 'asc', asc: 'game' }[st.sort]; saveUi(); updatePanel(id); }
+});
+
+// změna velikosti tažením hrany (jen šířka / jen výška) nebo rohu (obojí); dvojklik = zpět na výchozí
+let drag = null;
+$('board').addEventListener('pointerdown', (e) => {
+  const g = e.target.closest('.rgrip'); if (!g) return;
+  const root = g.closest('.rpanel'), v = view.get(root.dataset.p);
+  drag = { v, g, id: root.dataset.p, dir: g.dataset.dir, x: e.clientX, y: e.clientY, w: root.offsetWidth, h: v.body.offsetHeight };
+  g.classList.add('on');
+  g.setPointerCapture(e.pointerId);
+  e.preventDefault();
+});
+$('board').addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  if (drag.dir.includes('e')) {
+    const w = clamp(drag.w + e.clientX - drag.x, 320, 1800);
+    drag.v.root.style.width = w + 'px'; drag.v._w = w; drag.nw = w;
+  }
+  if (drag.dir.includes('s')) {
+    const h = clamp(drag.h + e.clientY - drag.y, 80, 3000);
+    drag.v.body.style.height = h + 'px'; drag.v.body.style.maxHeight = 'none'; drag.v._h = h; drag.nh = h;
+  }
+});
+const endDrag = () => {
+  if (!drag) return;
+  drag.g.classList.remove('on');
+  const P = lp(drag.id);
+  if (drag.nw) P.w = drag.nw;
+  if (drag.nh) P.h = drag.nh;
+  if (drag.nw || drag.nh) saveLayouts();
+  drag = null;
+};
+$('board').addEventListener('pointerup', endDrag);
+$('board').addEventListener('pointercancel', endDrag);
+$('board').addEventListener('dblclick', (e) => {
+  const g = e.target.closest('.rgrip');
+  if (g) {
+    const id = g.closest('.rpanel').dataset.p, P = lp(id);
+    if (g.dataset.dir.includes('e')) delete P.w;
+    if (g.dataset.dir.includes('s')) delete P.h;
+    saveLayouts(); updatePanel(id); return;
+  }
+  const t = e.target.closest('.rtitle');
+  if (t) { const id = t.closest('.rpanel').dataset.p; const P = lp(id); P.folded = !P.folded; saveLayouts(); updatePanel(id); }
 });
 
 $('board').addEventListener('input', (e) => {
@@ -912,6 +1022,18 @@ $('board').addEventListener('change', (e) => {
     savePartial({ players: { [name]: { threshold: v } } });
   }
 });
+
+/* ---------- Vzhled: výchozí velikost panelů pro tento monitor ---------- */
+function fillLook() {
+  const L = lay();
+  $('lookMon').textContent = `${screen.width}×${screen.height}` + ((screen.availLeft || screen.availTop) ? ` (poloha ${screen.availLeft ?? 0}, ${screen.availTop ?? 0})` : '');
+  $('lookW').value = L.defW; $('lookWv').textContent = L.defW;
+  $('lookH').value = L.defH; $('lookHv').textContent = L.defH ? `${L.defH} px` : 'automaticky';
+}
+$('lookW').addEventListener('input', (e) => { lay().defW = Number(e.target.value); $('lookWv').textContent = e.target.value; saveLayouts(); applyAllLayouts(); });
+$('lookH').addEventListener('input', (e) => { const n = Number(e.target.value); lay().defH = n; $('lookHv').textContent = n ? `${n} px` : 'automaticky'; saveLayouts(); applyAllLayouts(); });
+$('lookReset').addEventListener('click', () => { lay().panels = {}; saveLayouts(); applyAllLayouts(); toast('Panely vráceny na výchozí velikost'); });
+document.querySelector('[data-tab="look"]').addEventListener('click', fillLook);
 
 /* ---------- alerty (pod nástěnkou, sbalitelné) ---------- */
 let alertsOpen = store.get('alertsOpen') !== '0';
