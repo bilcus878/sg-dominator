@@ -357,6 +357,14 @@ const routes = {
   },
   'GET /api/attack': async () => [200, { seen: attackSeen, report: attackReport, scripts: Object.fromEntries(scriptInfo) }],
   // dohození rasové armády: skript na stránce Jednotky → Rasová armáda (s tokenem) a tlačítko v aplikaci
+  // dohoz: jednotky k vyplnění do formuláře Rasová armáda (nastavuje se v aplikaci) a názvy jednotek viděné na stránce
+  'GET /army/config': async (req) => (authOk(req) ? [200, { units: cfg.army.units }] : [401, { error: 'bad token' }]),
+  'POST /army/seen': async (req) => {
+    if (!authOk(req)) return [401, { error: 'bad token' }];
+    const merged = mergeSeenUnits(cfg.army, sanitizeSeenUnits((await readJson(req)).units));
+    if (merged) { cfg.army = merged; saveConfig(cfg); }
+    return [200, { ok: true }];
+  },
   'POST /army/poll': async (req) => (authOk(req) ? [200, army.poll()] : [401, { error: 'bad token' }]),
   'POST /army/report': async (req) => {
     if (!authOk(req)) return [401, { error: 'bad token' }];

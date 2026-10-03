@@ -358,6 +358,7 @@
     <button class="tab on" data-tab="rules">Síla</button>
     <button class="tab" data-tab="op">OP</button>
     <button class="tab" data-tab="attack">Útok</button>
+    <button class="tab" data-tab="army">Dohoz</button>
     <button class="tab" data-tab="channels">Kanály</button>
     <button class="tab" data-tab="data">Data</button>
     <button class="tab" data-tab="look">Vzhled</button>
@@ -459,6 +460,14 @@
       <button class="ghost" id="atkAdd" type="button">＋ Přidat jednotku</button>
       <p class="muted" style="margin-top:10px">„Max“ pošle všechny jednotky toho typu. Víc, než je k dispozici, se neposílá. Jednotka s počtem 0 a bez Max se přeskočí.</p>
       <div class="chan" style="margin-top:14px"><div class="chan-head"><span>Poslední stránka útoku</span><button class="ghost" id="atkRefresh" type="button">Obnovit</button></div><div id="atkReport" class="muted">…</div></div>
+    </div>
+
+    <div class="pane" id="pane-army">
+      <p class="muted" style="margin-top:0">Tlačítko <b>Dohodit</b> u hráče naší rasy pošle jednotky přes stránku Jednotky → Rasová armáda. Počty tady nastavíš jednou: skript je <b>vyplní do formuláře</b> (a po dohození je tam hned vyplní znovu), takže je nemusíš psát ručně. Co už jsi na stránce vyplnil sám, se nepřepisuje.</p>
+      <table class="atktable"><thead><tr><th>Jednotka</th><th class="n">Kolik poslat</th><th class="c">Vše</th><th class="c"></th></tr></thead><tbody id="armyUnits"></tbody></table>
+      <p class="muted" id="armyNone" hidden>Zatím žádná jednotka. Otevři ve hře Jednotky → Rasová armáda (se skriptem) a jednotky se tu objeví samy, nebo je přidej ručně.</p>
+      <button class="ghost" id="armyAdd" type="button">＋ Přidat jednotku</button>
+      <p class="muted" style="margin-top:10px">„Vše“ pošle všechny jednotky toho typu z armády. Víc, než máš v armádě, se neposílá. Počet 0 bez „Vše“ = jednotka se nevyplní.</p>
     </div>
 
     <div class="pane" id="pane-data">
@@ -1247,6 +1256,7 @@ function fillForm() {
   $('tToken').placeholder = cfg.telegram.configured ? '•••••••• uloženo (nech prázdné)' : '123456:ABC…';
   $('tChat').value = cfg.telegram.chatId; $('tService').value = cfg.telegram.serviceChatId ?? ''; $('tSaved').textContent = cfg.telegram.configured ? '✓ nastaveno' : '';
   renderAtk(cfg.attack ?? { units: [], types: {}, randomPlanet: true });
+  renderArmy(cfg.army);
   $('dirtyNote').textContent = '';
 }
 const openDrawer = () => { fillForm(); document.body.classList.add('open'); };
@@ -1284,6 +1294,15 @@ function renderAtk(a) {
   showAtkType('D', false);
   $('atkRandom').checked = !!a.randomPlanet;
 }
+function renderArmy(a) {
+  const body = $('armyUnits');
+  body.innerHTML = '';
+  for (const u of a?.units ?? []) body.appendChild(atkRow(u));
+  $('armyNone').hidden = (a?.units ?? []).length > 0;
+}
+const readArmy = () => ({ units: [...$('armyUnits').rows].map((tr) => ({ name: tr.querySelector('.aname').value.trim(), count: undots(tr.querySelector('.acount').value) ?? 0, max: tr.querySelector('.amax').checked })).filter((u) => u.name) });
+$('armyAdd').onclick = () => { $('armyUnits').appendChild(atkRow({ name: '', count: 0, max: false })); $('armyNone').hidden = true; markDirty(); };
+$('armyUnits').addEventListener('click', (e) => { const b = e.target.closest('.adel'); if (b) { b.closest('tr').remove(); markDirty(); } });
 function readAtk() {
   atkDraft[atkType] = tableUnits();
   const { D, ...types } = atkDraft;
@@ -1366,6 +1385,7 @@ $('save').onclick = async () => {
       op: { enabled: $('opEnabled2').checked, repeatSec: $('opRepeatSec').value, vigilance: { enabled: $('opVigEnabled').checked, minSec: $('opVigMin').value, maxSec: $('opVigMax').value, skipEnabled: $('opVigSkip').checked, skipMin: $('opSkipMin').value, skipMax: $('opSkipMax').value, downMin: $('opDownMin').value, downMax: $('opDownMax').value }, telescope: { auto: $('opTeleAuto').checked, reactMinSec: $('opReactMin').value, reactMaxSec: $('opReactMax').value, restEnabled: $('opRestEnabled').checked, restChance: $('opRestChance').value, restStopMin: $('opRestStopMin').value, restStopMax: $('opRestStopMax').value, restResumeMin: $('opRestResumeMin').value, restResumeMax: $('opRestResumeMax').value } },
       dropPct: $('dropPct').value, dropWindowSec: $('dropWindowSec').value,
       attack: readAtk(),
+      army: readArmy(),
       discord: { enabled: $('dEnabled').checked, webhookUrl: $('dUrl').value },
       telegram: { enabled: $('tEnabled').checked, botToken: $('tToken').value, chatId: $('tChat').value, serviceChatId: $('tService').value },
     });

@@ -29,6 +29,14 @@ function cleanUnits(list) {
   return out;
 }
 
+/** Nastavení dohozu: jednotky, které se po dohození znovu vyplní do formuláře Rasová armáda. */
+export const ARMY_DEFAULTS = { units: [] };
+export function sanitizeArmy(cur, body) {
+  const next = { ...ARMY_DEFAULTS, ...cur, units: [...(cur?.units ?? [])] };
+  if (body && typeof body === 'object' && Array.isArray(body.units)) next.units = cleanUnits(body.units);
+  return next;
+}
+
 /** Jednotky pro daný druh útoku (neznámý druh = dobývací). */
 export const unitsFor = (attack, type) => (type && type !== 'D' && ATTACK_TYPES.includes(type) ? attack.types?.[type] ?? [] : attack.units);
 

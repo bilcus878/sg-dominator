@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ATTACK_DEFAULTS, normUnit, sanitizeAttack, mergeSeenUnits, sanitizeReport, sanitizeSeenUnits, unitsFor } from '../src/attack.js';
+import { ATTACK_DEFAULTS, normUnit, sanitizeAttack, mergeSeenUnits, sanitizeReport, sanitizeSeenUnits, unitsFor, ARMY_DEFAULTS, sanitizeArmy } from '../src/attack.js';
 
 test('normUnit: bez diakritiky, malá písmena, jedna mezera', () => {
   assert.equal(normUnit('  Bedrosiánský   Křižník '), 'bedrosiansky kriznik');
@@ -75,4 +75,11 @@ test('mergeSeenUnits doplní jednotky do správného druhu útoku', () => {
   assert.deepEqual(m.types.P, [{ name: 'Křižník', count: 0, max: false }]);
   assert.deepEqual(m.units, []);
   assert.deepEqual(mergeSeenUnits(ATTACK_DEFAULTS, [{ name: 'Bedrosian' }]).units.map((u) => u.name), ['Bedrosian']);
+});
+
+test('sanitizeArmy: jednotky dohozu se čistí stejně jako u útoku a nesmaží se, když v těle nejsou', () => {
+  const a = sanitizeArmy(ARMY_DEFAULTS, { units: [{ name: ' Bedrosian ', count: '1500.7', max: false }, { name: 'bedrosian', count: 3 }, { name: '', count: 1 }, { name: 'Křižník', max: true }] });
+  assert.deepEqual(a.units, [{ name: 'Bedrosian', count: 1500, max: false }, { name: 'Křižník', count: 0, max: true }]);
+  assert.deepEqual(sanitizeArmy(a, {}).units, a.units);
+  assert.deepEqual(sanitizeArmy(a, { units: 'x' }).units, a.units);
 });

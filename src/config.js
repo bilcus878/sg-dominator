@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { isBuildingId, isSatKey } from './build.js';
 import { VIGILANCE_DEFAULTS, TELESCOPE_DEFAULTS } from './telescope.js';
 import { CONQUEST_DEFAULTS } from './conquest.js';
-import { ATTACK_DEFAULTS, sanitizeAttack } from './attack.js';
+import { ATTACK_DEFAULTS, sanitizeAttack, ARMY_DEFAULTS, sanitizeArmy } from './attack.js';
 
 /**
  * Datová složka (config s tajnými tokeny + databáze). Záměrně MIMO složku projektu,
@@ -49,6 +49,7 @@ export const DEFAULTS = {
   build: { plan: {}, parks: {}, parksMinAll: null, dryRun: false, forceAll: false, pace: 1 },
   // dobývací útok přes D: units = [{ name, count, max }], autoSubmit = po vyplnění útok i odeslat (výchozí ne), randomPlanet = náhodná planeta cíle
   attack: { ...ATTACK_DEFAULTS, units: [] },
+  army: { ...ARMY_DEFAULTS }, // dohoz: jednotky k vyplnění do formuláře Rasová armáda
 };
 
 function readJson(path) {
@@ -73,6 +74,7 @@ export function loadConfig() {
   cfg.op.vigilance = { ...VIGILANCE_DEFAULTS, ...cfg.op.vigilance };
   cfg.op.telescope = { ...TELESCOPE_DEFAULTS, ...cfg.op.telescope };
   cfg.attack = sanitizeAttack(ATTACK_DEFAULTS, cfg.attack);
+  cfg.army = sanitizeArmy(ARMY_DEFAULTS, cfg.army);
   migrateLegacy(cfg, stored);
   if (!cfg.token) {
     cfg.token = randomBytes(16).toString('hex');
@@ -234,6 +236,7 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
     }
   }
   if (body.attack && typeof body.attack === 'object') next.attack = sanitizeAttack(cur.attack, body.attack);
+  if (body.army && typeof body.army === 'object') next.army = sanitizeArmy(cur.army, body.army);
   // tajné hodnoty UI nikdy nedostane zpět, takže prázdné pole = ponechat uloženou hodnotu
   if (body.discord) {
     next.discord = {
