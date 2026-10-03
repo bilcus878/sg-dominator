@@ -14,7 +14,7 @@
   .bar h1 { font-size:18px; margin:0 8px 0 0; }
   .spacer { flex:1; }
   main { max-width:none; margin:0 auto; padding:16px; display:grid; grid-template-columns:minmax(0,1fr); gap:16px; }
-  @media (max-width:700px) { .rpanel { width:100% !important; } }
+  @media (max-width:700px) { .rpanel { width:100% !important; } .bcol { width:100%; } }
   h2 { font-size:14px; margin:0; color:var(--acc); letter-spacing:.03em; text-transform:uppercase; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
   .card-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px; }
@@ -132,6 +132,9 @@
   /* nástěnka: panel na rasu, vedle sebe */
   .board-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
   .board { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
+  /* sloupec: sbalené panely se řadí nad následující rozbalený panel a ten se jim zařadí POD ně */
+  .bcol { display:flex; flex-direction:column; gap:12px; align-items:stretch; flex:0 0 auto; max-width:100%; }
+  .bcol .rpanel.folded { width:auto !important; min-width:320px; }
   .rpanel { padding:0; overflow:hidden; display:flex; flex-direction:column; position:relative; width:520px; max-width:100%; flex:0 0 auto; }
   /* sbalení panelu: zůstane jen hlavička se souhrnem */
   .rfsum { display:none; font-size:12px; color:var(--mut); white-space:nowrap; } .rpanel.folded .rfsum { display:inline; } .rfsum.hot { color:var(--acc); font-weight:600; }
@@ -859,8 +862,8 @@ function updatePanel(id) {
     row.hb.hidden = atk; // dohodit jen hráčům naší rasy
     // zelená tečka před jménem = hráč je online (stejně jako ve hře)
     row.on.classList.toggle('yes', p.online === true);
-    // barva jména podle hodnosti jako ve hře (jen naše rasa): vůdce žlutě, zástupce bíle, ministři zeleně
-    const rk = !atk && ['vudce', 'zastupce', 'ministr'].includes(p.rank) ? p.rank : '';
+    // barva jména podle hodnosti jako ve hře (naše i cizí rasy): vůdce žlutě, zástupce bíle, ministři zeleně
+    const rk = ['vudce', 'zastupce', 'ministr'].includes(p.rank) ? p.rank : '';
     if (row.nm.dataset.rank !== rk) { row.nm.dataset.rank = rk; row.nm.title = { vudce: 'Vůdce', zastupce: 'Zástupce', ministr: 'Ministr' }[rk] ?? ''; }
     row.on.title = p.online ? 'Online' : '';
     // sloupec Útok (jen cizí rasa): všech 8 druhů útoku jako ve hře; svítí = jde zahájit. D otevře okno útoku v aplikaci.
@@ -910,16 +913,34 @@ function renderBoard() {
     saveUi();
   }
   panels = panels.filter((id, i) => panels.indexOf(id) === i);
-  const board = $('board');
-  panels.forEach((id, i) => {
-    if (!view.has(id)) view.set(id, buildPanel(id));
-    const v = view.get(id);
-    if (board.children[i] !== v.root) board.insertBefore(v.root, board.children[i] ?? null);
-    updatePanel(id);
-  });
+  for (const id of panels) if (!view.has(id)) view.set(id, buildPanel(id));
   for (const [id, v] of view) if (!panels.includes(id)) { v.root.remove(); view.delete(id); }
+
+  // sloupce: sbalené panely drží pohromadě s následujícím rozbaleným panelem, který se jim zařadí pod ně
+  // (sbalíš Aschen a Bedrosian skočí pod něj; rozbalíš a Bedrosian se vrátí doprava)
+  const groups = [];
+  let cur = [];
+  for (const id of panels) {
+    cur.push(id);
+    if (!lp(id).folded) { groups.push(cur); cur = []; }
+  }
+  if (cur.length) groups.push(cur); // sbalené panely na konci tvoří vlastní sloupec
+  const sig = JSON.stringify(groups);
+  if (sig !== boardSig) { // uzly se přesouvají jen při změně uspořádání, jinak by se každou vteřinu resetovalo rolování tabulek
+    boardSig = sig;
+    const frag = document.createDocumentFragment();
+    for (const g of groups) {
+      const col = document.createElement('div');
+      col.className = 'bcol';
+      for (const id of g) col.appendChild(view.get(id).root);
+      frag.appendChild(col);
+    }
+    $('board').replaceChildren(frag);
+  }
+  for (const id of panels) updatePanel(id);
   renderBoardEmpty();
 }
+let boardSig = '';
 
 function renderBoardEmpty() {
   const e = $('boardEmpty');
@@ -996,7 +1017,7 @@ $('board').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-act]'); if (!btn) return;
   const id = btn.closest('.rpanel').dataset.p;
   const act = btn.dataset.act;
-  if (act === 'fold') { const P = lp(id); P.folded = !P.folded; saveLayouts(); updatePanel(id); }
+  if (act === 'fold') { const P = lp(id); P.folded = !P.folded; saveLayouts(); renderBoard(); }
   else if (act === 'close') { panels = panels.filter((x) => x !== id); saveUi(); renderBoard(); }
   else if (act === 'left' || act === 'right') {
     const i = panels.indexOf(id), j = act === 'left' ? i - 1 : i + 1;
@@ -1055,7 +1076,7 @@ $('board').addEventListener('dblclick', (e) => {
     saveLayouts(); updatePanel(id); return;
   }
   const t = e.target.closest('.rtitle');
-  if (t) { const id = t.closest('.rpanel').dataset.p; const P = lp(id); P.folded = !P.folded; saveLayouts(); updatePanel(id); }
+  if (t) { const id = t.closest('.rpanel').dataset.p; const P = lp(id); P.folded = !P.folded; saveLayouts(); renderBoard(); }
 });
 
 $('board').addEventListener('input', (e) => {
@@ -1112,7 +1133,7 @@ function fillLook() {
 }
 $('lookW').addEventListener('input', (e) => { lay().defW = Number(e.target.value); $('lookWv').textContent = e.target.value; saveLayouts(); applyAllLayouts(); });
 $('lookH').addEventListener('input', (e) => { const n = Number(e.target.value); lay().defH = n; $('lookHv').textContent = n ? `${n} px` : 'automaticky'; saveLayouts(); applyAllLayouts(); });
-$('lookReset').addEventListener('click', () => { lay().panels = {}; saveLayouts(); applyAllLayouts(); toast('Panely vráceny na výchozí velikost'); });
+$('lookReset').addEventListener('click', () => { lay().panels = {}; saveLayouts(); applyAllLayouts(); renderBoard(); toast('Panely vráceny na výchozí velikost'); });
 document.querySelector('[data-tab="look"]').addEventListener('click', fillLook);
 
 /* ---------- alerty (pod nástěnkou, sbalitelné) ---------- */
