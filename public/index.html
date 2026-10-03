@@ -829,7 +829,7 @@ function updatePanel(id) {
     const durl = dTxt === 'D' && p.hracId ? `https://www.stargate-game.cz/utok.php?page=0&hrac_id=${p.hracId}&utok_id=${p.utokId ?? 1}#dominator` : '';
     if (row.dmark.dataset.href !== durl) { row.dmark.dataset.href = durl; if (durl) row.dmark.setAttribute('href', durl); else row.dmark.removeAttribute('href'); }
     row.dmark.classList.toggle('go', !!durl);
-    row.dmark.title = durl ? 'Otevře dobývací útok a vyplní ho podle Nastavení → Útok' : dTxt === 'D' ? 'Dobýt jde (ve hře svítí D)' : dTxt ? 'Nelze dobýt (ve hře chybí D) – zaútočit jde, ale ne dobývacím útokem' : '';
+    row.dmark.title = durl ? 'Otevře dobývací útok a vyplní ho podle Nastavení → Útok' : dTxt === 'D' ? 'Dobýt jde (ve hře svítí D); chybí ID hráče – aktualizuj skript Síla hráčů' : dTxt ? 'Nelze dobýt (ve hře chybí D) – zaútočit jde, ale ne dobývacím útokem' : '';
     const tgt = atk && p.target, noatk = tgt && p.attackable === false;
     row.power.classList.toggle('target', tgt);
     row.power.classList.toggle('noatk', noatk);
@@ -936,6 +936,11 @@ function setMode(raceId, mode) {
 }
 
 $('board').addEventListener('click', (e) => {
+  const dm = e.target.closest('a.dmark');
+  if (dm && !dm.getAttribute('href') && dm.textContent === 'D') {
+    toast('U hráče chybí ID z odkazu D. Aktualizuj skript „Síla hráčů“ (verze 3.6.1) v Tampermonkey a obnov stránku rasy ve hře.', true);
+    return;
+  }
   const btn = e.target.closest('[data-act]'); if (!btn) return;
   const id = btn.closest('.rpanel').dataset.p;
   const act = btn.dataset.act;

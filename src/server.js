@@ -98,6 +98,17 @@ function parsePlayers(body) {
 
 const raceRole = (id) => cfg.races[id]?.role ?? 'defend';
 
+/** Co o sobě hlásí skript Síla hráčů: verze a ukázka buňky D, když v ní nenašel hrac_id. Do logu jen při změně. */
+const scriptInfo = new Map(); // raceId -> { ver, dDebug }
+function noteScript(raceId, body) {
+  const ver = typeof body.ver === 'string' ? body.ver.slice(0, 16) : '(stará, bez čísla)';
+  const dDebug = typeof body.dDebug === 'string' ? body.dDebug.slice(0, 500) : '';
+  const prev = scriptInfo.get(raceId);
+  if (prev?.ver === ver && prev?.dDebug === dDebug) return;
+  scriptInfo.set(raceId, { ver, dDebug });
+  console.log(`[skript] rasa ${raceId}: Síla hráčů ${ver}${dDebug ? ` | D bez hrac_id, buňka: ${dDebug}` : ''}`);
+}
+
 /** Rasu při prvním výskytu zaregistruje jako vypnutou (hlídání zapneš v jejím panelu). */
 function registerRace(raceId, name) {
   const rec = cfg.races[raceId];
@@ -126,6 +137,7 @@ async function handleIngest(req) {
   const raceName = typeof body.raceName === 'string' ? body.raceName.trim().slice(0, 64) : '';
   const page = Number.isInteger(body.page) && body.page > 0 && body.page < 1000 ? body.page : 1;
   const src = typeof body.src === 'string' ? body.src.slice(0, 32) : 'unknown';
+  noteScript(raceId, body); // verze skriptu a (když D nemá hrac_id) ukázka buňky D
 
   const now = Date.now();
   registerRace(raceId, raceName);
@@ -333,7 +345,7 @@ const routes = {
     console.log(`[útok] ${attackReport.ok ? 'vyplněno' : 'nevyplněno'}${attackReport.submitted ? ', odesláno' : ''}${attackReport.problems.length ? ': ' + attackReport.problems.join('; ') : ''}`);
     return [200, { ok: true }];
   },
-  'GET /api/attack': async () => [200, { seen: attackSeen, report: attackReport }],
+  'GET /api/attack': async () => [200, { seen: attackSeen, report: attackReport, scripts: Object.fromEntries(scriptInfo) }],
   // dohození rasové armády: skript na stránce Jednotky → Rasová armáda (s tokenem) a tlačítko v aplikaci
   'POST /army/poll': async (req) => (authOk(req) ? [200, army.poll()] : [401, { error: 'bad token' }]),
   'POST /army/report': async (req) => {

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator
 // @namespace    sg-dominator
-// @version      3.6.0
+// @version      3.6.1
 // @description  Čte tabulku hráčů a posílá sílu na lokální notifikační server (bez zásahu do stránky)
 // @match        https://stargate-game.cz/vesmir.php*
 // @match        https://www.stargate-game.cz/vesmir.php*
@@ -50,6 +50,7 @@
     let powerIdx = 4;
     let planetsIdx = -1;
     let attackIdx = -1;
+    dDebug = '';
     for (const tr of document.querySelectorAll('tr')) {
       const td = tr.querySelectorAll(':scope > td, :scope > th');
       const texts = [...td].map((c) => c.textContent.trim());
@@ -72,14 +73,16 @@
         // Útok: dobýt jde jen se svítící ikonou D (dobytí); chybí, je průhledná (.pruhledny) nebo „nelze“ = nejde
         const d = [...td[attackIdx].querySelectorAll('img')].find((i) => i.alt === 'D');
         p.attackable = !!d && !d.classList.contains('pruhledny') && !/nelze/i.test(texts[attackIdx]);
-        // odkaz D vede na utok.php?page=0&hrac_id=…&utok_id=1: z něj bereme id hráče pro tlačítko D v aplikaci
-        const link = td[attackIdx].querySelector('a[href*="hrac_id"]') ?? d?.closest('a');
-        if (link) {
-          try {
-            const q = new URL(link.getAttribute('href'), location.href).searchParams;
-            const hid = parseInt(q.get('hrac_id'), 10), uid = parseInt(q.get('utok_id'), 10);
-            if (hid > 0) { p.hracId = hid; if (uid > 0) p.utokId = uid; }
-          } catch { /* neplatný odkaz = D v aplikaci prostě nepůjde otevřít */ }
+        // D vede na utok.php?page=0&hrac_id=…&utok_id=1: id hráče hledáme v celém řádku (odkaz, onclick, data-atributy),
+        // protože nevíme, jak přesně hra D zapisuje
+        const html = tr.innerHTML;
+        const hid = parseInt((html.match(/utok\.php\?[^"'\s>]*?hrac_id=(\d+)/) ?? html.match(/hrac_id=(\d+)/) ?? [])[1], 10);
+        if (hid > 0) {
+          p.hracId = hid;
+          const uid = parseInt((html.match(/hrac_id=\d+[^"'\s>]*?utok_id=(\d+)/) ?? html.match(/utok_id=(\d+)/) ?? [])[1], 10);
+          if (uid > 0) p.utokId = uid;
+        } else if (p.attackable && !dDebug) {
+          dDebug = td[attackIdx].innerHTML.replace(/\s+/g, ' ').replace(/(token|[?&]t)=[^&"'\s>]*/g, '$1=X').slice(0, 400); // pro ladění: jak D vypadá
         }
       }
       // hodnost podle barvy jména ve hře: vůdce (žlutá), zástupce (bílá), ministr (zelená), občan
@@ -90,6 +93,7 @@
     return players;
   }
 
+  let dDebug = ''; // jak vypadá buňka D, když v ní nenajdeme hrac_id (jen pro ladění)
   let lastBody = '';
   let lastSendAt = 0;
   let inFlight = false;
@@ -98,7 +102,7 @@
   function tick() {
     const players = readPlayers();
     if (!players.length) return;
-    const body = JSON.stringify({ raceId, raceName: findRaceName(), page, src, players });
+    const body = JSON.stringify({ raceId, raceName: findRaceName(), page, src, ver: '3.6.1', dDebug, players });
     const now = Date.now();
     const changed = body !== lastBody;
     if (inFlight || (!changed && now - lastSendAt < 800)) return; // 800 ms rezerva na jitter intervalu
