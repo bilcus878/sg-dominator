@@ -31,8 +31,9 @@
   .mini { background:var(--card2); color:var(--mut); border:1px solid var(--line); border-radius:4px; padding:0 5px; font-size:11px; line-height:16px; font-weight:700; margin-left:4px; cursor:pointer; }
   .mini:hover { color:var(--fg); filter:none; } .mini.on { background:var(--acc); color:#1a1405; border-color:var(--acc); }
   /* denní změna planet ze hry: schovaná, dokud se nezapne tlačítkem ± v záhlaví Planety */
-  .pdd { display:none; font-size:11px; margin-right:8px; min-width:34px; text-align:right; color:var(--mut); }
-  .rpanel.dday .pdd { display:inline-block; } .pdd.plus { color:var(--ok); } .pdd.minus { color:var(--bad); }
+  th.pc, td.pc { text-align:center; } td.pc .pd { text-align:center; }
+  .pdd { display:none; font-size:11px; text-align:center; color:var(--mut); line-height:14px; }
+  .rpanel.dday .pdd { display:block; } .pdd.plus { color:var(--ok); } .pdd.minus { color:var(--bad); }
   tr.off td:not(.c) { opacity:.45; }
   .below { color:var(--bad); font-weight:600; }
   /* změna jako ve hře: nárůst zeleně, ztráta červeně */
@@ -702,7 +703,7 @@ function buildPanel(id) {
       <span class="muted rcount"></span>
     </div>
     <div class="rbody"><table>
-      <thead><tr><th class="sortable" data-act="sort" data-key="name" title="Řadit podle jména">Jméno <span class="sarrow"></span></th>${isW ? '<th>Rasa</th>' : ''}<th class="n sortable" data-act="sort" data-key="planets" title="Řadit podle počtu planet. Získaná planeta zeleně +1, ztracená červeně −1 (30 s od poslední změny)">Planety <span class="sarrow"></span><button type="button" class="mini ddbtn" data-act="dday" title="Ukázat u každého hráče, kolik planet získal nebo ztratil za den (údaj ze hry, jako ve hře)">±</button></th><th class="n sortable" data-act="sort" data-key="power" title="Řadit podle síly">Síla <span class="sarrow"></span></th><th class="n thcol">Vlastní práh</th><th class="dcol" title="Druhy útoku jako ve hře: D dobývací, P partyzánský, Z, U univerzální, N orbitální, L loupežný, S špionážní, T otrokářský. Svítí = jde zahájit">Útok</th><th class="c hcol" title="Pošle hráči rasovou armádu (stránka Jednotky → Rasová armáda musí být otevřená a vyplněná)"></th><th class="c">Hlídat</th></tr></thead>
+      <thead><tr><th class="sortable" data-act="sort" data-key="name" title="Řadit podle jména">Jméno <span class="sarrow"></span></th>${isW ? '<th>Rasa</th>' : ''}<th class="n pc sortable" data-act="sort" data-key="planets" title="Řadit podle počtu planet. Získaná planeta zeleně +1, ztracená červeně −1 (30 s od poslední změny)">Planety <span class="sarrow"></span><button type="button" class="mini ddbtn" data-act="dday" title="Ukázat u každého hráče, kolik planet získal nebo ztratil za den (údaj ze hry, jako ve hře)">±</button></th><th class="n sortable" data-act="sort" data-key="power" title="Řadit podle síly">Síla <span class="sarrow"></span></th><th class="n thcol">Vlastní práh</th><th class="dcol" title="Druhy útoku jako ve hře: D dobývací, P partyzánský, Z, U univerzální, N orbitální, L loupežný, S špionážní, T otrokářský. Svítí = jde zahájit">Útok</th><th class="c hcol" title="Pošle hráči rasovou armádu (stránka Jednotky → Rasová armáda musí být otevřená a vyplněná)"></th><th class="c">Hlídat</th></tr></thead>
       <tbody></tbody></table><div class="empty rempty"></div></div>
     <div class="rgrip e" data-dir="e" title="Táhni pro změnu šířky (dvojklik = výchozí)"></div>
     <div class="rgrip s" data-dir="s" title="Táhni pro změnu výšky (dvojklik = výchozí)"></div>
@@ -719,7 +720,7 @@ function buildPanel(id) {
 function makeRow(v, r, p) {
   const tr = document.createElement('tr');
   tr.dataset.race = r.id; tr.dataset.name = p.name;
-  tr.innerHTML = `<td class="pname" title="Klikni pro zkopírování jména"></td>${v.isW ? '<td></td>' : ''}<td class="n"><span class="pdd"></span><span class="pv"></span><span class="pd"></span></td>
+  tr.innerHTML = `<td class="pname" title="Klikni pro zkopírování jména"></td>${v.isW ? '<td></td>' : ''}<td class="n pc"><span class="pv"></span><span class="pdd"></span><span class="pd"></span></td>
     <td class="n"><span class="pv"></span><span class="pd"></span></td>
     <td class="n thcol"><input type="text" inputmode="numeric" class="num"></td>
     <td class="dcol"><span class="atks"></span></td>
