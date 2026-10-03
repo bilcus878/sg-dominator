@@ -10,3 +10,6 @@ node_modules/
 
 # tajné: token Telegram bota, přenáší se ručně přes flashku (nastaveni-export.cmd / nastaveni-import.cmd)
 sg-settings.json
+
+# uložené stránky hry pro vývoj (mohou obsahovat odkazy s přihlašovacími tokeny)
+ref/
