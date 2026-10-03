@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ATTACK_DEFAULTS, normUnit, sanitizeAttack, mergeSeenUnits, sanitizeReport, sanitizeSeenUnits } from '../src/attack.js';
+import { ATTACK_DEFAULTS, normUnit, sanitizeAttack, mergeSeenUnits, sanitizeReport, sanitizeSeenUnits, unitsFor } from '../src/attack.js';
 
 test('normUnit: bez diakritiky, malá písmena, jedna mezera', () => {
   assert.equal(normUnit('  Bedrosiánský   Křižník '), 'bedrosiansky kriznik');
@@ -57,9 +57,22 @@ test('sanitizeReport a sanitizeSeenUnits zkrátí a očistí vstup z prohlíže�
     [{ name: 'Bedrosian', available: 18822832, attack: 7.3 }, { name: 'X', available: null, attack: null }]);
 });
 
-test('sanitizeAttack: opakování při srážce a jeho limit', () => {
-  assert.equal(ATTACK_DEFAULTS.retry, true);
-  assert.equal(sanitizeAttack(ATTACK_DEFAULTS, { retry: false }).retry, false);
-  assert.equal(sanitizeAttack(ATTACK_DEFAULTS, { retryMaxSec: 9999 }).retryMaxSec, 300);
-  assert.equal(sanitizeAttack(ATTACK_DEFAULTS, { retryMaxSec: 1 }).retryMaxSec, 5);
+test('jednotky pro každý druh útoku: D má units, ostatní types; neznámý druh = D', () => {
+  const a = sanitizeAttack(ATTACK_DEFAULTS, { units: [{ name: 'Bedrosian', count: 5 }], types: { P: [{ name: 'Křižník', count: 7, max: false }], X: [{ name: 'Nic', count: 1 }] } });
+  assert.deepEqual(unitsFor(a, 'D').map((u) => u.name), ['Bedrosian']);
+  assert.deepEqual(unitsFor(a, 'P'), [{ name: 'Křižník', count: 7, max: false }]);
+  assert.deepEqual(unitsFor(a, 'Z'), []);
+  assert.deepEqual(unitsFor(a, 'X').map((u) => u.name), ['Bedrosian']);
+  assert.equal(a.types.X, undefined);
+  // úprava jednoho druhu nesmaže ostatní
+  const b = sanitizeAttack(a, { types: { Z: [{ name: 'Samolet', count: 1 }] } });
+  assert.equal(b.types.P.length, 1);
+  assert.equal(b.types.Z.length, 1);
+});
+
+test('mergeSeenUnits doplní jednotky do správného druhu útoku', () => {
+  const m = mergeSeenUnits(ATTACK_DEFAULTS, [{ name: 'Křižník' }], 'P');
+  assert.deepEqual(m.types.P, [{ name: 'Křižník', count: 0, max: false }]);
+  assert.deepEqual(m.units, []);
+  assert.deepEqual(mergeSeenUnits(ATTACK_DEFAULTS, [{ name: 'Bedrosian' }]).units.map((u) => u.name), ['Bedrosian']);
 });

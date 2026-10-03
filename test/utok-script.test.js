@@ -73,13 +73,12 @@ test('pickPlanet: při přelosování se nevybere stejná planeta, jediná možn
   assert.equal(pickPlanet([{ value: 'x' }], Math.random, 'x').value, 'x');
 });
 
-test('parseHash: #dominator = jen vyplnit, #dominator=<id> = práce řízená aplikací, cokoli jiného nic', () => {
-  assert.deepEqual(parseHash('#dominator'), { fill: true, jobId: null });
-  assert.deepEqual(parseHash('#dominator=usrspqv1b4zp'), { fill: true, jobId: 'usrspqv1b4zp' });
-  assert.deepEqual(parseHash(''), { fill: false, jobId: null });
-  assert.deepEqual(parseHash('#jinak'), { fill: false, jobId: null });
-  assert.deepEqual(parseHash('#dominator=ab'), { fill: false, jobId: null }); // příliš krátké id
-  assert.deepEqual(parseHash('#dominator=a/b<script>'), { fill: false, jobId: null });
+test('parseHash: #dominator=P = vyplnit útok daného druhu, bez druhu dobývací, cokoli jiného nic', () => {
+  assert.deepEqual(parseHash('#dominator=P'), { fill: true, type: 'P' });
+  assert.deepEqual(parseHash('#dominator'), { fill: true, type: 'D' });
+  assert.deepEqual(parseHash(''), { fill: false, type: null });
+  assert.deepEqual(parseHash('#dominator=usrspqv1b4zp'), { fill: false, type: null });
+  assert.deepEqual(parseHash('#dominator=a/b<script>'), { fill: false, type: null });
 });
 
 test('toNum: tečky po tisících ("2.000.000") jsou tisíce, ne desetinná tečka', () => {

@@ -4,8 +4,10 @@
  * kolem nastavení a seznamu jednotek, aby šla testovat.
  *
  * units: [{ name, count, max }]  count = kolik poslat, max = kliknout na „Max“ (pošle všechny)
+ * types: { P: [units], Z: [units], … }  jednotky pro ostatní druhy útoku (D má `units`)
  */
-export const ATTACK_DEFAULTS = { units: [], autoSubmit: false, randomPlanet: true, closeTab: true, retry: true, retryMaxSec: 60 };
+export const ATTACK_TYPES = ['D', 'P', 'Z', 'U', 'N', 'L', 'S', 'T']; // druhy útoku jako ve hře; D = dobývací (jeho jednotky jsou v `units`)
+export const ATTACK_DEFAULTS = { units: [], types: {}, autoSubmit: false, randomPlanet: true, closeTab: true };
 
 const MAX_UNITS = 30;
 
@@ -13,26 +15,36 @@ const MAX_UNITS = 30;
 export const normUnit = (s) =>
   String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 
+function cleanUnits(list) {
+  const seen = new Set();
+  const out = [];
+  for (const u of list.slice(0, MAX_UNITS)) {
+    const name = typeof u?.name === 'string' ? u.name.trim().slice(0, 64) : '';
+    const key = normUnit(name);
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
+    const n = Number(u.count);
+    out.push({ name, count: Number.isFinite(n) && n > 0 ? Math.min(1e12, Math.floor(n)) : 0, max: !!u.max });
+  }
+  return out;
+}
+
+/** Jednotky pro daný druh útoku (neznámý druh = dobývací). */
+export const unitsFor = (attack, type) => (type && type !== 'D' && ATTACK_TYPES.includes(type) ? attack.types?.[type] ?? [] : attack.units);
+
 /** Ověří a sjednotí nastavení útoku přicházející z UI (nebo z konfigurace). */
 export function sanitizeAttack(cur, body) {
-  const next = { ...ATTACK_DEFAULTS, ...cur, units: [...(cur?.units ?? [])] };
+  const next = { ...ATTACK_DEFAULTS, ...cur, units: [...(cur?.units ?? [])], types: { ...(cur?.types ?? {}) } };
   if (!body || typeof body !== 'object') return next;
   if ('autoSubmit' in body) next.autoSubmit = !!body.autoSubmit;
   if ('randomPlanet' in body) next.randomPlanet = !!body.randomPlanet;
   if ('closeTab' in body) next.closeTab = !!body.closeTab;
   if ('retry' in body) next.retry = !!body.retry;
   if ('retryMaxSec' in body) { const n = Math.floor(Number(body.retryMaxSec)); if (Number.isFinite(n)) next.retryMaxSec = Math.min(300, Math.max(5, n)); }
-  if (Array.isArray(body.units)) {
-    const seen = new Set();
-    next.units = [];
-    for (const u of body.units.slice(0, MAX_UNITS)) {
-      const name = typeof u?.name === 'string' ? u.name.trim().slice(0, 64) : '';
-      const key = normUnit(name);
-      if (!name || seen.has(key)) continue;
-      seen.add(key);
-      const n = Number(u.count);
-      next.units.push({ name, count: Number.isFinite(n) && n > 0 ? Math.min(1e12, Math.floor(n)) : 0, max: !!u.max });
-    }
+  if (Array.isArray(body.units)) next.units = cleanUnits(body.units);
+  if (body.types && typeof body.types === 'object') {
+    next.types = { ...(cur?.types ?? {}) };
+    for (const t of ATTACK_TYPES) if (t !== 'D' && Array.isArray(body.types[t])) next.types[t] = cleanUnits(body.types[t]);
   }
   return next;
 }
@@ -41,17 +53,19 @@ export function sanitizeAttack(cur, body) {
  * Jednotky viděné na stránce útoku se doplní do nastavení (s počtem 0), ať je v UI stačí jen přepsat.
  * Vrací nové nastavení, nebo null, když se nic nezměnilo.
  */
-export function mergeSeenUnits(attack, seen) {
-  const have = new Set(attack.units.map((u) => normUnit(u.name)));
+export function mergeSeenUnits(attack, seen, type = 'D') {
+  const cur = unitsFor(attack, type);
+  const have = new Set(cur.map((u) => normUnit(u.name)));
   const add = [];
   for (const s of seen ?? []) {
     const name = typeof s?.name === 'string' ? s.name.trim().slice(0, 64) : '';
     const key = normUnit(name);
-    if (!name || have.has(key) || attack.units.length + add.length >= MAX_UNITS) continue;
+    if (!name || have.has(key) || cur.length + add.length >= MAX_UNITS) continue;
     have.add(key);
     add.push({ name, count: 0, max: false });
   }
-  return add.length ? { ...attack, units: [...attack.units, ...add] } : null;
+  if (!add.length) return null;
+  return type && type !== 'D' && ATTACK_TYPES.includes(type) ? { ...attack, types: { ...attack.types, [type]: [...cur, ...add] } } : { ...attack, units: [...cur, ...add] };
 }
 
 /** Zkontroluje a zkrátí hlášení ze stránky útoku, než se uloží (přijde z prohlížeče). */

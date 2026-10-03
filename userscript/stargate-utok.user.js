@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Stargate dominator – útok (D)
 // @namespace    sg-dominator
-// @version      2.1.1
-// @description  Na stránce dobývacího útoku vyplní jednotky a vybere náhodnou planetu cíle; průběh a tlačítko Zaútočit jsou v aplikaci (jen když se otevře tlačítkem D v aplikaci)
+// @version      3.0.0
+// @description  Na stránce útoku vyplní jednotky a vybere náhodnou planetu cíle. Odeslání a F5 děláš ty sám (jen když se otevře kliknutím na útok v aplikaci)
 // @match        https://stargate-game.cz/utok.php*
 // @match        https://www.stargate-game.cz/utok.php*
 // @grant        GM_xmlhttpRequest
@@ -14,8 +14,6 @@
   'use strict';
   const SERVER = '__SERVER__';
   const TOKEN = '__TOKEN__';
-  const JOB_KEY = 'sgd-attack-job'; // rozdělaná práce přes přenačtení stránky (odeslání formuláře stránku načte znovu)
-  const JOB_MS = 15 * 60_000;
 
   // <logic> čistá logika bez DOM (testuje se v test/utok-script.test.js)
   const strip = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -53,10 +51,10 @@
     return out;
   }
 
-  /** Id práce z adresy: #dominator (bez práce, jen vyplnit) nebo #dominator=<id> (průběh a odeslání řídí aplikace). */
+  /** Adresa z aplikace: #dominator=P (P = druh útoku, písmeno jako ve hře: D P Z U N L S T); #dominator bez druhu = dobývací. */
   function parseHash(hash) {
-    const m = /^#dominator(?:=([A-Za-z0-9]{4,24}))?$/.exec(hash ?? '');
-    return m ? { fill: true, jobId: m[1] ?? null } : { fill: false, jobId: null };
+    const m = /^#dominator(?:=([A-Z]))?$/.exec(hash ?? '');
+    return m ? { fill: true, type: m[1] ?? 'D' } : { fill: false, type: null };
   }
   // </logic>
 
@@ -137,10 +135,6 @@
     for (const t of ['input', 'change', 'keyup']) el.dispatchEvent(new Event(t, { bubbles: true }));
   }
 
-  const readJob = () => { try { const j = JSON.parse(sessionStorage.getItem(JOB_KEY)); return j && Date.now() - j.ts < JOB_MS ? j : null; } catch { return null; } };
-  const writeJob = (j) => { try { sessionStorage.setItem(JOB_KEY, JSON.stringify({ ...j, ts: Date.now() })); } catch { /* bez úložiště to jede dál */ } };
-  const clearJob = () => { try { sessionStorage.removeItem(JOB_KEY); } catch { /* nic */ } };
-
   const targetText = () => (document.body.textContent.match(/C[ií]l:\s*([^|\n]{1,60}?)\s*(?:\||S[ií]la|\n)/) ?? [])[1]?.trim() ?? '';
   const planetLabel = (sel) => sel?.options[sel.selectedIndex]?.text.trim() ?? '';
 
@@ -170,159 +164,37 @@
     return { filled, problems };
   }
 
-  /** Co hra napsala po odeslání: texty hlášek, jinak začátek obsahu stránky (bez menu). */
-  function readResult() {
-    const msg = [...document.querySelectorAll('.hlaska,.chyba,.error,.success,.ok,.info,.warning,[class*=hlas],[class*=chyb],[class*=err]')]
-      .map((e) => e.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean);
-    const main = (document.querySelector('#obsah,#content,main') ?? document.body).innerText.split('\n').map((l) => l.trim()).filter(Boolean);
-    const text = (msg.length ? msg.join(' | ') : main.filter((l) => !/^(Útok|Výpis útoků|Aktivity armády|Statistiky útoků)$/.test(l)).slice(0, 6).join(' | ')).slice(0, 300);
-    const stillForm = !!findUnitsTable() && !!findSubmit();
-    return { text, stillForm };
-  }
-
-  /** Průběh řízený aplikací: hlásí kroky, čeká na příkaz (odeslat / jiná planeta / zrušit). */
-  async function runJob(jobId, cfg) {
-    const report = (phase, data = {}) => api('POST', '/attack/job/report', { id: jobId, phase, ...data });
-    const sel = findPlanetSelect();
-    const planetsTotal = sel ? [...sel.options].filter((o) => o.value !== '').length : 0;
-    await report('loaded', { target: targetText(), planetsTotal });
-
-    const choosePlanet = async (not = null) => {
-      if (!(cfg.randomPlanet && sel)) return;
-      const opt = pickPlanet([...sel.options].map((o) => ({ value: o.value, text: o.text, disabled: o.disabled })), Math.random, not);
-      if (opt && opt.value !== sel.value) { await human(300, 800); setValue(sel, opt.value); }
-    };
-    await choosePlanet();
-    await report('planet', { planet: planetLabel(sel), planetsTotal });
-
-    const { filled, problems } = await fillUnits(cfg.units);
-    await report('units', { filled });
-    if (!filled.length) { await report('failed', { error: problems[0] ?? 'nic se nevyplnilo', problems }); return; }
-    if (!findSubmit()) problems.push('tlačítko Zaútočit nenalezeno');
-    await report('ready', { target: targetText(), planet: planetLabel(sel), planetsTotal, filled, problems });
-    try { window.opener?.focus(); } catch { /* prohlížeč přepnutí karty nemusí dovolit */ } // zkus vrátit do aplikace, odkud karta vznikla
-
-    // čekání na příkaz z aplikace: dlouhé dotazování (server odpoví hned, jak příkaz přijde), takže ho nezpomalí
-    // ani zpomalené časovače karty na pozadí
-    const end = Date.now() + JOB_MS;
-    while (Date.now() < end) {
-      const r = await api('POST', '/attack/job/poll', { id: jobId }, 30_000);
-      if (!r) { await sleep(1500); continue; }
-      if (!r.ok) return; // práce na serveru skončila (zrušena, vypršela, jiná je novější)
-      if (!r.cmd) continue;
-      if (r.cmd === 'reroll') {
-        await choosePlanet(sel?.value ?? null);
-        await report('planet', { planet: planetLabel(sel), planetsTotal });
-        await report('ready', { target: targetText(), planet: planetLabel(sel), planetsTotal, filled, problems });
-      } else if (r.cmd === 'cancel') {
-        clearJob();
-        if (cfg.closeTab) window.close();
-        return;
-      } else if (r.cmd === 'submit') {
-        const btn = findSubmit();
-        if (!btn) { await report('failed', { error: 'tlačítko Zaútočit nenalezeno' }); return; }
-        const base = {};
-        for (const r of readRows(findUnitsTable())) if (r.available != null) base[strip(r.name)] = r.available;
-        writeJob({ id: jobId, phase: 'submitting', base, planet: sel?.value ?? null, attempt: 1 }); // odeslání stránku načte znovu; výsledek přečte další běh skriptu
-        await report('submitting');
-        await human(500, 1300);
-        btn.click();
-        await sleep(6000); // když se stránka nepřenačte, hra útok zřejmě nepřijala
-        const res = readResult();
-        clearJob();
-        await report('failed', { error: 'po kliknutí na Zaútočit se stránka nezměnila (hra útok nepřijala?)', result: res.text });
-        return;
-      }
-    }
-    await report('failed', { error: 'vypršel čas čekání na odeslání' });
-  }
-
-  /**
-   * Srážka: hra útok nepřijala (na cíl útočil jiný hráč, projde jen jeden útok za ~2 s). Server rozhodne, jestli se smí zkusit
-   * znovu (hlídá sílu cíle: když stoupne, končí hned) a za jak dlouho (náhodně ~1 s); pak se formulář vyplní a odešle znovu.
-   */
-  async function retryRound(job, cfg, rep) {
-    const d = await api('POST', '/attack/job/retry', { id: job.id });
-    if (!d?.go) { clearJob(); if (!d) await rep('failed', { error: 'server se neozval, opakování končí' }); return; } // důvod už zapsal server
-    await sleep(d.delayMs);
-    const sel = findPlanetSelect();
-    if (sel && job.planet != null && sel.value !== job.planet) setValue(sel, job.planet);
-    const { filled } = await fillUnits(cfg.units, true);
-    const btn = findSubmit();
-    if (!filled.length || !btn) { clearJob(); await rep('failed', { error: 'při opakování se nepodařilo vyplnit formulář' }); return; }
-    writeJob({ ...job, attempt: (job.attempt ?? 1) + 1 });
-    await rep('submitting');
-    btn.click();
-    await sleep(6000);
-    clearJob();
-    await rep('failed', { error: 'po opakovaném kliknutí se stránka nezměnila' });
-  }
-
   async function main() {
     const h = parseHash(location.hash);
-    const job = readJob();
-
-    // po odeslání formuláře: stránka je načtená znovu, přečteme výsledek a nahlásíme ho
-    if (job?.phase === 'submitting') {
-      const res = readResult();
-      let cfgAfter = null;
-      try { cfgAfter = await api('GET', '/attack/config'); } catch { /* nic */ }
-      const rep = (phase, data = {}) => api('POST', '/attack/job/report', { id: job.id, phase, ...data });
-      // armáda odletěla = u některé jednotky ubylo, kolik je jí doma; formulář beze změny = hra útok nepřijala (srážka)
-      const rows = res.stillForm ? readRows(findUnitsTable()) : [];
-      const same = rows.filter((r) => r.available != null && job.base?.[strip(r.name)] != null);
-      const left = same.some((r) => r.available < job.base[strip(r.name)]);
-      if (!res.stillForm || left) {
-        clearJob();
-        await rep('sent', { result: res.text, stillForm: res.stillForm });
-        if (cfgAfter?.closeTab && !res.stillForm) setTimeout(() => window.close(), 2500);
-        return;
-      }
-      if (!same.length || !cfgAfter?.units) { clearJob(); await rep('failed', { error: 'hra útok nejspíš nepřijala (formulář zůstal)', result: res.text }); return; }
-      return retryRound(job, cfgAfter, rep);
-    }
-
     const table = await waitFor(findUnitsTable);
     if (!table) return;
     const rows = readRows(table);
+    if (!h.fill) return; // stránka otevřená normálně, ne kliknutím na útok v aplikaci
 
-    // vždy: jména jednotek jdou do nastavení v aplikaci (s počtem 0), ať je stačí jen přepsat
-    api('POST', '/attack/seen', { units: rows.map((r) => ({ name: r.name, available: r.available, attack: r.attack })) });
+    // jména jednotek jdou do nastavení v aplikaci (s počtem 0), ať je stačí jen přepsat
+    api('POST', '/attack/seen', { type: h.type, units: rows.map((r) => ({ name: r.name, available: r.available, attack: r.attack })) });
 
-    if (!h.fill) return; // stránka otevřená normálně, ne tlačítkem D v aplikaci
-
-    const cfg = await api('GET', '/attack/config');
+    const cfg = await api('GET', `/attack/config?t=${h.type}`);
     if (!cfg || !Array.isArray(cfg.units)) {
-      const err = 'nepodařilo se načíst nastavení útoku z aplikace (běží? je skript aktuální?)';
-      if (h.jobId) api('POST', '/attack/job/report', { id: h.jobId, phase: 'failed', error: err });
-      else api('POST', '/attack/report', { ok: false, problems: [err] });
+      api('POST', '/attack/report', { ok: false, problems: ['nepodařilo se načíst nastavení útoku z aplikace (běží? je skript aktuální?)'] });
       return;
     }
     history.replaceState(null, '', location.pathname + location.search); // F5 už znovu nevyplňuje
 
-    if (h.jobId) return runJob(h.jobId, cfg);
-
-    // starší režim bez aplikace v cestě: jen vyplnit a nechat na uživateli
     const problems = [];
     const sel = findPlanetSelect();
     if (cfg.randomPlanet && sel) {
       const opt = pickPlanet([...sel.options].map((o) => ({ value: o.value, text: o.text, disabled: o.disabled })));
       if (opt && opt.value !== sel.value) { await human(400, 900); setValue(sel, opt.value); }
-    } else if (cfg.randomPlanet) problems.push('výběr planety nenalezen');
+    }
     const { filled, problems: p2 } = await fillUnits(cfg.units);
     problems.push(...p2);
     const submit = findSubmit();
-    let submitted = false;
-    if (cfg.autoSubmit && submit && filled.length && !problems.length) { await human(700, 1600); submit.click(); submitted = true; }
-    else if (submit) submit.focus({ preventScroll: true });
+    if (submit) submit.focus({ preventScroll: true }); // jen zaměřit; klikneš si sám
     else problems.push('tlačítko Zaútočit nenalezeno');
-    api('POST', '/attack/report', { ok: filled.length > 0 && !problems.length, submitted, planet: planetLabel(sel), target: targetText(), filled, problems });
+    api('POST', '/attack/report', { ok: filled.length > 0 && !problems.length, submitted: false, planet: planetLabel(sel), target: targetText(), filled, problems });
   }
 
-  main().catch((e) => {
-    const err = `chyba skriptu: ${String(e?.message ?? e).slice(0, 120)}`;
-    const j = parseHash(location.hash).jobId ?? readJob()?.id;
-    if (j) api('POST', '/attack/job/report', { id: j, phase: 'failed', error: err });
-    else api('POST', '/attack/report', { ok: false, problems: [err] });
-  });
+  main().catch((e) => api('POST', '/attack/report', { ok: false, problems: [`chyba skriptu: ${String(e?.message ?? e).slice(0, 120)}`] }));
+
 })();
