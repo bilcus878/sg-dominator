@@ -26,7 +26,7 @@ function formatBody(a) {
       ? `🆘❗ STÁLE KRITICKÉ: ${a.name} – síla ${fmt(a.power)} (kritická hranice ${fmt(a.critical)})`
       : `🆘 KRITICKÉ: ${a.name} – síla ${a.prev != null ? fmt(a.prev) + ' → ' : ''}${fmt(a.power)} (kritická hranice ${fmt(a.critical)})`;
   }
-  if (a.reason === 'recovered') return `✅ ${a.name}: síla zpět nad prahem – ${fmt(a.power)}`;
+  if (a.reason === 'recovered') return `✅ ${a.name}: síla zpět nad prahem – ${fmt(a.power)}${a.belowMs != null ? ` (pod prahem ${dur(a.belowMs)})` : ''}`;
   if (a.repeat) return `❗ ${a.name} je stále pod prahem: síla ${fmt(a.power)} (práh ${fmt(a.threshold)})`;
   const delta = a.prev != null ? ` (${a.power - a.prev >= 0 ? '+' : '−'}${fmt(Math.abs(a.power - a.prev))})` : '';
   const why =

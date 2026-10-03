@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator
 // @namespace    sg-dominator
-// @version      3.4.0
+// @version      3.5.0
 // @description  Čte tabulku hráčů a posílá sílu na lokální notifikační server (bez zásahu do stránky)
 // @match        https://stargate-game.cz/vesmir.php*
 // @match        https://www.stargate-game.cz/vesmir.php*
@@ -73,6 +73,9 @@
         const d = [...td[attackIdx].querySelectorAll('img')].find((i) => i.alt === 'D');
         p.attackable = !!d && !d.classList.contains('pruhledny') && !/nelze/i.test(texts[attackIdx]);
       }
+      // hodnost podle barvy jména ve hře: vůdce (žlutá), zástupce (bílá), ministr (zelená), občan
+      const rank = ['vudce', 'zastupce', 'ministr', 'obcan'].find((r) => td[nameIdx].querySelector('a')?.classList.contains(r));
+      if (rank) p.rank = rank;
       players.push(p);
     }
     return players;

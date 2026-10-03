@@ -62,11 +62,13 @@ export function evaluate(state, players, cfg, now = Date.now()) {
     const prevOk = s.lastOk;
     s.lastOk = power >= threshold;
     let recovered = false;
+    let belowMs = null; // jak dlouho byl hráč pod prahem (do zprávy o návratu)
     if (power >= threshold && s.lastAlertedPower !== null) {
       if (!cfg.notifyRecovery) s.lastAlertedPower = null;
       else if (prevOk && !first) {
         s.lastAlertedPower = null;
         recovered = true;
+        belowMs = s.belowSince != null ? now - s.belowSince : null;
       }
     }
 
@@ -88,16 +90,19 @@ export function evaluate(state, players, cfg, now = Date.now()) {
 
     if (first) {
       // baseline: hráč, který je při startu už pod prahem, nespamuje
-      if (below) s.lastAlertedPower = power;
+      if (below) { s.lastAlertedPower = power; s.belowSince = now; } // skutečný začátek neznáme, počítá se od startu
       if (crit) s.critEscalated = true;
       continue;
     }
     // jednorázový výkyv (pád pod práh i do kritického pásma); lastPower zůstává na hodnotě před pádem
     if ((triggered && !confirmed) || (crit && !confirmedCrit)) continue;
+    // začátek pobytu pod prahem (potvrzený pád); konec až po 2 čteních nad prahem
+    if (below) s.belowSince ??= now;
+    else if (prevOk) s.belowSince = null;
 
     s.lastPower = power;
     if (!watched) continue;
-    if (recovered) alerts.push({ name, power, prev, threshold, reason: 'recovered', dropPct: 0 });
+    if (recovered) alerts.push({ name, power, prev, threshold, reason: 'recovered', dropPct: 0, belowMs });
 
     if (confirmedCrit) {
       const entering = !s.critEscalated;

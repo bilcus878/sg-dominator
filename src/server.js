@@ -85,6 +85,7 @@ function parsePlayers(body) {
     // počet planet a jeho změna ze hry jsou nepovinné (starší userscript je neposílá)
     if (Number.isInteger(p.planets) && p.planets >= 0 && p.planets < 1e6) q.planets = p.planets;
     if (Number.isInteger(p.planetsDelta) && Math.abs(p.planetsDelta) < 1e6) q.planetsDelta = p.planetsDelta;
+    if (['vudce', 'zastupce', 'ministr', 'obcan'].includes(p.rank)) q.rank = p.rank; // hodnost (barva jména ve hře)
     if (typeof p.online === 'boolean') q.online = p.online; // zelená tečka ve hře
     if (typeof p.attackable === 'boolean') q.attackable = p.attackable; // sloupec Útok ve hře (false = „nelze“)
     out.push(q);
@@ -269,7 +270,7 @@ function buildState() {
       sources: snap.sources,
       players: snap.players.map((p) => ({
         name: p.name, power: p.power, planets: p.planets ?? null, planetsChange: p.planetsChange ?? 0, planetsAt: p.planetsAt ?? 0,
-        powerDelta: p.powerDelta, powerAt: p.powerAt, attackable: p.attackable ?? null, online: p.online ?? null, ...conquest.status(id, p.name), ...resolveWatch(cfg, id, p.name),
+        powerDelta: p.powerDelta, powerAt: p.powerAt, attackable: p.attackable ?? null, online: p.online ?? null, rank: p.rank ?? null, ...conquest.status(id, p.name), ...resolveWatch(cfg, id, p.name),
       })),
     };
   });

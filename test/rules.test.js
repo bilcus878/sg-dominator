@@ -223,3 +223,18 @@ test('pád z kritického pásma přímo shora: žádná běžná zpráva navíc,
   const a = cdrop(s, c, 10, 1000);
   assert.deepEqual(a.map((x) => x.reason), ['critical']);
 });
+
+test('notifyRecovery: zpráva o návratu obsahuje, jak dlouho byl hráč pod prahem', async () => {
+  const { formatAlert } = await import('../src/notifiers.js');
+  const st = createState();
+  const c = cfg({ notifyRecovery: true });
+  const ev = (power, t) => evaluate(st, [{ name: 'A', power }], c, t);
+  ev(150, 0);
+  ev(50, 60_000);
+  assert.equal(ev(50, 61_000)[0].reason, 'threshold'); // potvrzený pád: pod prahem od 61 s
+  ev(150, 900_000);
+  const [rec] = ev(150, 901_000);
+  assert.equal(rec.reason, 'recovered');
+  assert.equal(rec.belowMs, 840_000);
+  assert.match(formatAlert(rec), /pod prahem 14 min\)$/);
+});

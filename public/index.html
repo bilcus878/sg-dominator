@@ -39,6 +39,7 @@
   .tg { font-size:11px; margin-left:6px; color:var(--acc); font-weight:600; white-space:nowrap; } .tg.noatk { color:var(--mut); font-weight:400; }
   .rpanel[data-role=attack] .thcol { display:none; } /* vlastní práh u cizí rasy nemá smysl */
   td.pname .on { display:inline-block; width:8px; height:8px; margin-right:5px; border-radius:50%; vertical-align:middle; }
+  td.pname .nm[data-rank=vudce] { color:#f1c40f; font-weight:600; } td.pname .nm[data-rank=zastupce] { color:#ffffff; font-weight:600; } td.pname .nm[data-rank=ministr] { color:#3ccf4e; }
   td.pname .on.yes { background:#2ecc40; box-shadow:0 0 4px #2ecc40; }
   .rpanel[data-role=defend] .dcol { display:none; }
   .rpanel[data-role=attack] .hcol { display:none; } /* dohodit jen naší rase */
@@ -608,7 +609,7 @@ function makeRow(v, r, p) {
   input.dataset.kind = 'th'; sw.dataset.kind = 'watch';
   const cell = (td) => ({ td, v: td.querySelector('.pv'), d: td.querySelector('.pd') });
   const hb = tr.querySelector('.dohodit'); hb.dataset.name = p.name;
-  return { tr, hb, on: nameTd.querySelector('.on'), tag: nameTd.querySelector('.tg'), dmark: tr.querySelector('.dmark'), planets: cell(tr.children[v.isW ? 2 : 1]), pw: cell(tr.children[v.isW ? 3 : 2]), power: tr.children[v.isW ? 3 : 2], input, sw };
+  return { tr, hb, nm: nameTd.querySelector('.nm'), on: nameTd.querySelector('.on'), tag: nameTd.querySelector('.tg'), dmark: tr.querySelector('.dmark'), planets: cell(tr.children[v.isW ? 2 : 1]), pw: cell(tr.children[v.isW ? 3 : 2]), power: tr.children[v.isW ? 3 : 2], input, sw };
 }
 
 /** Dohodit: pošle hráči rasovou armádu přes skript na stránce Jednotky → Rasová armáda a počká na výsledek. */
@@ -732,6 +733,9 @@ function updatePanel(id) {
     row.hb.hidden = atk; // dohodit jen hráčům naší rasy
     // zelená tečka před jménem = hráč je online (stejně jako ve hře)
     row.on.classList.toggle('yes', p.online === true);
+    // barva jména podle hodnosti jako ve hře (jen naše rasa): vůdce žlutě, zástupce bíle, ministři zeleně
+    const rk = !atk && ['vudce', 'zastupce', 'ministr'].includes(p.rank) ? p.rank : '';
+    if (row.nm.dataset.rank !== rk) { row.nm.dataset.rank = rk; row.nm.title = { vudce: 'Vůdce', zastupce: 'Zástupce', ministr: 'Ministr' }[rk] ?? ''; }
     row.on.title = p.online ? 'Online' : '';
     // sloupec D (jen cizí rasa): oranžové D = dobýt jde, červený ✕ = nejde, prázdné = zatím nevíme (starý skript)
     const dTxt = !atk || p.attackable == null ? '' : p.attackable ? 'D' : '✕';
