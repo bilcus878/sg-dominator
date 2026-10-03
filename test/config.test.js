@@ -56,3 +56,11 @@ test('notify: výchozí zapnuto, jde vypnout a zapnout', () => {
   assert.equal(sanitizeUpdate(off, { notify: true }, ctx).notify, true);
   assert.equal(sanitizeUpdate(off, { threshold: 5 }, ctx).notify, false); // jiná změna ho nezmění
 });
+
+test('notifyTypes: vypnutý druh se uloží jako false, zapnutý se smaže, neznámé druhy se ignorují', () => {
+  const off = sanitizeUpdate(base(), { notifyTypes: { threshold: false, op: false, nesmysl: false } }, ctx);
+  assert.deepEqual(off.notifyTypes, { threshold: false, op: false });
+  const back = sanitizeUpdate(off, { notifyTypes: { threshold: true } }, ctx);
+  assert.deepEqual(back.notifyTypes, { op: false });
+  assert.deepEqual(sanitizeUpdate(back, { threshold: 5 }, ctx).notifyTypes, { op: false });
+});

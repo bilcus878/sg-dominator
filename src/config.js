@@ -8,6 +8,9 @@ import { VIGILANCE_DEFAULTS, TELESCOPE_DEFAULTS } from './telescope.js';
 import { CONQUEST_DEFAULTS } from './conquest.js';
 import { ATTACK_DEFAULTS, sanitizeAttack, ARMY_DEFAULTS, sanitizeArmy } from './attack.js';
 
+/** Druhy upozornění, které jdou zapnout/vypnout zvlášť (notifyTypes). Klíč = a.reason alertu; service = všechny systémové zprávy. */
+export const NOTIFY_KINDS = ['threshold', 'drop', 'critical', 'recovered', 'target', 'released', 'op', 'service'];
+
 /**
  * Datová složka (config s tajnými tokeny + databáze). Záměrně MIMO složku projektu,
  * protože ta bývá v cloudové synchronizaci (Dropbox) a tokeny i SQLite do ní nepatří.
@@ -35,6 +38,7 @@ export const DEFAULTS = {
   minDrop: 0, // pod prahem hlásit další pokles jen o aspoň tolik
   notifyRecovery: false, // hlásit i návrat nad práh
   notify: true, // hlavní vypínač: vypnuto = bot neposílá nic do Telegramu ani Discordu
+  notifyTypes: {}, // vypnuté druhy upozornění: { threshold: false, … } (chybí = zapnuto); druhy v NOTIFY_KINDS
   // rasy: { [id]: { name, mode: 'off'|'all'|'selected', role: 'defend'|'attack', threshold: číslo|null, criticalPct: číslo|null } }
   // role: defend = naše rasa (hlídá se pokles pod práh), attack = cizí rasa (hlídá se „k dobytí“ podle conquest)
   races: {},
@@ -130,6 +134,10 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
   if ('repeatWhileBelow' in body) next.repeatWhileBelow = !!body.repeatWhileBelow;
   if ('notifyRecovery' in body) next.notifyRecovery = !!body.notifyRecovery;
   if ('notify' in body) next.notify = !!body.notify;
+  if (body.notifyTypes && typeof body.notifyTypes === 'object') {
+    next.notifyTypes = { ...cur.notifyTypes };
+    for (const k of NOTIFY_KINDS) if (k in body.notifyTypes) { if (body.notifyTypes[k]) delete next.notifyTypes[k]; else next.notifyTypes[k] = false; }
+  }
   next.dropWindowSec = num(body.dropWindowSec, cur.dropWindowSec) || 300;
   // rasy a hráči se aktualizují po částech (merge), null maže hodnotu / celý záznam
   if (body.races && typeof body.races === 'object') {

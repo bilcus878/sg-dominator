@@ -6,7 +6,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { loadConfig, saveConfig, sanitizeUpdate, publicConfig, DATA_DIR, LEGACY_DATA_DIR, USING_DEFAULT_DIR } from './config.js';
 import { migrateLegacyData } from './migrate.js';
 import { createState, evaluate, rebaseline } from './rules.js';
-import { formatAlert, sendText, sendService, findTelegramChats } from './notifiers.js';
+import { formatAlert, sendText, sendService, findTelegramChats, notifyOn } from './notifiers.js';
 import { openDb } from './db.js';
 import { createStore } from './store.js';
 import { createOpTracker } from './op.js';
@@ -172,7 +172,7 @@ async function handleIngest(req) {
     a.race = raceLabel;
     db.recordAlert(now, a);
     console.log(`[alert] [${a.race}] ${a.name} ${a.prev} -> ${a.power} (${a.reason})`);
-    sendText(cfg, formatAlert(a)); // fire-and-forget, chyby se logují v notifieru
+    if (notifyOn(cfg, a.reason)) sendText(cfg, formatAlert(a)); // fire-and-forget, chyby se logují v notifieru; vypnutý druh se jen zapíše do historie
   }
   return [200, { ok: true, alerts: alerts.length }];
 }
@@ -204,7 +204,7 @@ async function handleIngestOp(req) {
     const a = { name: `${sectors.length}× OP – ${list}`, power: sectors.length, prev: null, reason: 'op', race: null, repeat: !fresh.length, count: sectors.length, sectors: list };
     db.recordAlert(now, a);
     console.log(`[alert] OP ${a.repeat ? 'stále ' : ''}na mapě: ${a.name}`);
-    sendText(cfg, formatAlert(a));
+    if (notifyOn(cfg, 'op')) sendText(cfg, formatAlert(a));
   }
   return [200, { ok: true, alerts: notify ? 1 : 0, vigilance: cfg.op.vigilance, telescope: cfg.op.telescope }];
 }

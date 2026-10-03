@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { sendService, sendText } from '../src/notifiers.js';
+import { sendService, sendText, notifyOn } from '../src/notifiers.js';
 
 const cfg = (tg) => ({ telegram: { enabled: true, botToken: 'T', chatId: '-1', serviceChatId: '', ...tg }, discord: { enabled: false } });
 
@@ -30,5 +30,19 @@ test('hlavní vypínač upozornění: notify=false nepošle nic (ani hlavní, an
     assert.equal(calls, 0);
     await sendText({ ...off, notify: true }, 'x'); // zapnuto = posílá
     assert.ok(calls >= 1);
+  } finally { globalThis.fetch = orig; }
+});
+
+test('druhy upozornění: notifyOn respektuje hlavní vypínač i vypnutý druh; servisní zprávy se dají vypnout zvlášť', async () => {
+  assert.equal(notifyOn({}, 'threshold'), true);
+  assert.equal(notifyOn({ notifyTypes: { threshold: false } }, 'threshold'), false);
+  assert.equal(notifyOn({ notifyTypes: { threshold: false } }, 'critical'), true);
+  assert.equal(notifyOn({ notify: false }, 'critical'), false);
+  const orig = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls += 1; return { ok: true, text: async () => '' }; };
+  try {
+    assert.deepEqual(await sendService({ ...cfg({ serviceChatId: '-2' }), notifyTypes: { service: false } }, 'x'), { sent: 0, total: 0 });
+    assert.equal(calls, 0);
   } finally { globalThis.fetch = orig; }
 });

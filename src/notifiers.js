@@ -1,5 +1,8 @@
 const fmt = (n) => Math.round(n).toLocaleString('cs-CZ').replace(/ /g, ' ');
 
+/** Má se upozornění tohoto druhu poslat? (hlavní vypínač + vypínač druhu; neznámý druh = ano) */
+export const notifyOn = (cfg, kind) => cfg.notify !== false && cfg.notifyTypes?.[kind] !== false;
+
 export function formatAlert(a) {
   if (a.reason === 'op') {
     if (a.count == null) return a.repeat ? `❗🟠 OP je stále v: ${a.name}` : `🚨🟠 OP! Opuštěná planeta – ${a.name}`;
@@ -72,7 +75,7 @@ export async function sendText(cfg, text, log = console) {
  */
 export async function sendService(cfg, text, log = console) {
   const chatId = cfg.telegram.serviceChatId;
-  if (cfg.notify === false) return { sent: 0, total: 0 }; // hlavní vypínač upozornění
+  if (!notifyOn(cfg, 'service')) return { sent: 0, total: 0 }; // hlavní vypínač nebo vypnuté systémové zprávy
   if (!cfg.telegram.enabled || !cfg.telegram.botToken || !chatId) return { sent: 0, total: 0 };
   try {
     await post(`https://api.telegram.org/bot${cfg.telegram.botToken}/sendMessage`, { chat_id: chatId, text: `🛠 ${text}` });
