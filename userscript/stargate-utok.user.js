@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – útok (D)
 // @namespace    sg-dominator
-// @version      2.0.0
+// @version      2.0.1
 // @description  Na stránce dobývacího útoku vyplní jednotky a vybere náhodnou planetu cíle; průběh a tlačítko Zaútočit jsou v aplikaci (jen když se otevře tlačítkem D v aplikaci)
 // @match        https://stargate-game.cz/utok.php*
 // @match        https://www.stargate-game.cz/utok.php*
@@ -22,7 +22,9 @@
 
   /** "18 822 832" -> 18822832, "7,3" -> 7.3; bez čísla null. */
   function toNum(text) {
-    const m = String(text ?? '').replace(/[\s\u00a0]/g, '').match(/\d+(?:[.,]\d+)?/);
+    let t = String(text ?? '').replace(/[\s\u00a0]/g, '');
+    if (/^\d{1,3}(?:\.\d{3})+(?:,\d+)?$/.test(t)) t = t.replace(/\./g, ''); // "2.000.000" = te\u010dky po tis\u00edc\u00edch (hra tak form\u00e1tuje vypln\u011bn\u00e9 pole)
+    const m = t.match(/\d+(?:[.,]\d+)?/);
     return m ? parseFloat(m[0].replace(',', '.')) : null;
   }
 

@@ -81,3 +81,10 @@ test('parseHash: #dominator = jen vyplnit, #dominator=<id> = práce řízená ap
   assert.deepEqual(parseHash('#dominator=ab'), { fill: false, jobId: null }); // příliš krátké id
   assert.deepEqual(parseHash('#dominator=a/b<script>'), { fill: false, jobId: null });
 });
+
+test('toNum: tečky po tisících ("2.000.000") jsou tisíce, ne desetinná tečka', () => {
+  assert.equal(toNum('2.000.000'), 2000000);
+  assert.equal(toNum('10.000'), 10000);
+  assert.equal(toNum('1.234,5'), 1234.5);
+  assert.equal(toNum('7.3'), 7.3);
+});

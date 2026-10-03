@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         Stargate dominator
 // @namespace    sg-dominator
-// @version      3.8.0
+// @version      3.9.0
 // @description  Čte tabulku hráčů a posílá sílu na lokální notifikační server (bez zásahu do stránky)
 // @match        https://stargate-game.cz/vesmir.php*
 // @match        https://www.stargate-game.cz/vesmir.php*
 // @grant        GM_xmlhttpRequest
+// @grant        GM_openInTab
 // @connect      127.0.0.1
 // @run-at       document-idle
 // ==/UserScript==
@@ -132,7 +133,7 @@
     const players = readPlayers();
     if (!players.length) return;
     for (const p of players) if (!Number.isFinite(p.planetsDelta) && deltaMap.has(p.name)) p.planetsDelta = deltaMap.get(p.name);
-    const body = JSON.stringify({ raceId, raceName: findRaceName(), page, src, ver: '3.8.0', dDebug, players });
+    const body = JSON.stringify({ raceId, raceName: findRaceName(), page, src, ver: '3.9.0', dDebug, players });
     const now = Date.now();
     const changed = body !== lastBody;
     if (inFlight || (!changed && now - lastSendAt < 800)) return; // 800 ms rezerva na jitter intervalu
@@ -144,7 +145,14 @@
       url: `${SERVER}/ingest`,
       headers: { 'content-type': 'application/json', 'x-token': TOKEN },
       data: body,
-      onload: () => { inFlight = false; },
+      onload: (r) => {
+        inFlight = false;
+        // server si nechal otevřít útok z aplikace: kartu otevřeme na pozadí (aplikace zůstane v popředí)
+        try {
+          const j = JSON.parse(r.responseText);
+          if (typeof j.open === 'string' && /^https:\/\/www\.stargate-game\.cz\/utok\.php\?/.test(j.open)) GM_openInTab(j.open, { active: false, insert: true });
+        } catch { /* odpověď bez pokynu */ }
+      },
       onerror: () => { inFlight = false; },
       ontimeout: () => { inFlight = false; },
       timeout: 5000,

@@ -132,6 +132,9 @@ function registerRace(raceId, name) {
   }
 }
 
+const OPEN_WAIT_MS = 6000; // jak dlouho čeká otevření útoku na pozadí, než aplikace nabídne ruční odkaz
+let openReq = null;
+
 async function handleIngest(req) {
   if (!authOk(req)) return [401, { error: 'bad token' }];
   const body = await readJson(req);
@@ -173,7 +176,10 @@ async function handleIngest(req) {
     console.log(`[alert] [${a.race}] ${a.name} ${a.prev} -> ${a.power} (${a.reason})`);
     sendText(cfg, formatAlert(a)); // fire-and-forget, chyby se logují v notifieru
   }
-  return [200, { ok: true, alerts: alerts.length }];
+  const out = { ok: true, alerts: alerts.length };
+  // útok z aplikace čeká na otevření: první skript, který se ozve, ho otevře na pozadí
+  if (openReq && !openReq.taken && now - openReq.at < OPEN_WAIT_MS) { openReq.taken = true; out.open = openReq.url; }
+  return [200, out];
 }
 
 /** Tečky OP z mapy: alert na nově objevený sektor (jen když je OP alert zapnutý). */
@@ -358,9 +364,16 @@ const routes = {
     if (!Number.isInteger(hracId) || hracId <= 0 || !Number.isInteger(utokId) || utokId <= 0 || utokId >= 100) return [400, { error: 'chybí ID hráče nebo útoku' }];
     const id = attackJobs.start({ hracId, utokId, name: b.name, type: b.type, power: Number(b.power), lit: b.lit !== false }, Date.now());
     console.log(`[útok] otevírám ${b.type ?? ''} na ${String(b.name ?? '').slice(0, 40)}`);
-    return [200, { id, url: `https://www.stargate-game.cz/utok.php?page=0&hrac_id=${hracId}&utok_id=${utokId}#dominator=${id}` }];
+    const url = `https://www.stargate-game.cz/utok.php?page=0&hrac_id=${hracId}&utok_id=${utokId}#dominator=${id}`;
+    openReq = { id, url, at: Date.now(), taken: false };
+    return [200, { id, url }];
   },
-  'GET /api/attack/job': async () => [200, { job: attackJobs.snapshot(Date.now()) }],
+  'GET /api/attack/job': async () => {
+    const job = attackJobs.snapshot(Date.now());
+    // open: 'waiting' = čeká, až kartu na pozadí otevře skript Síla hráčů; 'taken' = skript ji otevřel; null = nic
+    const open = openReq && job && openReq.id === job.id ? (openReq.taken ? 'taken' : Date.now() - openReq.at < OPEN_WAIT_MS ? 'waiting' : 'timeout') : null;
+    return [200, { job, open }];
+  },
   'POST /api/attack/command': async (req) => {
     const cmd = String((await readJson(req)).cmd ?? '');
     const r = attackJobs.command(cmd, Date.now());

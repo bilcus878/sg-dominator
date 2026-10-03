@@ -1285,13 +1285,12 @@ $('openSettings').onclick = openDrawer; $('closeSettings').onclick = closeDrawer
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 /* ---------- útok z aplikace: okno s průběhem a tlačítkem Zaútočit ---------- */
 const BASE_TITLE = document.title;
-let amTimer = null, amLast = '', amName = '';
+let amTimer = null, amLast = '', amName = '', amUrl = '';
 function beep() {
   try { const c = new (window.AudioContext || window.webkitAudioContext)(), o = c.createOscillator(), g = c.createGain(); o.connect(g); g.connect(c.destination); o.frequency.value = 880; g.gain.value = 0.08; o.start(); setTimeout(() => { o.stop(); c.close(); }, 200); } catch { /* bez zvuku */ }
 }
 async function startAttack(p, a) {
-  const w = window.open('about:blank', 'sgd-attack'); // musí se otevřít hned při kliknutí, jinak ho blokátor oken zakáže
-  amName = p.name; amLast = '';
+  amName = p.name; amLast = ''; amUrl = '';
   $('amName').textContent = p.name;
   $('amMeta').textContent = `Dobývací útok · síla ${dots(p.power)}`;
   $('amWarn').hidden = a.ok; $('amWarn').textContent = 'Ve hře je dobývací útok na tohoto hráče teď zhasnutý, hra ho nejspíš odmítne. Můžeš to zkusit přesto.';
@@ -1300,14 +1299,20 @@ async function startAttack(p, a) {
   $('atkModal').hidden = false;
   try {
     const r = await api('/api/attack/start', 'POST', { hracId: p.hracId, utokId: a.id, name: p.name, type: 'D', power: p.power, lit: a.ok });
-    if (w) w.location.href = r.url;
-    else { $('amManual').hidden = false; $('amManual').innerHTML = `Okno s hrou se neotevřelo samo (blokátor oken?). <a href="${esc(r.url)}" target="_blank" rel="noopener" style="color:var(--acc)">Otevři útok ručně</a>.`; }
+    amUrl = r.url; // kartu hry otevře na pozadí skript Síla hráčů; kdyby žádný neodpověděl, nabídneme ruční odkaz (pollAttackJob)
     clearInterval(amTimer); amTimer = setInterval(pollAttackJob, 600); pollAttackJob();
   } catch (e) { toast('Útok se nepodařilo zahájit: ' + e.message, true); $('atkModal').hidden = true; }
 }
 function closeAttackModal() { clearInterval(amTimer); amTimer = null; $('atkModal').hidden = true; document.title = BASE_TITLE; }
 async function pollAttackJob() {
-  try { renderAttackJob((await api('/api/attack/job')).job); } catch { /* server se na chvíli neozval */ }
+  try {
+    const r = await api('/api/attack/job');
+    renderAttackJob(r.job);
+    if (r.open === 'timeout' && r.job?.status === 'opening' && amUrl) {
+      $('amManual').hidden = false;
+      $('amManual').innerHTML = `Na pozadí se karta neotevřela (není otevřená žádná stránka hry se skriptem Síla hráčů 3.9+?). <a href="${esc(amUrl)}" target="_blank" rel="noopener" style="color:var(--acc)">Otevři útok ručně</a>.`;
+    } else if (r.open === 'taken') $('amManual').hidden = true;
+  } catch { /* server se na chvíli neozval */ }
 }
 function renderAttackJob(job) {
   if (!job) return;
