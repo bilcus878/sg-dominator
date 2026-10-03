@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – útok (D)
 // @namespace    sg-dominator
-// @version      2.0.1
+// @version      2.1.0
 // @description  Na stránce dobývacího útoku vyplní jednotky a vybere náhodnou planetu cíle; průběh a tlačítko Zaútočit jsou v aplikaci (jen když se otevře tlačítkem D v aplikaci)
 // @match        https://stargate-game.cz/utok.php*
 // @match        https://www.stargate-game.cz/utok.php*
@@ -145,13 +145,13 @@
   const planetLabel = (sel) => sel?.options[sel.selectedIndex]?.text.trim() ?? '';
 
   /** Vyplní jednotky podle plánu; vrací co se vyplnilo a případné problémy. */
-  async function fillUnits(cfgUnits) {
+  async function fillUnits(cfgUnits, fast = false) {
     const filled = [], problems = [];
     const rows = readRows(findUnitsTable());
     const plan = planFill(rows, cfgUnits);
     if (!plan.length) problems.push('v nastavení není žádná jednotka k poslání (počet 0 a bez Max)');
     for (const a of plan) {
-      await human(150, 450);
+      if (!fast) await human(150, 450); // při opakování po srážce se nezdržujeme
       const row = rows[a.i];
       if (a.mode === 'max') {
         if (!row.maxBtn) { problems.push(`u jednotky ${a.name} chybí tlačítko Max`); continue; }
@@ -220,7 +220,9 @@
       } else if (r.cmd === 'submit') {
         const btn = findSubmit();
         if (!btn) { await report('failed', { error: 'tlačítko Zaútočit nenalezeno' }); return; }
-        writeJob({ id: jobId, phase: 'submitting' }); // odeslání stránku načte znovu; výsledek přečte další běh skriptu
+        const base = {};
+        for (const r of readRows(findUnitsTable())) if (r.available != null) base[strip(r.name)] = r.available;
+        writeJob({ id: jobId, phase: 'submitting', base, planet: sel?.value ?? null, attempt: 1 }); // odeslání stránku načte znovu; výsledek přečte další běh skriptu
         await report('submitting');
         await human(500, 1300);
         btn.click();
@@ -234,6 +236,27 @@
     await report('failed', { error: 'vypršel čas čekání na odeslání' });
   }
 
+  /**
+   * Srážka: hra útok nepřijala (na cíl útočil jiný hráč, projde jen jeden útok za ~2 s). Server rozhodne, jestli se smí zkusit
+   * znovu (hlídá sílu cíle: když stoupne, končí hned) a za jak dlouho (náhodně ~1 s); pak se formulář vyplní a odešle znovu.
+   */
+  async function retryRound(job, cfg, rep) {
+    const d = await api('POST', '/attack/job/retry', { id: job.id });
+    if (!d?.go) { clearJob(); if (!d) await rep('failed', { error: 'server se neozval, opakování končí' }); return; } // důvod už zapsal server
+    await sleep(d.delayMs);
+    const sel = findPlanetSelect();
+    if (sel && job.planet != null && sel.value !== job.planet) setValue(sel, job.planet);
+    const { filled } = await fillUnits(cfg.units, true);
+    const btn = findSubmit();
+    if (!filled.length || !btn) { clearJob(); await rep('failed', { error: 'při opakování se nepodařilo vyplnit formulář' }); return; }
+    writeJob({ ...job, attempt: (job.attempt ?? 1) + 1 });
+    await rep('submitting');
+    btn.click();
+    await sleep(6000);
+    clearJob();
+    await rep('failed', { error: 'po opakovaném kliknutí se stránka nezměnila' });
+  }
+
   async function main() {
     const h = parseHash(location.hash);
     const job = readJob();
@@ -241,12 +264,21 @@
     // po odeslání formuláře: stránka je načtená znovu, přečteme výsledek a nahlásíme ho
     if (job?.phase === 'submitting') {
       const res = readResult();
-      clearJob();
       let cfgAfter = null;
       try { cfgAfter = await api('GET', '/attack/config'); } catch { /* nic */ }
-      await api('POST', '/attack/job/report', { id: job.id, phase: 'sent', result: res.text, stillForm: res.stillForm });
-      if (cfgAfter?.closeTab && !res.stillForm) setTimeout(() => window.close(), 2500);
-      return;
+      const rep = (phase, data = {}) => api('POST', '/attack/job/report', { id: job.id, phase, ...data });
+      // armáda odletěla = u některé jednotky ubylo, kolik je jí doma; formulář beze změny = hra útok nepřijala (srážka)
+      const rows = res.stillForm ? readRows(findUnitsTable()) : [];
+      const same = rows.filter((r) => r.available != null && job.base?.[strip(r.name)] != null);
+      const left = same.some((r) => r.available < job.base[strip(r.name)]);
+      if (!res.stillForm || left) {
+        clearJob();
+        await rep('sent', { result: res.text, stillForm: res.stillForm });
+        if (cfgAfter?.closeTab && !res.stillForm) setTimeout(() => window.close(), 2500);
+        return;
+      }
+      if (!same.length || !cfgAfter?.units) { clearJob(); await rep('failed', { error: 'hra útok nejspíš nepřijala (formulář zůstal)', result: res.text }); return; }
+      return retryRound(job, cfgAfter, rep);
     }
 
     const table = await waitFor(findUnitsTable);

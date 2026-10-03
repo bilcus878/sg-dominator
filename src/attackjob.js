@@ -44,6 +44,10 @@ export function createAttackJobs() {
       error: '',
       result: null,
       cmd: null,
+      attempts: 0, // kolikrát se kliknulo na Zaútočit (první = ruční, další = opakování při srážce)
+      firstSubmitAt: 0,
+      minPower: null, // nejnižší síla cíle, kterou jsme od prvního odeslání viděli
+      stopped: false,
     };
     return job.id;
   }
@@ -96,6 +100,8 @@ export function createAttackJobs() {
         break;
       case 'submitting':
         job.status = 'submitting';
+        job.attempts += 1;
+        if (job.attempts === 1) { job.firstSubmitAt = t; job.minPower = int(body.power); }
         break;
       case 'sent':
         job.status = 'sent';
@@ -148,6 +154,27 @@ export function createAttackJobs() {
     return { ok: true, cmd };
   }
 
+  /**
+   * Srážka (hra útok nepřijala, protože na cíl zrovna útočil někdo jiný): smí se zkusit znovu?
+   * Hlídá se hlavně síla cíle: jakmile stoupne nad nejnižší viděnou hodnotu, útok by armádu ztratil, takže se hned končí.
+   * ctx = { power, ageMs } aktuální síla cíle z dat o rase a stáří těchto dat; opts = { enabled, maxSec, minMs, maxMs, maxAttempts }.
+   */
+  function retry(id, ctx, opts, t, rnd = Math.random) {
+    if (!alive(id)) return { go: false, reason: 'útok už neběží' };
+    job.lastSeen = t;
+    const stop = (reason) => { job.status = 'failed'; job.stopped = true; job.error = reason; return { go: false, reason }; };
+    if (!opts.enabled) return stop('Hra útok nepřijala a opakování je v nastavení vypnuté.');
+    if (job.attempts >= opts.maxAttempts) return stop(`Hra útok nepřijala ani na ${job.attempts}. pokus, opakování končí.`);
+    if (t - job.firstSubmitAt > opts.maxSec * 1000) return stop(`Hra útok nepřijala do ${opts.maxSec} s, opakování končí.`);
+    const power = int(ctx.power);
+    if (power === null || !(ctx.ageMs <= 8000)) return stop('Chybí čerstvá data o síle cíle (otevři stránku hráčů jeho rasy), bez nich se neopakuje.');
+    if (job.minPower !== null && power > job.minPower) return stop(`Síla cíle stoupla (${job.minPower} → ${power}), opakování zastaveno, ať nepřijdeš o armádu.`);
+    if (job.minPower === null || power < job.minPower) job.minPower = power;
+    job.status = 'retrying';
+    job.cmd = null;
+    return { go: true, delayMs: Math.round(opts.minMs + rnd() * (opts.maxMs - opts.minMs)), attempt: job.attempts };
+  }
+
   /** Pohled pro aplikaci. */
   function snapshot(t) {
     tick(t);
@@ -167,8 +194,10 @@ export function createAttackJobs() {
       error: job.error,
       result: job.result,
       ageMs: t - job.createdAt,
+      attempts: job.attempts,
+      stopped: job.stopped,
     };
   }
 
-  return { start, report, command, poll, snapshot, isAlive: alive, tick };
+  return { start, report, command, poll, snapshot, retry, isAlive: alive, tick };
 }

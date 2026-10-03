@@ -105,9 +105,12 @@ const raceRole = (id) => cfg.races[id]?.role ?? 'defend';
 
 /** Co o sobě hlásí skript Síla hráčů: verze a ukázka buňky D, když v ní nenašel hrac_id. Do logu jen při změně. */
 const scriptInfo = new Map(); // raceId -> { ver, dDebug }
+let bgScriptAt = 0; // kdy se naposledy ozval skript Síla hráčů 3.9+ (stránka hry otevřená a aktuální)
 function noteScript(raceId, body) {
   const ver = typeof body.ver === 'string' ? body.ver.slice(0, 16) : '(stará, bez čísla)';
   const dDebug = typeof body.dDebug === 'string' ? body.dDebug.slice(0, 500) : '';
+  const vm = ver.match(/^(\d+)\.(\d+)/);
+  if (vm && (Number(vm[1]) > 3 || (Number(vm[1]) === 3 && Number(vm[2]) >= 9))) bgScriptAt = Date.now(); // 3.9+ umí otevřít kartu na pozadí
   const prev = scriptInfo.get(raceId);
   if (prev?.ver === ver && prev?.dDebug === dDebug) return;
   scriptInfo.set(raceId, { ver, dDebug });
@@ -130,6 +133,15 @@ function registerRace(raceId, name) {
     rec.name = name;
     saveConfig(cfg);
   }
+}
+
+/** Aktuální síla hráče podle jména z posledních dat o jeho rase (+ kdy ta data přišla). */
+function livePower(name) {
+  const rid = playerRace.get(name);
+  if (!rid) return null;
+  const snap = store.snapshot(rid, Date.now());
+  const p = snap.players.find((x) => x.name === name);
+  return p ? { power: p.power, at: snap.at } : null;
 }
 
 const OPEN_WAIT_MS = 6000; // jak dlouho čeká otevření útoku na pozadí, než aplikace nabídne ruční odkaz
@@ -307,7 +319,7 @@ function buildState() {
     vigilance: { count: vig.count, lastClickedAt: vig.clickedAt, pendingSince: vig.pending ? vig.seenAt : 0 },
     telescope: tele.snapshot(),
   };
-  return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState };
+  return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState, bgOpen: now - bgScriptAt < 15_000 };
 }
 
 /** Hlídač výpadku: hlídané rasy a mapa (když je OP alert zapnutý) musí dodávat data. */
@@ -383,9 +395,21 @@ const routes = {
   'POST /attack/job/report': async (req) => {
     if (!authOk(req)) return [401, { error: 'bad token' }];
     const b = await readJson(req);
-    const ok = attackJobs.report(String(b.id ?? ''), b, Date.now());
+    const ok = attackJobs.report(String(b.id ?? ''), b.phase === 'submitting' ? { ...b, power: livePower(attackJobs.snapshot(Date.now())?.name)?.power } : b, Date.now());
     if (ok && b.phase === 'ready' && cfg.attack.autoSubmit) attackJobs.command('submit', Date.now()); // automatické odeslání je vypnuté, dokud ho nezapneš v nastavení
     return [200, { ok }];
+  },
+  // srážka: hra útok nepřijala; skript se ptá, jestli smí zkusit znovu (a za jak dlouho)
+  'POST /attack/job/retry': async (req) => {
+    if (!authOk(req)) return [401, { error: 'bad token' }];
+    const b = await readJson(req);
+    const now = Date.now();
+    const live = livePower(attackJobs.snapshot(now)?.name);
+    const a = cfg.attack ?? {};
+    const r = attackJobs.retry(String(b.id ?? ''), { power: live?.power, ageMs: live ? now - live.at : Infinity },
+      { enabled: a.retry !== false, maxSec: a.retryMaxSec ?? 60, minMs: 800, maxMs: 1700, maxAttempts: 120 }, now);
+    console.log(r.go ? `[útok] srážka, opakuji (pokus ${r.attempt}, za ${r.delayMs} ms)` : `[útok] opakování končí: ${r.reason}`);
+    return [200, r];
   },
   // dlouhé dotazování: odpoví, jakmile je příkaz (nebo po ~20 s), takže nezávisí na časovačích karty na pozadí
   'POST /attack/job/poll': async (req) => {

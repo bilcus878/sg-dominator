@@ -5,7 +5,7 @@
  *
  * units: [{ name, count, max }]  count = kolik poslat, max = kliknout na „Max“ (pošle všechny)
  */
-export const ATTACK_DEFAULTS = { units: [], autoSubmit: false, randomPlanet: true, closeTab: true };
+export const ATTACK_DEFAULTS = { units: [], autoSubmit: false, randomPlanet: true, closeTab: true, retry: true, retryMaxSec: 60 };
 
 const MAX_UNITS = 30;
 
@@ -20,6 +20,8 @@ export function sanitizeAttack(cur, body) {
   if ('autoSubmit' in body) next.autoSubmit = !!body.autoSubmit;
   if ('randomPlanet' in body) next.randomPlanet = !!body.randomPlanet;
   if ('closeTab' in body) next.closeTab = !!body.closeTab;
+  if ('retry' in body) next.retry = !!body.retry;
+  if ('retryMaxSec' in body) { const n = Math.floor(Number(body.retryMaxSec)); if (Number.isFinite(n)) next.retryMaxSec = Math.min(300, Math.max(5, n)); }
   if (Array.isArray(body.units)) {
     const seen = new Set();
     next.units = [];

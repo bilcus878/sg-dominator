@@ -56,3 +56,10 @@ test('sanitizeReport a sanitizeSeenUnits zkrátí a očistí vstup z prohlíže�
   assert.deepEqual(sanitizeSeenUnits([{ name: 'Bedrosian', available: '18822832', attack: 7.3 }, { name: '' }, { name: 'X', available: 'n' }]),
     [{ name: 'Bedrosian', available: 18822832, attack: 7.3 }, { name: 'X', available: null, attack: null }]);
 });
+
+test('sanitizeAttack: opakování při srážce a jeho limit', () => {
+  assert.equal(ATTACK_DEFAULTS.retry, true);
+  assert.equal(sanitizeAttack(ATTACK_DEFAULTS, { retry: false }).retry, false);
+  assert.equal(sanitizeAttack(ATTACK_DEFAULTS, { retryMaxSec: 9999 }).retryMaxSec, 300);
+  assert.equal(sanitizeAttack(ATTACK_DEFAULTS, { retryMaxSec: 1 }).retryMaxSec, 5);
+});

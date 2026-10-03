@@ -111,3 +111,43 @@ test('vstupy z prohlížeče se zkrátí a očistí', () => {
   assert.deepEqual(s.summary.filled.map((f) => f.value), [12, 'max']);
   assert.equal(s.summary.problems[1].length, 160);
 });
+
+const opts = { enabled: true, maxSec: 60, minMs: 800, maxMs: 1700, maxAttempts: 120 };
+function submitted(jobs, id, power, t = 2000) {
+  ready(jobs, id);
+  jobs.command('submit', t);
+  jobs.report(id, { phase: 'submitting', power }, t);
+}
+
+test('srážka: opakuje se s náhodnou prodlevou, dokud síla cíle nestoupne', () => {
+  const j = createAttackJobs();
+  const id = j.start(info, 0);
+  submitted(j, id, 981_000_000);
+  let r = j.retry(id, { power: 981_000_000, ageMs: 500 }, opts, 3000, () => 0);
+  assert.deepEqual([r.go, r.delayMs], [true, 800]);
+  assert.equal(j.snapshot(3001).status, 'retrying');
+  j.report(id, { phase: 'submitting', power: 981_000_000 }, 3900);
+  assert.equal(j.snapshot(3901).attempts, 2);
+  r = j.retry(id, { power: 970_000_000, ageMs: 400 }, opts, 5000, () => 1); // síla klesla, pokračujeme
+  assert.deepEqual([r.go, r.delayMs], [true, 1700]);
+  r = j.retry(id, { power: 975_000_000, ageMs: 400 }, opts, 6000); // vzrostla nad nejnižší viděnou -> okamžitě stop
+  assert.equal(r.go, false);
+  const s = j.snapshot(6001);
+  assert.deepEqual([s.status, s.final, s.stopped], ['failed', true, true]);
+  assert.match(s.error, /stoupla/);
+});
+
+test('srážka: bez čerstvých dat o síle, po limitu času a při vypnutém opakování se neopakuje', () => {
+  const mk = () => { const j = createAttackJobs(); const id = j.start(info, 0); submitted(j, id, 100); return [j, id]; };
+  let [j, id] = mk();
+  assert.equal(j.retry(id, { power: null, ageMs: 0 }, opts, 3000).go, false);
+  [j, id] = mk();
+  assert.equal(j.retry(id, { power: 100, ageMs: 30_000 }, opts, 3000).go, false); // stará data
+  [j, id] = mk();
+  assert.equal(j.retry(id, { power: 100, ageMs: 100 }, opts, 2000 + 61_000).go, false);
+  [j, id] = mk();
+  assert.equal(j.retry(id, { power: 100, ageMs: 100 }, { ...opts, enabled: false }, 3000).go, false);
+  [j, id] = mk();
+  j.command('cancel', 2500); // uživatel zrušil -> už se neopakuje
+  assert.equal(j.retry(id, { power: 100, ageMs: 100 }, opts, 3000).go, false);
+});

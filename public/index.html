@@ -457,6 +457,10 @@
       <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
         <span class="sw"><input type="checkbox" id="atkClose"><span></span></span> Po odeslání nebo zrušení zavřít kartu s útokem</label>
         <small>Karta s hrou se zavře sama, výsledek uvidíš v okně v aplikaci.</small></div>
+      <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
+        <span class="sw"><input type="checkbox" id="atkRetry"><span></span></span> Při srážce zkoušet odeslat znovu</label>
+        <small>Projde jen jeden útok za ~2 s. Když hra tvůj útok nepřijme, po zmáčknutí Zaútočit se odeslání samo opakuje zhruba po vteřině (s malou náhodnou odchylkou), dokud neprojde. <b>Jakmile síla cíle stoupne, opakování se okamžitě zastaví</b> (jinak by armáda zahynula); bez čerstvých dat o jeho síle se neopakuje vůbec.</small>
+        <label for="atkRetrySec" style="margin-top:8px">Nejdéle opakovat (s)</label><input type="number" id="atkRetrySec" min="5" max="300"></div>
       <h3 style="font-size:13px;color:var(--acc);margin:6px 0">Jednotky k poslání</h3>
       <table class="atktable"><thead><tr><th>Jednotka</th><th class="n">Kolik poslat</th><th class="c">Max</th><th class="c"></th></tr></thead><tbody id="atkUnits"></tbody></table>
       <p class="muted" id="atkNone" hidden>Zatím žádná jednotka. Klikni u cizí rasy na D, stránka útoku se otevře a jednotky se tu objeví samy (nebo je přidej ručně).</p>
@@ -528,6 +532,7 @@
       <div class="am-target"><b id="amName"></b> <span class="muted" id="amMeta"></span></div>
       <div class="am-warn" id="amWarn" hidden></div>
       <ol class="am-steps" id="amSteps"></ol>
+      <div class="am-warn" id="amRetry" hidden></div>
       <div class="am-sum" id="amSum" hidden></div>
       <div class="am-problems" id="amProblems" hidden></div>
       <div class="am-result" id="amResult" hidden></div>
@@ -1285,12 +1290,15 @@ $('openSettings').onclick = openDrawer; $('closeSettings').onclick = closeDrawer
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 /* ---------- útok z aplikace: okno s průběhem a tlačítkem Zaútočit ---------- */
 const BASE_TITLE = document.title;
-let amTimer = null, amLast = '', amName = '', amUrl = '';
+let amTimer = null, amLast = '', amName = '', amUrl = '', amStartPower = null;
 function beep() {
   try { const c = new (window.AudioContext || window.webkitAudioContext)(), o = c.createOscillator(), g = c.createGain(); o.connect(g); g.connect(c.destination); o.frequency.value = 880; g.gain.value = 0.08; o.start(); setTimeout(() => { o.stop(); c.close(); }, 200); } catch { /* bez zvuku */ }
 }
 async function startAttack(p, a) {
-  amName = p.name; amLast = ''; amUrl = '';
+  // karta hry se otevírá na pozadí přes skript Síla hráčů 3.9+ (musí být otevřená stránka hry); bez něj ji otevřeme sami hned při kliknutí
+  const bg = !!S?.bgOpen;
+  const w = bg ? null : window.open('about:blank', 'sgd-attack');
+  amName = p.name; amLast = ''; amUrl = ''; amStartPower = p.power;
   $('amName').textContent = p.name;
   $('amMeta').textContent = `Dobývací útok · síla ${dots(p.power)}`;
   $('amWarn').hidden = a.ok; $('amWarn').textContent = 'Ve hře je dobývací útok na tohoto hráče teď zhasnutý, hra ho nejspíš odmítne. Můžeš to zkusit přesto.';
@@ -1299,7 +1307,10 @@ async function startAttack(p, a) {
   $('atkModal').hidden = false;
   try {
     const r = await api('/api/attack/start', 'POST', { hracId: p.hracId, utokId: a.id, name: p.name, type: 'D', power: p.power, lit: a.ok });
-    amUrl = r.url; // kartu hry otevře na pozadí skript Síla hráčů; kdyby žádný neodpověděl, nabídneme ruční odkaz (pollAttackJob)
+    amUrl = r.url; // kdyby se karta na pozadí neotevřela, nabídneme ruční odkaz (pollAttackJob)
+    if (w) w.location.href = r.url;
+    else if (!bg) { $('amManual').hidden = false; $('amManual').innerHTML = `Okno s hrou se neotevřelo samo (blokátor oken?). <a href="${esc(r.url)}" target="_blank" rel="noopener" style="color:var(--acc)">Otevři útok ručně</a>.`; }
+    else { $('amManual').hidden = false; $('amManual').textContent = 'Otevírám kartu hry na pozadí…'; }
     clearInterval(amTimer); amTimer = setInterval(pollAttackJob, 600); pollAttackJob();
   } catch (e) { toast('Útok se nepodařilo zahájit: ' + e.message, true); $('atkModal').hidden = true; }
 }
@@ -1314,9 +1325,16 @@ async function pollAttackJob() {
     } else if (r.open === 'taken') $('amManual').hidden = true;
   } catch { /* server se na chvíli neozval */ }
 }
+const livePlayer = (name) => { for (const r of S?.races ?? []) { const p = r.players.find((x) => x.name === name); if (p) return p; } return null; };
 function renderAttackJob(job) {
   if (!job) return;
   const act = !job.final;
+  // živá síla cíle (z dat o rase, obnovují se skoro každou vteřinu) a změna od zahájení; zvýšení je pro útočníka špatné (červeně)
+  const lv = livePlayer(job.name), now = lv?.power ?? job.power, d = now != null && amStartPower != null ? now - amStartPower : 0;
+  $('amMeta').innerHTML = `Dobývací útok · síla <b>${dots(now)}</b>${d ? ` <b style="color:var(${d > 0 ? '--bad' : '--ok'})">${d > 0 ? '▲ +' : '▼ −'}${dots(Math.abs(d))}</b>` : ''}${lv ? ' <span class="muted">· živě</span>' : ''}`;
+  const retrying = job.attempts > 1 || job.status === 'retrying';
+  $('amRetry').hidden = !(retrying && act);
+  if (retrying && act) $('amRetry').innerHTML = `⚔ <b>Srážka</b>: hra útok nepřijala, zkouším odeslat znovu (pokus ${job.attempts}). Sleduju sílu cíle: jakmile stoupne, přestanu.`;
   const firstOpen = job.steps.findIndex((s) => !s.done);
   $('amSteps').innerHTML = job.steps.map((s, i) => `<li class="${s.done ? 'done' : act && i === firstOpen ? 'now' : ''}">${esc(s.label)}</li>`).join('');
   const sm = job.summary;
@@ -1338,9 +1356,10 @@ function renderAttackJob(job) {
   }
   $('amGo').hidden = job.final;
   $('amGo').disabled = job.status !== 'ready';
-  $('amGo').textContent = job.status === 'submitting' ? 'Odesílám…' : '🚀 Zaútočit';
+  $('amGo').textContent = job.status === 'submitting' || job.status === 'retrying' ? (job.attempts > 1 ? `Opakuji… (${job.attempts}.)` : 'Odesílám…') : '🚀 Zaútočit';
   $('amReroll').hidden = job.status !== 'ready';
-  $('amCancel').textContent = job.final ? 'Zavřít' : 'Zrušit útok';
+  $('amCancel').textContent = job.final ? 'Zavřít' : retrying ? 'Zastavit opakování' : 'Zrušit útok';
+  if (job.final && job.stopped && amLast !== job.status) { beep(); setTimeout(beep, 250); }
   // upozornění, že je útok připravený (karta s hrou je v popředí, aplikace na pozadí)
   if (job.status === 'ready' && amLast !== 'ready') { document.title = `🚀 Útok připraven – ${amName}`; beep(); }
   if (job.final) document.title = BASE_TITLE;
@@ -1376,12 +1395,16 @@ function renderAtk(a) {
   $('atkRandom').checked = !!a.randomPlanet;
   $('atkAuto').checked = !!a.autoSubmit;
   $('atkClose').checked = a.closeTab !== false;
+  $('atkRetry').checked = a.retry !== false;
+  $('atkRetrySec').value = a.retryMaxSec ?? 60;
 }
 function readAtk() {
   return {
     randomPlanet: $('atkRandom').checked,
     autoSubmit: $('atkAuto').checked,
     closeTab: $('atkClose').checked,
+    retry: $('atkRetry').checked,
+    retryMaxSec: Number($('atkRetrySec').value) || 60,
     units: [...$('atkUnits').rows].map((tr) => ({ name: tr.querySelector('.aname').value.trim(), count: undots(tr.querySelector('.acount').value) ?? 0, max: tr.querySelector('.amax').checked })).filter((u) => u.name),
   };
 }
