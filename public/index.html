@@ -50,7 +50,8 @@
   /* práh pod jménem: malým písmem; vlastní práh hráče zvýrazněný; klik = úprava */
   .thl { display:inline-block; margin-left:7px; font-size:11px; line-height:16px; font-weight:400; vertical-align:middle; }
   .thl .thv { cursor:pointer; color:var(--mut); border:1px solid transparent; border-radius:9px; padding:0 7px; white-space:nowrap; }
-  .thl:not(.own) .thv { opacity:0; } tr:hover .thl:not(.own) .thv, .thl .thv:focus { opacity:.85; border-color:var(--line); } .thl .thv:hover { color:var(--fg); }
+  .thl .thv:hover { color:var(--fg); }
+  .thl:not(.own) .thv { color:#7fa6d6; border-color:rgba(127,166,214,.4); } /* globální (výchozí) práh rasy: modře */
   .thl.own .thv { color:var(--acc); border-color:var(--acc); }
   .thl input.thin { width:112px; padding:1px 6px; font-size:11px; text-align:left; }
   td.pname .on { display:inline-block; width:8px; height:8px; margin-right:5px; border-radius:50%; vertical-align:middle; }
@@ -907,7 +908,7 @@ function updatePanel(id) {
     ].filter(Boolean).join('\n');
     row.tr.classList.toggle('off', !p.watched);
     const own = p.ownThreshold != null;
-    const thTxt = own ? `práh ${short(p.ownThreshold)}` : '＋ práh'; // vlastní práh je vidět vždy (odznak), výchozí se ukáže až při najetí myší
+    const thTxt = `práh ${short(own ? p.ownThreshold : p.threshold)}`; // vlastní práh žlutě, globální (výchozí rasy) modře
     if (row.thv.textContent !== thTxt) row.thv.textContent = thTxt;
     row.thv.title = own ? `Vlastní práh ${dots(p.ownThreshold)} (výchozí rasy ${dots(p.threshold)}). Klikni pro úpravu, prázdné = výchozí` : `Práh ${dots(p.threshold)} (výchozí rasy). Klikni a nastav hráči vlastní`;
     row.thl.classList.toggle('own', own);
