@@ -52,6 +52,7 @@ function saveLedger() {
 const build = createBuildRun({ notify: (t) => { console.log(`[stavění] ${t}`); sendService(cfg, t); }, ledger, onLedger: saveLedger });
 const db = openDb();
 const ingestTimes = []; // časy posledních příjmů pro výpočet frekvence
+const raceIngest = new Map(); // raceId -> časy posledních příjmů (pro frekvenci za jednotlivou rasu)
 
 const pub = (f) => new URL(`../${f}`, import.meta.url);
 
@@ -148,6 +149,7 @@ async function handleIngest(req) {
   store.ingest({ raceId, page, src, players }, now);
   raceLastAt.set(raceId, now);
   ingestTimes.push(now);
+  { const a = raceIngest.get(raceId) ?? []; a.push(now); while (a.length && a[0] < now - 10_000) a.shift(); raceIngest.set(raceId, a); }
   while (ingestTimes.length && ingestTimes[0] < now - 10_000) ingestTimes.shift();
   db.recordChanges(now, players, lastWritten);
 
@@ -287,6 +289,7 @@ function buildState() {
       criticalPct: rec.criticalPct ?? null,
       at: snap.at,
       sources: snap.sources,
+      rate: (raceIngest.get(id) ?? []).filter((t) => t > now - 5_000).length / 5, // příjmů za vteřinu (posledních 5 s)
       players: snap.players.map((p) => ({
         name: p.name, power: p.power, planets: p.planets ?? null, planetsDelta: p.planetsDelta ?? null, planetsChange: p.planetsChange ?? 0, planetsAt: p.planetsAt ?? 0,
         powerDelta: p.powerDelta, powerAt: p.powerAt, attackable: p.attackable ?? null, online: p.online ?? null, rank: p.rank ?? null, hracId: p.hracId ?? null, utokId: p.utokId ?? null, attacks: p.attacks ?? null, ...conquest.status(id, p.name), ...resolveWatch(cfg, id, p.name),

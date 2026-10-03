@@ -107,6 +107,15 @@
   .tgl { display:flex; gap:9px; align-items:center; margin:0; background:var(--card2); border:1px solid var(--line); border-radius:99px; padding:4px 13px 4px 9px; color:var(--mut); font-size:13px; font-weight:600; cursor:pointer; user-select:none; }
   .tgl.on { color:var(--fg); border-color:#2c5a46; } .tgl:hover { filter:brightness(1.15); }
   .bar.sub { padding-top:0; }
+  /* stav dat: u každého zdroje (rasa, OP) zvlášť, jak je na tom právě teď */
+  .dstat { display:flex; gap:8px; align-items:center; flex-wrap:wrap; background:var(--card2); border:1px solid var(--line); border-radius:99px; padding:3px 6px 3px 12px; font-size:13px; }
+  .dstat .dh { font-weight:600; color:var(--mut); margin-right:2px; } .dstat.ok .dh { color:var(--ok); } .dstat.bad { border-color:#6a3030; } .dstat.bad .dh { color:var(--bad); }
+  .dsrc { display:inline-flex; gap:6px; align-items:center; padding:1px 9px 1px 7px; border-radius:99px; border:1px solid var(--line); color:var(--fg); white-space:nowrap; cursor:default; }
+  .dsrc i { width:8px; height:8px; border-radius:50%; background:#444b5c; } .dsrc b { font-weight:500; color:var(--mut); font-variant-numeric:tabular-nums; font-size:12px; }
+  .dsrc.ok { border-color:#2c5a46; } .dsrc.ok i { background:var(--ok); box-shadow:0 0 5px var(--ok); }
+  .dsrc.warn { border-color:#6b5518; } .dsrc.warn i { background:var(--acc); } .dsrc.warn b { color:var(--acc); }
+  .dsrc.bad { border-color:#6a3030; } .dsrc.bad i { background:var(--bad); animation:pulse 1s infinite; } .dsrc.bad b { color:var(--bad); }
+  .dsrc.hit { border-color:var(--acc); background:#2b2108; } .dsrc.hit i { background:var(--acc); animation:pulse 1s infinite; } .dsrc.link { cursor:pointer; }
   .opdotlive { width:8px; height:8px; border-radius:50%; background:#444b5c; }
   .oppill.ok .opdotlive { background:var(--ok); } .oppill.bad .opdotlive { background:var(--bad); }
   .oppill.hit .opdotlive { background:var(--acc); animation:pulse 1s infinite; }
@@ -291,9 +300,8 @@
   <button id="openSettings">⚙ Nastavení</button>
 </div>
 <div class="bar sub">
-  <span class="pill" id="status">● čeká na data</span>
+  <div class="dstat" id="dstat"><span class="dh">● čeká na data</span></div>
   <div class="chips" id="chips"></div>
-  <button class="oppill" id="opPill" title="OP na mapě – klikni pro nastavení"><span class="opdotlive"></span><span id="opText">OP: čeká na mapu</span></button>
   <div class="chips" id="opDots"></div>
 </div></header>
 
@@ -612,19 +620,45 @@ const ageOf = (r) => (r.at ? S.serverTime - r.at : null);
 const isLive = (r) => ageOf(r) != null && ageOf(r) < 3000;
 const watchedCount = (r) => r.players.filter((p) => p.watched).length;
 
-function renderStatus() {
-  const st = $('status');
-  const watchedRaces = S.races.filter((r) => r.mode !== 'off' || watchedCount(r) > 0);
-  const stale = watchedRaces.filter((r) => r.at && !isLive(r));
-  if (!S.races.some((r) => r.at)) { st.className = 'pill'; st.textContent = '● čeká na data'; st.title = ''; return; }
-  if (stale.length) {
-    st.className = 'pill bad';
-    st.textContent = `● bez dat: ${stale.map((r) => r.name + ' ' + Math.round(ageOf(r) / 1000) + ' s').join(', ')}`;
-    st.title = 'Je otevřená stránka této rasy v prohlížeči (a viditelná, ne na pozadí)?';
-  } else {
-    st.className = 'pill ok'; st.textContent = `● data přicházejí (${S.ratePerSec.toFixed(1)}/s)`; st.title = '';
-  }
+// stav dat po zdrojích (sledované rasy a OP): zelená do 3 s od posledního příjmu, žlutá do 10 s, červená dál; stáří se přepočítává i mezi dotazy na server
+let fetchedAt = Date.now();
+const dAge = (at) => (at ? Math.max(0, S.serverTime + (Date.now() - fetchedAt) - at) : null);
+const dSec = (ms) => (ms < 10_000 ? (ms / 1000).toFixed(1).replace('.', ',') : Math.round(ms / 1000)) + ' s';
+function dataItem(label, at, extra = {}) {
+  const age = dAge(at);
+  let cls = 'ok', txt;
+  if (extra.off) { cls = ''; txt = 'vypnuto'; }
+  else if (age == null) { cls = 'bad'; txt = extra.wait ?? 'čeká na data'; }
+  else if (age < 3000) txt = dSec(age);
+  else if (age < 10_000) { cls = 'warn'; txt = dSec(age); }
+  else { cls = 'bad'; txt = 'bez dat ' + dSec(age); }
+  if (extra.hit && cls === 'ok') cls = 'hit';
+  const tip = extra.tip ? `title="${esc(extra.tip)}"` : '';
+  return { cls, html: `<span class="dsrc ${cls}${extra.link ? ' link' : ''}" ${tip} ${extra.link ? 'data-go="op"' : ''}><i></i>${esc(label)}${extra.extra ? ' ' + esc(extra.extra) : ''} <b>${esc(txt)}</b></span>` };
 }
+function renderData() {
+  const box = $('dstat');
+  if (!S.races) return;
+  const ids = (panels?.length ? panels : S.races.filter((r) => r.mode !== 'off').map((r) => r.id)).filter((id) => id !== WATCHED);
+  const items = [];
+  for (const id of ids) {
+    const r = S.races.find((x) => x.id === id);
+    if (!r) continue;
+    items.push(dataItem(r.name, r.at, { tip: `${r.name}: ${r.sources} ${r.sources === 1 ? 'okno' : 'oken'} se stránkou hráčů, ${(r.rate ?? 0).toFixed(1).replace('.', ',')} příjmů/s. Stáří = od posledních přijatých dat. Zelená do 3 s; když je červená, stránka této rasy ve hře není otevřená a viditelná (ne na pozadí).` }));
+  }
+  const op = S.op;
+  if (op) {
+    const n = op.dots.length;
+    items.push(dataItem('OP', op.at, { off: !op.enabled, wait: 'čeká na mapu', hit: n > 0 && op.enabled, link: true, extra: n ? `${n} ${n === 1 ? 'tečka' : n < 5 ? 'tečky' : 'teček'}` : '', tip: op.enabled ? 'Mapa (mapa.php): data o OP. Klikni pro nastavení OP.' : 'OP je vypnuto (přepínač OP nahoře). Klikni pro nastavení.' }));
+  }
+  const bad = items.some((i) => i.cls === 'bad'), warn = items.some((i) => i.cls === 'warn');
+  box.className = 'dstat ' + (bad ? 'bad' : warn ? '' : items.length ? 'ok' : '');
+  const head = !items.length ? 'Žádný sledovaný zdroj' : bad ? 'Pozor, chybí data' : warn ? 'Data zpožděná' : 'Data přicházejí';
+  const html = `<span class="dh">${head}:</span>` + items.map((i) => i.html).join('');
+  if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
+}
+setInterval(() => { if (S.serverTime) renderData(); }, 250);
+$('dstat').addEventListener('click', (e) => { if (e.target.closest('[data-go=op]')) { openDrawer(); document.querySelector('[data-tab="op"]').click(); } });
 
 /* ---------- nástěnka: každá rasa = vlastní panel ---------- */
 const loadJson = (k, d) => { try { return JSON.parse(store.get(k)) ?? d; } catch { return d; } };
@@ -1224,20 +1258,8 @@ $('clearAlerts2').onclick = clearAlerts;
 function renderOp() {
   const op = S.op;
   if (!op) return;
-  const age = op.at ? S.serverTime - op.at : null;
-  const live = age != null && age < 3000;
-  const pill = $('opPill');
   if (document.activeElement !== $('opMaster')) $('opMaster').checked = !!op.enabled;
   $('opTgl').classList.toggle('on', !!op.enabled);
-  let cls = '', txt;
-  if (age == null) txt = 'OP: čeká na mapu';
-  else if (!live) { cls = op.enabled ? 'bad' : ''; txt = `OP: mapa bez dat ${Math.round(age / 1000)} s`; }
-  else if (op.dots.length) { cls = 'hit'; txt = `OP: ${op.dots.length} ${op.dots.length === 1 ? 'tečka' : op.dots.length < 5 ? 'tečky' : 'teček'}`; }
-  else { cls = 'ok'; txt = 'OP: mapa se čte'; }
-  if (!op.enabled) txt += ' · vypnuto';
-  pill.className = 'oppill ' + cls;
-  $('opText').textContent = txt;
-  pill.title = op.enabled ? 'OP alert je zapnutý – klikni pro nastavení' : 'OP alert je vypnutý – klikni pro zapnutí v Nastavení → OP';
   const v = op.vigilance;
   if (v) {
     const ago = (t) => { const m = Math.round((S.serverTime - t) / 60000); return m < 1 ? 'před chvílí' : `před ${m} min`; };
@@ -1262,14 +1284,13 @@ function renderOp() {
 }
 $('opMaster').onchange = () => savePartial({ op: { enabled: $('opMaster').checked } });
 $('notifyMaster').onchange = () => { $('notifyTgl').classList.toggle('on', $('notifyMaster').checked); savePartial({ notify: $('notifyMaster').checked }); };
-$('opPill').onclick = () => { openDrawer(); document.querySelector('[data-tab="op"]').click(); };
 
 function render() {
-  renderStatus(); renderBoard(); renderAlerts(); renderOp();
+  renderData(); renderBoard(); renderAlerts(); renderOp();
 }
 async function refresh() {
-  try { S = await api('/api/state'); render(); }
-  catch { const st = $('status'); st.className = 'pill bad'; st.textContent = '● server nedostupný'; }
+  try { S = await api('/api/state'); fetchedAt = Date.now(); render(); }
+  catch { $('dstat').className = 'dstat bad'; $('dstat').dataset.h = ''; $('dstat').innerHTML = '<span class="dh">● server nedostupný</span>'; }
 }
 
 /* ---------- nastavení ---------- */
