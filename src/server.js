@@ -289,7 +289,7 @@ function buildState() {
       at: snap.at,
       sources: snap.sources,
       players: snap.players.map((p) => ({
-        name: p.name, power: p.power, planets: p.planets ?? null, planetsChange: p.planetsChange ?? 0, planetsAt: p.planetsAt ?? 0,
+        name: p.name, power: p.power, planets: p.planets ?? null, planetsDelta: p.planetsDelta ?? null, planetsChange: p.planetsChange ?? 0, planetsAt: p.planetsAt ?? 0,
         powerDelta: p.powerDelta, powerAt: p.powerAt, attackable: p.attackable ?? null, online: p.online ?? null, rank: p.rank ?? null, hracId: p.hracId ?? null, utokId: p.utokId ?? null, attacks: p.attacks ?? null, ...conquest.status(id, p.name), ...resolveWatch(cfg, id, p.name),
       })),
     };

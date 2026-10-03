@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator
 // @namespace    sg-dominator
-// @version      3.7.0
+// @version      3.8.0
 // @description  Čte tabulku hráčů a posílá sílu na lokální notifikační server (bez zásahu do stránky)
 // @match        https://stargate-game.cz/vesmir.php*
 // @match        https://www.stargate-game.cz/vesmir.php*
@@ -44,14 +44,14 @@
    * Čte řádky tabulky hráčů. Sloupce Jméno a Síla se hledají podle hlavičky,
    * takže funguje i na stránkách s jiným rozložením (např. Vyvrhelé).
    */
-  function readPlayers() {
+  function readPlayers(root = document) {
     const players = [];
     let nameIdx = 1;
     let powerIdx = 4;
     let planetsIdx = -1;
     let attackIdx = -1;
     dDebug = '';
-    for (const tr of document.querySelectorAll('tr')) {
+    for (const tr of root.querySelectorAll('tr')) {
       const td = tr.querySelectorAll(':scope > td, :scope > th');
       const texts = [...td].map((c) => c.textContent.trim());
       const iName = texts.findIndex((t) => /^Jméno/i.test(t));
@@ -105,6 +105,23 @@
     return players;
   }
 
+  // Denní změna planet („537 +25“) hra vypisuje jen na obyčejné stránce; živá obnova ji z buněk maže. Proto ji jednou za minutu
+  // stáhneme ze stejné stránky (stejný původ, jako když ji obnovíš ručně) a posíláme dál.
+  let deltaMap = new Map();
+  let deltaBusy = false;
+  async function refreshDeltas() {
+    if (deltaBusy) return;
+    deltaBusy = true;
+    try {
+      const u = new URL(location.href);
+      u.searchParams.delete('auto');
+      const html = await (await fetch(u.pathname + u.search, { credentials: 'same-origin' })).text();
+      const m = new Map();
+      for (const p of readPlayers(new DOMParser().parseFromString(html, 'text/html'))) if (Number.isFinite(p.planetsDelta)) m.set(p.name, p.planetsDelta);
+      if (m.size) deltaMap = m;
+    } catch { /* bez změn se prostě pošle to, co je na stránce */ } finally { deltaBusy = false; }
+  }
+
   let dDebug = ''; // jak vypadá buňka D, když v ní nenajdeme hrac_id (jen pro ladění)
   let lastBody = '';
   let lastSendAt = 0;
@@ -114,7 +131,8 @@
   function tick() {
     const players = readPlayers();
     if (!players.length) return;
-    const body = JSON.stringify({ raceId, raceName: findRaceName(), page, src, ver: '3.7.0', dDebug, players });
+    for (const p of players) if (!Number.isFinite(p.planetsDelta) && deltaMap.has(p.name)) p.planetsDelta = deltaMap.get(p.name);
+    const body = JSON.stringify({ raceId, raceName: findRaceName(), page, src, ver: '3.8.0', dDebug, players });
     const now = Date.now();
     const changed = body !== lastBody;
     if (inFlight || (!changed && now - lastSendAt < 800)) return; // 800 ms rezerva na jitter intervalu
@@ -134,6 +152,8 @@
   }
 
   // změna DOM = okamžité odeslání; interval zajišťuje heartbeat, i když se tabulka nemění
+  refreshDeltas();
+  setInterval(refreshDeltas, 60_000);
   tick();
   new MutationObserver(tick).observe(document.body, { childList: true, subtree: true, characterData: true });
   setInterval(tick, 1000);

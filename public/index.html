@@ -27,6 +27,12 @@
   table { width:100%; border-collapse:collapse; } th,td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
   th { color:var(--mut); font-weight:500; font-size:12px; white-space:nowrap; } th.n, td.n { text-align:right; font-variant-numeric:tabular-nums; } th.c, td.c { text-align:center; width:70px; }
   th.sortable { cursor:pointer; user-select:none; } th.sortable:hover { color:var(--fg); }
+  th .sarrow { opacity:.45; font-size:11px; } th.active .sarrow { opacity:1; color:var(--acc); } th.active { color:var(--fg); }
+  .mini { background:var(--card2); color:var(--mut); border:1px solid var(--line); border-radius:4px; padding:0 5px; font-size:11px; line-height:16px; font-weight:700; margin-left:4px; cursor:pointer; }
+  .mini:hover { color:var(--fg); filter:none; } .mini.on { background:var(--acc); color:#1a1405; border-color:var(--acc); }
+  /* denní změna planet ze hry: schovaná, dokud se nezapne tlačítkem ± v záhlaví Planety */
+  .pdd { display:none; font-size:11px; margin-right:8px; min-width:34px; text-align:right; color:var(--mut); }
+  .rpanel.dday .pdd { display:inline-block; } .pdd.plus { color:var(--ok); } .pdd.minus { color:var(--bad); }
   tr.off td:not(.c) { opacity:.45; }
   .below { color:var(--bad); font-weight:600; }
   /* změna jako ve hře: nárůst zeleně, ztráta červeně */
@@ -696,7 +702,7 @@ function buildPanel(id) {
       <span class="muted rcount"></span>
     </div>
     <div class="rbody"><table>
-      <thead><tr><th>Jméno</th>${isW ? '<th>Rasa</th>' : ''}<th class="n" title="Počet planet; získaná planeta zeleně +1, ztracená červeně −1 (30 s od poslední změny)">Planety</th><th class="n sortable" data-act="sort" title="Řadit podle síly">Síla ↕</th><th class="n thcol">Vlastní práh</th><th class="dcol" title="Druhy útoku jako ve hře: D dobývací, P partyzánský, Z, U univerzální, N orbitální, L loupežný, S špionážní, T otrokářský. Svítí = jde zahájit">Útok</th><th class="c hcol" title="Pošle hráči rasovou armádu (stránka Jednotky → Rasová armáda musí být otevřená a vyplněná)"></th><th class="c">Hlídat</th></tr></thead>
+      <thead><tr><th class="sortable" data-act="sort" data-key="name" title="Řadit podle jména">Jméno <span class="sarrow"></span></th>${isW ? '<th>Rasa</th>' : ''}<th class="n sortable" data-act="sort" data-key="planets" title="Řadit podle počtu planet. Získaná planeta zeleně +1, ztracená červeně −1 (30 s od poslední změny)">Planety <span class="sarrow"></span><button type="button" class="mini ddbtn" data-act="dday" title="Ukázat u každého hráče, kolik planet získal nebo ztratil za den (údaj ze hry, jako ve hře)">±</button></th><th class="n sortable" data-act="sort" data-key="power" title="Řadit podle síly">Síla <span class="sarrow"></span></th><th class="n thcol">Vlastní práh</th><th class="dcol" title="Druhy útoku jako ve hře: D dobývací, P partyzánský, Z, U univerzální, N orbitální, L loupežný, S špionážní, T otrokářský. Svítí = jde zahájit">Útok</th><th class="c hcol" title="Pošle hráči rasovou armádu (stránka Jednotky → Rasová armáda musí být otevřená a vyplněná)"></th><th class="c">Hlídat</th></tr></thead>
       <tbody></tbody></table><div class="empty rempty"></div></div>
     <div class="rgrip e" data-dir="e" title="Táhni pro změnu šířky (dvojklik = výchozí)"></div>
     <div class="rgrip s" data-dir="s" title="Táhni pro změnu výšky (dvojklik = výchozí)"></div>
@@ -704,7 +710,7 @@ function buildPanel(id) {
   const q = (s) => root.querySelector(s);
   const v = { root, isW, rows: new Map(), body: q('.rbody'), fsum: q('.rfsum'), foldBtn: q('[data-act=fold]'), dot: q('.dot'), name: q('.rname'), info: q('.rinfo'), th: q('.rth'), crit: q('.rcrit'),
     watchTxt: q('.rwatch'), cfgBtn: q('.rcfgbtn'), cfgBox: q('.rcfg'), roleBtn: q('.rrole'), belowTxt: q('.rbelowtxt'),
-    filter: q('.rfilter'), below: q('.rbelow'), count: q('.rcount'), tbody: q('tbody'), empty: q('.rempty'), sort: q('[data-act=sort]') };
+    filter: q('.rfilter'), below: q('.rbelow'), count: q('.rcount'), tbody: q('tbody'), empty: q('.rempty'), sortHeads: [...root.querySelectorAll('th[data-act=sort]')], ddBtn: q('.ddbtn') };
   v.filter.value = ps(id).filter;
   v.below.checked = ps(id).below;
   return v;
@@ -713,7 +719,7 @@ function buildPanel(id) {
 function makeRow(v, r, p) {
   const tr = document.createElement('tr');
   tr.dataset.race = r.id; tr.dataset.name = p.name;
-  tr.innerHTML = `<td class="pname" title="Klikni pro zkopírování jména"></td>${v.isW ? '<td></td>' : ''}<td class="n"><span class="pv"></span><span class="pd"></span></td>
+  tr.innerHTML = `<td class="pname" title="Klikni pro zkopírování jména"></td>${v.isW ? '<td></td>' : ''}<td class="n"><span class="pdd"></span><span class="pv"></span><span class="pd"></span></td>
     <td class="n"><span class="pv"></span><span class="pd"></span></td>
     <td class="n thcol"><input type="text" inputmode="numeric" class="num"></td>
     <td class="dcol"><span class="atks"></span></td>
@@ -727,7 +733,7 @@ function makeRow(v, r, p) {
   const input = tr.querySelector('td.n input'), sw = tr.querySelector('.sw input');
   for (const el of [input, sw]) { el.dataset.name = p.name; el.dataset.race = r.id; }
   input.dataset.kind = 'th'; sw.dataset.kind = 'watch';
-  const cell = (td) => ({ td, v: td.querySelector('.pv'), d: td.querySelector('.pd') });
+  const cell = (td) => ({ td, v: td.querySelector('.pv'), d: td.querySelector('.pd'), dd: td.querySelector('.pdd') });
   const hb = tr.querySelector('.dohodit'); hb.dataset.name = p.name;
   return { tr, hb, nm: nameTd.querySelector('.nm'), on: nameTd.querySelector('.on'), tag: nameTd.querySelector('.tg'), atks: tr.querySelector('.atks'), planets: cell(tr.children[v.isW ? 2 : 1]), pw: cell(tr.children[v.isW ? 3 : 2]), power: tr.children[v.isW ? 3 : 2], input, sw };
 }
@@ -819,7 +825,14 @@ function updatePanel(id) {
     v.crit.placeholder = String(cfg.criticalPct);
     if (document.activeElement !== v.crit && !pending) v.crit.value = r?.criticalPct ?? '';
   }
-  v.sort.textContent = 'Síla ' + { game: '↕', desc: '↓', asc: '↑' }[st.sort];
+  const sortKey = st.sortKey ?? 'power';
+  for (const th of v.sortHeads) {
+    const active = th.dataset.key === sortKey && st.sort !== 'game';
+    th.classList.toggle('active', active);
+    th.querySelector('.sarrow').textContent = active ? (st.sort === 'desc' ? '↓' : '↑') : '↕';
+  }
+  v.root.classList.toggle('dday', !!st.dday);
+  v.ddBtn.classList.toggle('on', !!st.dday);
   // souhrn pro sbalený panel: kolik hráčů je k dobytí / pod prahem
   if (v.isW) { v.fsum.textContent = `${items.length} hráčů`; v.fsum.classList.remove('hot'); }
   else {
@@ -832,7 +845,10 @@ function updatePanel(id) {
   // filtr a řazení
   const q = st.filter.trim().toLowerCase();
   let out = items.filter(({ r: pr, p }) => (!q || p.name.toLowerCase().includes(q)) && (!st.below || (pr.role === 'attack' ? p.target : p.power < p.threshold)));
-  if (st.sort !== 'game') out = [...out].sort((a, b) => (st.sort === 'desc' ? b.p.power - a.p.power : a.p.power - b.p.power));
+  if (st.sort !== 'game') {
+    const dir = st.sort === 'desc' ? -1 : 1;
+    out = [...out].sort((a, b) => dir * (sortKey === 'name' ? a.p.name.localeCompare(b.p.name, 'cs') : sortKey === 'planets' ? (a.p.planets ?? -1) - (b.p.planets ?? -1) : a.p.power - b.p.power));
+  }
 
   // řádky (klíčované, žádné přepisování celé tabulky)
   const seen = new Set();
@@ -851,6 +867,11 @@ function updatePanel(id) {
     const pl = p.planets == null ? '' : fmt(p.planets);
     if (row.planets.v.textContent !== pl) row.planets.v.textContent = pl;
     // okamžitá změna planet (ne denní přírůstek ze hry): zeleně +N / červeně −N, 30 s od poslední změny
+    const dd = p.planetsDelta; // denní změna planet ze hry (+25 / −3 / 0); null = zatím nevíme
+    const ddTxt = dd == null ? '–' : dd > 0 ? `+${dd}` : dd < 0 ? `−${Math.abs(dd)}` : '0';
+    if (row.planets.dd.textContent !== ddTxt) row.planets.dd.textContent = ddTxt;
+    row.planets.dd.className = 'pdd' + (dd > 0 ? ' plus' : dd < 0 ? ' minus' : '');
+    row.planets.dd.title = dd == null ? 'Denní změna planet zatím není známá (skript ji stahuje z hry jednou za minutu)' : 'Změna planet za den (údaj ze hry)';
     const plRecent = p.planetsChange && p.planetsAt && S.serverTime - p.planetsAt < PLANET_MS ? p.planetsChange : 0;
     setDelta(row.planets, plRecent);
     row.planets.v.classList.toggle('plus', plRecent > 0);
@@ -1032,7 +1053,15 @@ $('board').addEventListener('click', (e) => {
   }
   else if (act === 'cfg' && raceOf(id)?.role === 'attack') { $('openSettings').click(); }
   else if (act === 'cfg') { const st = ps(id); st.cfgOpen = !st.cfgOpen; saveUi(); updatePanel(id); }
-  else if (act === 'sort') { const st = ps(id); st.sort = { game: 'desc', desc: 'asc', asc: 'game' }[st.sort]; saveUi(); updatePanel(id); }
+  else if (act === 'dday') { const st = ps(id); st.dday = !st.dday; saveUi(); updatePanel(id); }
+  else if (act === 'sort') {
+    // jméno: abecedně nahoru, pak dolů; čísla: od největšího, pak od nejmenšího; třetí klik = pořadí ze hry
+    const st = ps(id), key = btn.dataset.key ?? 'power';
+    const first = key === 'name' ? 'asc' : 'desc', second = first === 'asc' ? 'desc' : 'asc';
+    if ((st.sortKey ?? 'power') !== key || st.sort === 'game') { st.sortKey = key; st.sort = first; }
+    else st.sort = st.sort === first ? second : 'game';
+    saveUi(); updatePanel(id);
+  }
 });
 
 // změna velikosti tažením hrany (jen šířka / jen výška) nebo rohu (obojí); dvojklik = zpět na výchozí
