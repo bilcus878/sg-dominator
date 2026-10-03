@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Stargate dominator – rasová armáda
 // @namespace    sg-dominator
-// @version      1.1.0
-// @description  Na pokyn z aplikace (tlačítko Dohodit) vepíše jméno hráče do „Odeslat hráči“, klikne na Odeslat a pak na Zpět (formulář s jednotkami je zase připravený). Počty jednotek vyplňuješ ty.
+// @version      1.2.0
+// @description  Na pokyn z aplikace (tlačítko Dohodit) vepíše jméno hráče do „Odeslat hráči“, klikne na Odeslat a pak se vrátí zpět v prohlížeči (formulář s jednotkami je zase připravený). Počty jednotek vyplňuješ ty.
 // @match        https://stargate-game.cz/jednotky.php*
 // @match        https://www.stargate-game.cz/jednotky.php*
 // @grant        GM_xmlhttpRequest
@@ -17,7 +17,7 @@
 
   const rnd = (a, b) => a + Math.random() * (b - a);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const BACK_KEY = 'sgd-army-back'; // po odeslání: na stránce s výsledkem kliknout na Zpět
+  const BACK_KEY = 'sgd-army-back'; // po odeslání: ze stránky s výsledkem zpět v prohlížeči
 
   /** Klik se souřadnicemi (stisk, pauza, puštění), jako myší. */
   async function clickEl(el) {
@@ -29,13 +29,12 @@
     el.dispatchEvent(new MouseEvent('click', pt));
   }
 
-  // stránka po odeslání: najít „Zpět“ a kliknout, ať se vrátí formulář s vyplněnými jednotkami
+  // stránka po odeslání: zpět v prohlížeči (←), ať se vrátí formulář s vyplněnými jednotkami
   let backAt = 0;
-  try { backAt = Number(sessionStorage.getItem(BACK_KEY)) || 0; sessionStorage.removeItem(BACK_KEY); } catch { /* bez sessionStorage se Zpět neklikne */ }
+  try { backAt = Number(sessionStorage.getItem(BACK_KEY)) || 0; sessionStorage.removeItem(BACK_KEY); } catch { /* bez sessionStorage se zpět nevrátí */ }
   if (backAt && Date.now() - backAt < 60_000) {
-    const back = [...document.querySelectorAll('a, button, input[type="button"], input[type="submit"], input[type="image"]')]
-      .find((e) => /^\s*(«\s*)?zpět(\s|$)/i.test(e.textContent || e.value || e.alt || e.title || ''));
-    if (back) { setTimeout(() => clickEl(back), rnd(300, 700)); return; }
+    setTimeout(() => history.back(), rnd(400, 900));
+    return;
   }
 
   const nameInput = document.getElementById('hrac_jmeno'); // „Odeslat hráči“ v sekci Poslání
@@ -77,7 +76,7 @@
       if (!btn) { await post('/army/report', { id: ins.id, ok: false, error: 'tlačítko Odeslat nenalezeno' }); return; }
       await post('/army/report', { id: ins.id, ok: true, units: filledUnits().length });
       try { sessionStorage.setItem(BACK_KEY, String(Date.now())); } catch { /* jen se neklikne Zpět */ }
-      await clickEl(btn); // stránka se odešle a přenačte; na výsledku skript klikne na Zpět
+      await clickEl(btn); // stránka se odešle a přenačte; z výsledku se skript vrátí zpět
     } finally {
       busy = false;
     }
