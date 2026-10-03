@@ -44,7 +44,12 @@
   td.target { background:rgba(224,184,76,.13); box-shadow:inset 3px 0 0 var(--acc); color:var(--acc); font-weight:600; }
   td.target.noatk { background:rgba(139,147,165,.10); box-shadow:inset 3px 0 0 var(--mut); color:var(--mut); }
   .tg { font-size:11px; margin-left:6px; color:var(--acc); font-weight:600; white-space:nowrap; } .tg.noatk { color:var(--mut); font-weight:400; }
-  .rpanel[data-role=attack] .thcol { display:none; } /* vlastní práh u cizí rasy nemá smysl */
+  .rpanel[data-role=attack] .thl { display:none; } /* práh u cizí rasy nemá smysl */
+  /* práh pod jménem: malým písmem; vlastní práh hráče zvýrazněný; klik = úprava */
+  .thl { display:block; font-size:11px; line-height:15px; color:var(--mut); font-weight:400; margin-top:1px; }
+  .thl .thv { cursor:pointer; border-bottom:1px dotted transparent; } .thl .thv:hover { color:var(--fg); border-bottom-color:var(--mut); }
+  .thl.own .thv { color:var(--acc); }
+  .thl input.thin { width:112px; padding:1px 6px; font-size:11px; text-align:left; }
   td.pname .on { display:inline-block; width:8px; height:8px; margin-right:5px; border-radius:50%; vertical-align:middle; }
   td.pname .nm[data-rank=vudce] { color:#f1c40f; font-weight:600; } td.pname .nm[data-rank=zastupce] { color:#ffffff; font-weight:600; } td.pname .nm[data-rank=ministr] { color:#3ccf4e; }
   td.pname .on.yes { background:#2ecc40; box-shadow:0 0 4px #2ecc40; }
@@ -689,7 +694,7 @@ function buildPanel(id) {
       <span class="muted rcount"></span>
     </div>
     <div class="rbody"><table>
-      <thead><tr><th class="sortable" data-act="sort" data-key="name" title="Řadit podle jména">Jméno <span class="sarrow"></span></th>${isW ? '<th>Rasa</th>' : ''}<th class="n pc sortable" data-act="sort" data-key="planets" title="Řadit podle počtu planet. Získaná planeta zeleně +1, ztracená červeně −1 (30 s od poslední změny)">Planety <span class="sarrow"></span><button type="button" class="mini ddbtn" data-act="dday" title="Ukázat u každého hráče, kolik planet získal nebo ztratil za den (údaj ze hry, jako ve hře)">±</button></th><th class="n sortable" data-act="sort" data-key="power" title="Řadit podle síly">Síla <span class="sarrow"></span></th><th class="n thcol">Vlastní práh</th><th class="dcol" title="Druhy útoku jako ve hře: D dobývací, P partyzánský, Z, U univerzální, N orbitální, L loupežný, S špionážní, T otrokářský. Svítí = jde zahájit">Útok</th><th class="c hcol" title="Pošle hráči rasovou armádu (stránka Jednotky → Rasová armáda musí být otevřená a vyplněná)"></th><th class="c">Hlídat</th></tr></thead>
+      <thead><tr><th class="sortable" data-act="sort" data-key="name" title="Řadit podle jména">Jméno <span class="sarrow"></span></th>${isW ? '<th>Rasa</th>' : ''}<th class="n pc sortable" data-act="sort" data-key="planets" title="Řadit podle počtu planet. Získaná planeta zeleně +1, ztracená červeně −1 (30 s od poslední změny)">Planety <span class="sarrow"></span><button type="button" class="mini ddbtn" data-act="dday" title="Ukázat u každého hráče, kolik planet získal nebo ztratil za den (údaj ze hry, jako ve hře)">±</button></th><th class="n sortable" data-act="sort" data-key="power" title="Řadit podle síly">Síla <span class="sarrow"></span></th><th class="dcol" title="Druhy útoku jako ve hře: D dobývací, P partyzánský, Z, U univerzální, N orbitální, L loupežný, S špionážní, T otrokářský. Svítí = jde zahájit">Útok</th><th class="c hcol" title="Pošle hráči rasovou armádu (stránka Jednotky → Rasová armáda musí být otevřená a vyplněná)"></th><th class="c">Hlídat</th></tr></thead>
       <tbody></tbody></table><div class="empty rempty"></div></div>
     <div class="rgrip e" data-dir="e" title="Táhni pro změnu šířky (dvojklik = výchozí)"></div>
     <div class="rgrip s" data-dir="s" title="Táhni pro změnu výšky (dvojklik = výchozí)"></div>
@@ -708,21 +713,20 @@ function makeRow(v, r, p) {
   tr.dataset.race = r.id; tr.dataset.name = p.name;
   tr.innerHTML = `<td class="pname" title="Klikni pro zkopírování jména"></td>${v.isW ? '<td></td>' : ''}<td class="n pc"><span class="pv"></span><span class="pdd"></span><span class="pd"></span></td>
     <td class="n"><span class="pv"></span><span class="pd"></span></td>
-    <td class="n thcol"><input type="text" inputmode="numeric" class="num"></td>
     <td class="dcol"><span class="atks"></span></td>
     <td class="c hcol"><button class="ghost dohodit" data-act="dohodit" title="Pošle hráči rasovou armádu">Dohodit</button></td>
     <td class="c"><label class="sw"><input type="checkbox"><span></span></label></td>`;
   const nameTd = tr.children[0];
-  nameTd.innerHTML = '<span class="on"></span><span class="nm"></span><span class="tg"></span>';
+  nameTd.innerHTML = '<span class="on"></span><span class="nm"></span><span class="tg"></span><span class="thl"><span class="thv" title="Práh, pod který klesne síla = alert. Klikni a nastav hráči vlastní (prázdné = výchozí rasy)"></span><input type="text" inputmode="numeric" class="num thin" hidden></span>';
   nameTd.querySelector('.nm').textContent = p.name;
-  nameTd.addEventListener('click', () => copyName(p.name));
+  nameTd.addEventListener('click', (e) => { if (!e.target.closest('.thl')) copyName(p.name); });
   if (v.isW) tr.children[1].textContent = r.name;
-  const input = tr.querySelector('td.n input'), sw = tr.querySelector('.sw input');
+  const input = nameTd.querySelector('input.thin'), sw = tr.querySelector('.sw input');
   for (const el of [input, sw]) { el.dataset.name = p.name; el.dataset.race = r.id; }
   input.dataset.kind = 'th'; sw.dataset.kind = 'watch';
   const cell = (td) => ({ td, v: td.querySelector('.pv'), d: td.querySelector('.pd'), dd: td.querySelector('.pdd') });
   const hb = tr.querySelector('.dohodit'); hb.dataset.name = p.name;
-  return { tr, hb, nm: nameTd.querySelector('.nm'), on: nameTd.querySelector('.on'), tag: nameTd.querySelector('.tg'), atks: tr.querySelector('.atks'), planets: cell(tr.children[v.isW ? 2 : 1]), pw: cell(tr.children[v.isW ? 3 : 2]), power: tr.children[v.isW ? 3 : 2], input, sw };
+  return { tr, hb, nm: nameTd.querySelector('.nm'), on: nameTd.querySelector('.on'), tag: nameTd.querySelector('.tg'), thl: nameTd.querySelector('.thl'), thv: nameTd.querySelector('.thv'), atks: tr.querySelector('.atks'), planets: cell(tr.children[v.isW ? 2 : 1]), pw: cell(tr.children[v.isW ? 3 : 2]), power: tr.children[v.isW ? 3 : 2], input, sw };
 }
 
 /** Dohodit: pošle hráči rasovou armádu přes skript na stránce Jednotky → Rasová armáda a počká na výsledek. */
@@ -899,6 +903,10 @@ function updatePanel(id) {
       tgt ? `K dobytí: pod ${dots(cfg.conquest.below)}, konec nad ${dots(cfg.conquest.above)}` : '',
     ].filter(Boolean).join('\n');
     row.tr.classList.toggle('off', !p.watched);
+    const own = p.ownThreshold != null;
+    const thTxt = `práh ${dots(p.threshold)}${own ? ' · vlastní' : ''}`;
+    if (row.thv.textContent !== thTxt) row.thv.textContent = thTxt;
+    row.thl.classList.toggle('own', own);
     row.input.placeholder = dots(p.threshold);
     if (!pending) { // ovládací prvky se synchronizují jen když se nic neukládá a uživatel v nich nepíše
       if (document.activeElement !== row.input && row.input.value !== dots(p.ownThreshold)) row.input.value = dots(p.ownThreshold);
@@ -1094,6 +1102,25 @@ $('board').addEventListener('input', (e) => {
   else if (e.target.classList.contains('rbelow')) { ps(id).below = e.target.checked; saveUi(); updatePanel(id); }
 });
 
+function editThreshold(thl, on) {
+  const inp = thl.querySelector('input.thin'), txt = thl.querySelector('.thv');
+  inp.hidden = !on; txt.hidden = on;
+  if (on) { inp.focus(); inp.select(); }
+}
+$('board').addEventListener('click', (e) => {
+  const txt = e.target.closest('.thv');
+  if (txt) { e.stopPropagation(); editThreshold(txt.closest('.thl'), true); }
+});
+$('board').addEventListener('keydown', (e) => {
+  const inp = e.target.closest?.('input.thin'); if (!inp) return;
+  if (e.key === 'Enter') inp.blur();
+  else if (e.key === 'Escape') { inp.value = inp.dataset.prev ?? ''; inp.blur(); }
+});
+$('board').addEventListener('focusout', (e) => {
+  const inp = e.target.closest?.('input.thin'); if (!inp) return;
+  editThreshold(inp.closest('.thl'), false);
+});
+$('board').addEventListener('focusin', (e) => { const inp = e.target.closest?.('input.thin'); if (inp) inp.dataset.prev = inp.value; });
 $('board').addEventListener('change', (e) => {
   const t = e.target;
   const id = t.closest('.rpanel')?.dataset.p; if (!id) return;
