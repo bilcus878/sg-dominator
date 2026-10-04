@@ -55,6 +55,8 @@
   .thl.own .thv { color:var(--acc); border-color:var(--acc); }
   .thl input.thin { width:112px; padding:1px 6px; font-size:11px; text-align:left; }
   td.pname .on { display:inline-block; width:8px; height:8px; margin-right:5px; border-radius:50%; vertical-align:middle; }
+  td.pname .nm.blink { animation:sgBlink .5s steps(1) infinite; border-radius:3px; padding:0 3px; font-weight:700; }
+  @keyframes sgBlink { 0% { color:#fff; background:#d61f1f; } 50% { color:#ff4d4d; background:transparent; } }
   td.pname .nm[data-rank=vudce] { color:#f1c40f; font-weight:600; } td.pname .nm[data-rank=zastupce] { color:#ffffff; font-weight:600; } td.pname .nm[data-rank=ministr] { color:#3ccf4e; } td.pname .nm[data-rank=obcan] { color:#626cc6; }
   td.pname .on.yes { background:#2ecc40; box-shadow:0 0 4px #2ecc40; }
   .rpanel[data-role=defend] .dcol { display:none; }
@@ -848,6 +850,11 @@ function panelItems(id) {
   return r ? r.players.map((p) => ({ r, p })) : [];
 }
 
+/** Blikání jména při pádu pod práh: poslední stav (pod/nad) a do kdy blikat; klíč raceId|jméno. */
+const BLINK_MS = 10_000;
+const belowSeen = new Map();
+const blinkUntil = new Map();
+
 function updatePanel(id) {
   const v = view.get(id);
   const r = v.isW ? null : raceOf(id);
@@ -943,6 +950,12 @@ function updatePanel(id) {
     row.planets.v.classList.toggle('plus', plRecent > 0);
     row.planets.v.classList.toggle('minus', plRecent < 0);
     const atk = pr.role === 'attack';
+    // naše rasa: pád pod práh = jméno 10 s červeně bliká (jen při přechodu nad -> pod, ne po načtení stránky)
+    const isBelow = !atk && p.power < p.threshold;
+    const bk = `${pr.id}|${p.name}`;
+    if (belowSeen.get(bk) === false && isBelow) blinkUntil.set(bk, Date.now() + BLINK_MS);
+    belowSeen.set(bk, isBelow);
+    row.nm.classList.toggle('blink', (blinkUntil.get(bk) ?? 0) > Date.now());
     row.power.classList.toggle('below', !atk && p.power < p.threshold);
     const isCrit = !atk && p.critical > 0 && p.power < p.critical;
     row.power.classList.toggle('crit', isCrit);
