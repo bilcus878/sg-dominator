@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator
 // @namespace    sg-dominator
-// @version      3.11.0
+// @version      3.11.1
 // @description  Čte tabulku hráčů a posílá sílu na lokální notifikační server (bez zásahu do stránky)
 // @match        https://stargate-game.cz/vesmir.php*
 // @match        https://www.stargate-game.cz/vesmir.php*
@@ -127,14 +127,22 @@
   let lastSendAt = 0;
   let inFlight = false;
   let dirty = false; // změna přišla, zatímco předchozí odeslání ještě běželo: pošle se hned po jeho dokončení (dřív by čekala až na další změnu / 1 s)
-  const done = () => { inFlight = false; if (dirty) { dirty = false; tick(); } };
+  // diagnostika: výsledek posledního odeslání je vidět na stránce (data-sgd-*) a při chybě v konzoli, ať jde poznat, proč data nedorazila
+  const mark = (k, v) => { try { if (document.documentElement.dataset[k] !== v) document.documentElement.dataset[k] = v; } catch { /* nic */ } };
+  mark('sgdScript', '3.11.1');
+  const finish = (label, res) => {
+    mark('sgdLast', `${label} ${new Date().toLocaleTimeString('cs-CZ')}`);
+    if (label !== 'ok') { mark('sgdErr', `${label}: ${JSON.stringify(res ?? {}).slice(0, 200)}`); console.warn('[Dominator] odeslání dat na server selhalo:', label, res); }
+    inFlight = false;
+    if (dirty) { dirty = false; tick(); }
+  };
 
   /** Pošle snapshot. Bez změny dat jen jako "heartbeat" max 1× za vteřinu. */
   function tick() {
     const players = readPlayers();
     if (!players.length) return;
     for (const p of players) if (!Number.isFinite(p.planetsDelta) && deltaMap.has(p.name)) p.planetsDelta = deltaMap.get(p.name);
-    const body = JSON.stringify({ raceId, raceName: findRaceName(), page, src, ver: '3.11.0', dDebug, players });
+    const body = JSON.stringify({ raceId, raceName: findRaceName(), page, src, ver: '3.11.1', dDebug, players });
     const now = Date.now();
     const changed = body !== lastBody;
     if (inFlight) { if (changed) dirty = true; return; }
@@ -147,9 +155,9 @@
       url: `${SERVER}/ingest`,
       headers: { 'content-type': 'application/json', 'x-token': TOKEN },
       data: body,
-      onload: done,
-      onerror: done,
-      ontimeout: done,
+      onload: (r) => finish(r && r.status >= 200 && r.status < 300 ? 'ok' : `http ${r && r.status}`, r && { status: r.status, text: String(r.responseText ?? '').slice(0, 100) }),
+      onerror: (r) => finish('error', r),
+      ontimeout: (r) => finish('timeout', r),
       timeout: 5000,
     });
   }
