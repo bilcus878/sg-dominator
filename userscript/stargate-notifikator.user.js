@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator
 // @namespace    sg-dominator
-// @version      3.11.1
+// @version      3.12.0
 // @description  Čte tabulku hráčů a posílá sílu na lokální notifikační server (bez zásahu do stránky)
 // @match        https://stargate-game.cz/vesmir.php*
 // @match        https://www.stargate-game.cz/vesmir.php*
@@ -129,7 +129,7 @@
   let dirty = false; // změna přišla, zatímco předchozí odeslání ještě běželo: pošle se hned po jeho dokončení (dřív by čekala až na další změnu / 1 s)
   // diagnostika: výsledek posledního odeslání je vidět na stránce (data-sgd-*) a při chybě v konzoli, ať jde poznat, proč data nedorazila
   const mark = (k, v) => { try { if (document.documentElement.dataset[k] !== v) document.documentElement.dataset[k] = v; } catch { /* nic */ } };
-  mark('sgdScript', '3.11.1');
+  mark('sgdScript', '3.12.0');
   const finish = (label, res) => {
     mark('sgdLast', `${label} ${new Date().toLocaleTimeString('cs-CZ')}`);
     if (label !== 'ok') { mark('sgdErr', `${label}: ${JSON.stringify(res ?? {}).slice(0, 200)}`); console.warn('[Dominator] odeslání dat na server selhalo:', label, res); }
@@ -138,11 +138,12 @@
   };
 
   /** Pošle snapshot. Bez změny dat jen jako "heartbeat" max 1× za vteřinu. */
-  function tick() {
-    const players = readPlayers();
+  function tick() { if (isHidden()) return; send(readPlayers()); } // na pozadí je tabulka ve hře zastaralá (viz tickFromFetch)
+
+  function send(players) {
     if (!players.length) return;
     for (const p of players) if (!Number.isFinite(p.planetsDelta) && deltaMap.has(p.name)) p.planetsDelta = deltaMap.get(p.name);
-    const body = JSON.stringify({ raceId, raceName: findRaceName(), page, src, ver: '3.11.1', dDebug, players });
+    const body = JSON.stringify({ raceId, raceName: findRaceName(), page, src, ver: '3.12.0', dDebug, players });
     const now = Date.now();
     const changed = body !== lastBody;
     if (inFlight) { if (changed) dirty = true; return; }
@@ -161,6 +162,27 @@
       timeout: 5000,
     });
   }
+
+  // Karta na pozadí: Chrome jí zpomaluje časovače a hra pak neobnovuje tabulku (data chodí po desítkách vteřin). Proto na pozadí
+  // tabulku stahujeme sami (stejný původ i adresa jako při ruční obnově) a tikání zajišťuje worker, který se nezpomaluje.
+  const isHidden = () => document.hidden || window.__sgdForceHidden === true;
+  let bgBusy = false;
+  async function tickFromFetch() {
+    if (bgBusy) return;
+    bgBusy = true;
+    try {
+      const u = new URL(location.href);
+      u.searchParams.delete('auto');
+      const html = await (await fetch(u.pathname + u.search, { credentials: 'same-origin', cache: 'no-store' })).text();
+      send(readPlayers(new DOMParser().parseFromString(html, 'text/html')));
+      mark('sgdBg', new Date().toLocaleTimeString('cs-CZ'));
+    } catch { /* příště */ } finally { bgBusy = false; }
+  }
+  try {
+    const w = new Worker(URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 1000);'], { type: 'text/javascript' })));
+    w.onmessage = () => { if (isHidden()) tickFromFetch(); };
+  } catch { /* stránka workery zakazuje: zůstane běžné chování (data jdou jen z viditelné karty) */ }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
 
   // změna DOM = okamžité odeslání; interval zajišťuje heartbeat, i když se tabulka nemění
   refreshDeltas();
