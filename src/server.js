@@ -496,7 +496,7 @@ const INSTALL_PAGE = `<!doctype html><html lang="cs"><head><meta charset="utf-8"
 a.btn,button{display:inline-block;background:#e0b84c;color:#1a1405;border:0;padding:7px 14px;border-radius:6px;font-weight:600;cursor:pointer;font-size:14px;text-decoration:none;margin:4px 8px 4px 0}
 button.ghost{background:transparent;color:#e7e9ee;border:1px solid #272d3b}.muted{color:#8b93a5;font-size:13px}.ok{color:#5ad19a}ol{padding-left:20px}</style></head><body>
 <h1>Instalace skriptů do Tampermonkey</h1>
-<p class="muted">Když odkaz „Instalovat“ nic neotevře (jen to bliká), použij ruční cestu níže.</p>
+<p class="muted">Když odkaz „Instalovat“ nic neotevře (jen to bliká nebo se otevře stránka tampermonkey.net a zasekne se), je to Chrome: blokuje přístup k místní síti. Použij <b>Stáhnout soubor</b>: Tampermonkey → Přehled → <b>Nástroje</b> → <b>Importovat ze souboru</b> a vyber stažený soubor. Nebo ruční cestu níže.</p>
 <div class="card"><b>Ruční vložení (funguje vždy)</b><ol>
 <li>Klikni u skriptu na <b>Zkopírovat kód</b>.</li>
 <li>Ikona Tampermonkey → <b>Přehled</b> (Dashboard). Když skript už v seznamu je, klikni na jeho název; jinak ikona → <b>Vytvořit nový skript</b>.</li>
@@ -509,7 +509,7 @@ const S=[['Rasová armáda','/armada.user.js','Tlačítko Dohodit: vepíše jmé
 const el=document.getElementById('list');
 for(const [name,path,desc] of S){const d=document.createElement('div');d.className='card';
  d.innerHTML='<b></b> <span class="muted"></span><div class="v muted" style="margin:6px 0"></div><a class="btn"></a><button class="copy">Zkopírovat kód</button><button class="ghost show">Zobrazit kód</button><span class="msg ok"></span><textarea hidden readonly style="width:100%;height:200px;margin-top:8px;background:#10141b;color:#e7e9ee;border:1px solid #272d3b;border-radius:6px"></textarea>';
- d.querySelector('b').textContent=name;d.querySelector('span.muted').textContent='– '+desc;const a=d.querySelector('a');a.href=path;a.textContent='Instalovat odkazem';
+ d.querySelector('b').textContent=name;d.querySelector('span.muted').textContent='– '+desc;const a=d.querySelector('a');a.href=path;a.textContent='Instalovat odkazem';const f=document.createElement('a');f.className='btn';f.style.background='#5ad19a';f.href='/dl/'+path.slice(1).replace('.user.js','');f.textContent='Stáhnout soubor';a.after(f);
  const ta=d.querySelector('textarea'),msg=d.querySelector('.msg');
  const load=()=>fetch(path).then(r=>r.text());
  load().then(t=>{d.querySelector('.v').textContent='Verze na serveru: '+(t.match(/@version\\s+(\\S+)/)||[])[1];ta.value=t;});
@@ -564,6 +564,14 @@ const server = createServer(async (req, res) => {
       return await serveFile(res, pub(`userscript/${scripts[path]}`), 'text/javascript', (s) =>
         s.replace('__TOKEN__', cfg.token).replace('__SERVER__', `http://127.0.0.1:${cfg.port}`),
       );
+    }
+    // stažení skriptu jako souboru (pro Tampermonkey → Nástroje → Importovat ze souboru, když „Instalovat odkazem“ blokuje Chrome)
+    const dl = req.method === 'GET' && /^\/dl\/(userscript|mapa|stavby|armada|utok)$/.exec(path);
+    if (dl) {
+      const file = scripts[`/${dl[1]}.user.js`];
+      const body = (await readFile(pub(`userscript/${file}`), 'utf8')).replace('__TOKEN__', cfg.token).replace('__SERVER__', `http://127.0.0.1:${cfg.port}`);
+      res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-disposition': `attachment; filename="${file.replace('stargate-', 'sg-dominator-')}"`, 'cache-control': 'no-store' });
+      return res.end(body);
     }
     const handler = routes[`${req.method} ${path}`];
     if (!handler) {
