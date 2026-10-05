@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator
 // @namespace    sg-dominator
-// @version      3.10.0
+// @version      3.11.0
 // @description  Čte tabulku hráčů a posílá sílu na lokální notifikační server (bez zásahu do stránky)
 // @match        https://stargate-game.cz/vesmir.php*
 // @match        https://www.stargate-game.cz/vesmir.php*
@@ -126,16 +126,19 @@
   let lastBody = '';
   let lastSendAt = 0;
   let inFlight = false;
+  let dirty = false; // změna přišla, zatímco předchozí odeslání ještě běželo: pošle se hned po jeho dokončení (dřív by čekala až na další změnu / 1 s)
+  const done = () => { inFlight = false; if (dirty) { dirty = false; tick(); } };
 
   /** Pošle snapshot. Bez změny dat jen jako "heartbeat" max 1× za vteřinu. */
   function tick() {
     const players = readPlayers();
     if (!players.length) return;
     for (const p of players) if (!Number.isFinite(p.planetsDelta) && deltaMap.has(p.name)) p.planetsDelta = deltaMap.get(p.name);
-    const body = JSON.stringify({ raceId, raceName: findRaceName(), page, src, ver: '3.10.0', dDebug, players });
+    const body = JSON.stringify({ raceId, raceName: findRaceName(), page, src, ver: '3.11.0', dDebug, players });
     const now = Date.now();
     const changed = body !== lastBody;
-    if (inFlight || (!changed && now - lastSendAt < 800)) return; // 800 ms rezerva na jitter intervalu
+    if (inFlight) { if (changed) dirty = true; return; }
+    if (!changed && now - lastSendAt < 800) return; // 800 ms rezerva na jitter intervalu
     inFlight = true;
     lastBody = body;
     lastSendAt = now;
@@ -144,9 +147,9 @@
       url: `${SERVER}/ingest`,
       headers: { 'content-type': 'application/json', 'x-token': TOKEN },
       data: body,
-      onload: () => { inFlight = false; },
-      onerror: () => { inFlight = false; },
-      ontimeout: () => { inFlight = false; },
+      onload: done,
+      onerror: done,
+      ontimeout: done,
       timeout: 5000,
     });
   }

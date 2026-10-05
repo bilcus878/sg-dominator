@@ -862,6 +862,29 @@ const BLINK_MS = 10_000;
 const belowSeen = new Map();
 const blinkUntil = new Map();
 
+const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+/** Krátké zbarvení hodnoty při změně (zeleně nahoru, červeně dolů); bez přepínání tříd a vynuceného přepočtu rozložení. */
+function flashValue(el, d) {
+  if (!d || reduceMotion || !el.animate) return;
+  el.animate([{ backgroundColor: d > 0 ? 'rgba(46,204,64,.42)' : 'rgba(255,77,77,.42)' }, { backgroundColor: 'rgba(0,0,0,0)' }], { duration: 1100, easing: 'ease-out' });
+}
+/** Plynulé přesunutí řádků po změně pořadí (FLIP): řádek se nejdřív vrátí na starou pozici a pak do nové doklouzne. */
+function flipRows(rows, first) {
+  if (reduceMotion) return;
+  const moves = [];
+  for (const [key, row] of rows) {
+    const was = first.get(key);
+    if (was == null) continue;
+    const d = was - row.tr.offsetTop;
+    if (d && Math.abs(d) < 600) moves.push([row.tr, d]);
+  }
+  if (!moves.length) return;
+  for (const [tr, d] of moves) { tr.style.transition = 'none'; tr.style.transform = `translateY(${d}px)`; }
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    for (const [tr] of moves) { tr.style.transition = 'transform .32s cubic-bezier(.2,.8,.2,1)'; tr.style.transform = ''; }
+  }));
+}
+
 function updatePanel(id) {
   const v = view.get(id);
   const r = v.isW ? null : raceOf(id);
@@ -932,20 +955,24 @@ function updatePanel(id) {
 
   // řádky (klíčované, žádné přepisování celé tabulky)
   const seen = new Set();
+  let moved = false;
+  const first = st.sort !== 'game' && !reduceMotion ? new Map([...v.rows].map(([k, r]) => [k, r.tr.offsetTop])) : null; // staré pozice pro plynulý přesun
   out.forEach(({ r: pr, p }, i) => {
     const key = `${pr.id}|${p.name}`;
     seen.add(key);
     let row = v.rows.get(key);
     if (!row) { row = makeRow(v, pr, p); v.rows.set(key, row); }
-    if (v.tbody.children[i] !== row.tr) v.tbody.insertBefore(row.tr, v.tbody.children[i] ?? null);
+    if (v.tbody.children[i] !== row.tr) { v.tbody.insertBefore(row.tr, v.tbody.children[i] ?? null); moved = true; }
     const txt = fmt(p.power);
-    if (row.pw.v.textContent !== txt) row.pw.v.textContent = txt;
+    if (row.pw.v.textContent !== txt) { if (row.lastPower != null) flashValue(row.pw.v, p.power - row.lastPower); row.pw.v.textContent = txt; }
+    row.lastPower = p.power;
     const recent = p.powerDelta && p.powerAt && S.serverTime - p.powerAt < CHANGE_MS ? p.powerDelta : 0;
     setDelta(row.pw, recent);
     row.pw.v.classList.toggle('plus', recent > 0);
     row.pw.v.classList.toggle('minus', recent < 0);
     const pl = p.planets == null ? '' : fmt(p.planets);
-    if (row.planets.v.textContent !== pl) row.planets.v.textContent = pl;
+    if (row.planets.v.textContent !== pl) { if (row.lastPlanets != null && p.planets != null) flashValue(row.planets.v, p.planets - row.lastPlanets); row.planets.v.textContent = pl; }
+    row.lastPlanets = p.planets;
     // okamžitá změna planet (ne denní přírůstek ze hry): zeleně +N / červeně −N, 30 s od poslední změny
     const dd = p.planetsDelta; // denní změna planet ze hry (+25 / −3 / 0); null = zatím nevíme
     const ddTxt = dd == null ? '–' : dd > 0 ? `+${dd}` : dd < 0 ? `−${Math.abs(dd)}` : '0';
@@ -1012,6 +1039,7 @@ function updatePanel(id) {
     }
   });
   for (const [key, row] of v.rows) if (!seen.has(key)) { row.tr.remove(); v.rows.delete(key); }
+  if (moved && first) flipRows(v.rows, first);
   v.count.textContent = out.length === items.length ? `${items.length} hráčů` : `${out.length} z ${items.length}`;
   v.empty.hidden = out.length > 0;
   v.empty.textContent = v.isW && !items.length ? 'Zatím nic nehlídáš. V panelu rasy zvol „Celou rasu“ nebo zapni jednotlivé hráče.'
@@ -1346,6 +1374,19 @@ $('notifyMaster').onchange = () => { $('notifyTgl').classList.toggle('on', $('no
 function render() {
   renderData(); renderBoard(); renderAlerts(); renderOp();
 }
+// živý stav: server ho posílá sám hned po příjmu dat (SSE); dotazování po vteřině jen jako záloha, když proud nejde
+let lastPush = 0, renderQueued = false;
+function scheduleRender() { // víc zpráv za sebou se vykreslí jednou, nejdřív v dalším snímku (v kartě na pozadí hned)
+  if (renderQueued) return;
+  renderQueued = true;
+  const go = () => { renderQueued = false; render(); };
+  if (document.hidden) go(); else requestAnimationFrame(go);
+}
+function startStream() {
+  if (!window.EventSource) return;
+  const es = new EventSource('/api/stream');
+  es.onmessage = (e) => { try { S = JSON.parse(e.data); } catch { return; } fetchedAt = Date.now(); lastPush = fetchedAt; scheduleRender(); };
+}
 async function refresh() {
   try { S = await api('/api/state'); fetchedAt = Date.now(); render(); }
   catch { $('dstat').className = 'dstat bad'; $('dstat').dataset.h = ''; $('dstat').innerHTML = '<span class="dh">● server nedostupný</span>'; }
@@ -1550,7 +1591,7 @@ $('test').onclick = async () => {
   } catch (e) { toast(e.message, true); }
 };
 
-(async () => { cfg = await api('/api/config'); renderChips(); applyAlertsOpen(); refresh(); setInterval(refresh, 1000); })();
+(async () => { cfg = await api('/api/config'); renderChips(); applyAlertsOpen(); refresh(); startStream(); setInterval(() => { if (Date.now() - lastPush > 2500) refresh(); }, 1000); })();
 
 /* ---------- navigace mezi pohledy ---------- */
 function setView(v) {

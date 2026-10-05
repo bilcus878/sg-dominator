@@ -6,6 +6,8 @@ import { DATA_DIR } from './config.js';
 export function openDb(path = join(DATA_DIR, 'history.db')) {
   if (path !== ':memory:') mkdirSync(DATA_DIR, { recursive: true });
   const db = new DatabaseSync(path);
+  // WAL + synchronous=NORMAL: zápis nečeká na fsync disku (v journal režimu DELETE trval každý INSERT ~8 ms a ingest s 15 změnami blokoval server ~100–400 ms)
+  try { db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;'); } catch { /* např. :memory: */ }
   db.exec(`
     CREATE TABLE IF NOT EXISTS power_history (
       ts INTEGER NOT NULL, name TEXT NOT NULL, power INTEGER NOT NULL
@@ -25,12 +27,13 @@ export function openDb(path = join(DATA_DIR, 'history.db')) {
   return {
     /** Zapíše jen hráče, kterým se síla od posledního zápisu změnila. */
     recordChanges(ts, players, lastWritten) {
-      for (const { name, power } of players) {
-        if (lastWritten.get(name) !== power) {
-          insHist.run(ts, name, power);
-          lastWritten.set(name, power);
-        }
-      }
+      const changed = players.filter(({ name, power }) => lastWritten.get(name) !== power);
+      if (!changed.length) return;
+      db.exec('BEGIN'); // všechny změny z jednoho příjmu v jedné transakci
+      try {
+        for (const { name, power } of changed) { insHist.run(ts, name, power); lastWritten.set(name, power); }
+        db.exec('COMMIT');
+      } catch (e) { try { db.exec('ROLLBACK'); } catch { /* nic */ } throw e; }
     },
     recordAlert: (ts, a) => insAlert.run(ts, a.name, a.power, a.prev, a.reason, a.race ?? null),
     clearAlerts: () => delAlerts.run(),

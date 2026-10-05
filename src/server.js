@@ -174,6 +174,7 @@ async function handleIngest(req) {
     console.log(`[alert] [${a.race}] ${a.name} ${a.prev} -> ${a.power} (${a.reason})`);
     if (notifyOn(cfg, a.reason)) sendText(cfg, formatAlert(a)); // fire-and-forget, chyby se logují v notifieru; vypnutý druh se jen zapíše do historie
   }
+  pushState();
   return [200, { ok: true, alerts: alerts.length }];
 }
 
@@ -206,6 +207,7 @@ async function handleIngestOp(req) {
     console.log(`[alert] OP ${a.repeat ? 'stále ' : ''}na mapě: ${a.name}`);
     if (notifyOn(cfg, 'op')) sendText(cfg, formatAlert(a));
   }
+  pushState();
   return [200, { ok: true, alerts: notify ? 1 : 0, vigilance: cfg.op.vigilance, telescope: cfg.op.telescope }];
 }
 
@@ -421,6 +423,7 @@ const routes = {
       (name) => resolveWatch(cfg, playerRace.get(name), name).threshold,
       (name) => resolveWatch(cfg, playerRace.get(name), name).critical,
     );
+    pushState();
     return [200, publicConfig(cfg)];
   },
   'GET /api/state': async () => [200, buildState()],
@@ -495,9 +498,36 @@ async function serveFile(res, file, type, transform = (x) => x) {
   res.end(body);
 }
 
+/**
+ * Živý stav do aplikace (Server-Sent Events): nová data se pošlou hned po příjmu místo čekání na dotaz z aplikace (dřív průměrně ~0,5 s a až 1 s zpoždění).
+ * Víc změn v těsném sledu se sloučí do jedné zprávy (~10 ms); jednou za vteřinu jde zpráva vždy, ať se v aplikaci drží čas serveru.
+ */
+const sseClients = new Set();
+let ssePending = false;
+function pushNow() {
+  if (!sseClients.size) return;
+  const chunk = `data: ${JSON.stringify(buildState())}\n\n`;
+  for (const r of sseClients) r.write(chunk);
+}
+function pushState() {
+  if (!sseClients.size || ssePending) return;
+  ssePending = true;
+  setTimeout(() => { ssePending = false; pushNow(); }, 10);
+}
+setInterval(pushNow, 1000);
+
 const server = createServer(async (req, res) => {
   const path = new URL(req.url, 'http://x').pathname;
   try {
+    if (req.method === 'GET' && path === '/api/stream') {
+      res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', connection: 'keep-alive', 'x-accel-buffering': 'no' });
+      res.write('retry: 1000\n\n');
+      res.socket?.setNoDelay(true);
+      sseClients.add(res);
+      req.on('close', () => sseClients.delete(res));
+      res.write(`data: ${JSON.stringify(buildState())}\n\n`);
+      return;
+    }
     if (req.method === 'GET' && path === '/') return await serveFile(res, pub('public/index.html'), 'text/html');
     if (req.method === 'GET' && path === '/install') {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
