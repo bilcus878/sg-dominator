@@ -13,7 +13,7 @@ $pidFile = Join-Path $DataDir 'hlidac.pid'
 $hlidacPid = if (Test-Path $pidFile) { [int](Get-Content $pidFile -ErrorAction SilentlyContinue | Select-Object -First 1) } else { 0 }
 $hlidacRunning = $hlidacPid -and (Get-Process -Id $hlidacPid -ErrorAction SilentlyContinue)
 if (-not $hlidacRunning) {
-    Start-Process -FilePath 'powershell.exe' -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', (Join-Path $PSScriptRoot 'hlidac.ps1') -WindowStyle Hidden
+    Start-Process -FilePath 'powershell.exe' -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', ('"' + (Join-Path $PSScriptRoot 'hlidac.ps1') + '"') -WindowStyle Hidden
 }
 
 if (Test-Server) {
