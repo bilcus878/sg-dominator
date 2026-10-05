@@ -608,9 +608,13 @@
 
     <div class="pane" id="pane-scripts">
       <p class="muted" style="margin-top:0">Skripty pro Tampermonkey. Seznam i kód se načítají přímo ze serveru, takže tu vždy najdeš aktuální verzi. Po každé změně skriptu porovnej číslo verze tady s číslem v Tampermonkey (Přehled).</p>
+      <div class="chan" style="border-color:var(--acc)">
+        <div class="chan-head"><span><b>Instalační stránka</b> <span class="muted" style="font-weight:400">– všechny skripty na jednom místě, stažení souboru i zkopírování kódu</span></span></div>
+        <a href="/install" target="_blank" rel="noopener"><button type="button">Otevřít http://127.0.0.1:3940/install</button></a>
+      </div>
       <div id="scriptList"></div>
       <details open><summary>Když se po kliknutí na „Instalovat odkazem“ nic nestane</summary><p>
-        Použij <b>Zkopírovat kód</b>: ikona Tampermonkey → Přehled → klikni na název skriptu → <code>Ctrl+A</code>, <code>Ctrl+V</code>, <code>Ctrl+S</code> → obnov stránku hry (<code>F5</code>).
+        Nejjistější je <b>Stáhnout soubor</b> a v Tampermonkey Přehled → Nástroje → <b>Importovat ze souboru</b>. Nebo použij <b>Zkopírovat kód</b>: ikona Tampermonkey → Přehled → klikni na název skriptu → <code>Ctrl+A</code>, <code>Ctrl+V</code>, <code>Ctrl+S</code> → obnov stránku hry (<code>F5</code>).
         Pokud skript pořád nic nedělá, zkontroluj v <code>chrome://extensions</code> u Tampermonkey přepínač <b>Povolit uživatelské skripty</b>.</p></details>
     </div>
 
@@ -1592,6 +1596,7 @@ document.querySelector('[data-tab="attack"]').addEventListener('click', loadAtkI
     $('scriptList').innerHTML = SCRIPTS.map(([name, path, desc], i) => `<div class="chan" data-i="${i}">
       <div class="chan-head"><span>${esc(name)} <span class="muted" style="font-weight:400">– ${esc(desc)}</span></span><span class="muted sver">verze …</span></div>
       <a href="${path}" target="_blank" rel="noopener"><button type="button">Instalovat odkazem</button></a>
+      <a href="/dl/${path.slice(1).replace('.user.js', '')}"><button type="button" class="ghost">Stáhnout soubor</button></a>
       <button type="button" class="ghost scopy">Zkopírovat kód</button><span class="saved smsg"></span>
       <textarea readonly hidden style="width:100%;height:160px;margin-top:8px;font:12px monospace"></textarea></div>`).join('');
     for (const [i, [, path]] of SCRIPTS.entries()) {
