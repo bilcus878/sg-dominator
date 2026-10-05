@@ -1,4 +1,4 @@
-import { createServer } from 'node:http';
+﻿import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { readFileSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -527,6 +527,10 @@ const server = createServer(async (req, res) => {
 
 // jen localhost – config API nemá autorizaci, takže se nesmí vystavit do sítě
 server.listen(cfg.port, '127.0.0.1', () => {
+  if (process.env.SG_RESTARTED === '1') { // spustil nás hlídač po pádu / zaseknutí
+    console.log('[hlídač] aplikace byla automaticky znovu spuštěna');
+    sendService(cfg, '⚠️ Dominator spadl nebo se zasekl a hlídač ho automaticky znovu spustil.');
+  }
   console.log(`Stargate dominator běží na http://127.0.0.1:${cfg.port}`);
   console.log(`Userscript nainstaluješ otevřením: http://127.0.0.1:${cfg.port}/userscript.user.js`);
 });
