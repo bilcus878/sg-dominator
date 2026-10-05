@@ -25,6 +25,9 @@ if (process.env.SG_PORT) cfg.port = Number(process.env.SG_PORT);
 const state = createState();
 const conquest = createConquest(); // cizí rasy: kdo je k dobytí
 const army = createArmy(); // tlačítko Dohodit -> skript na stránce Rasová armáda
+let armyWaiters = [];
+const wakeArmy = () => { for (const f of armyWaiters.splice(0)) f(); };
+const armyWait = (ms) => new Promise((ok) => { const t = setTimeout(ok, Math.max(0, ms)); armyWaiters.push(() => { clearTimeout(t); ok(); }); });
 const store = createStore();
 const op = createOpTracker();
 let opLastAt = 0;
@@ -370,20 +373,43 @@ const routes = {
     if (merged) { cfg.army = merged; saveConfig(cfg); }
     return [200, { ok: true }];
   },
-  'POST /army/poll': async (req) => (authOk(req) ? [200, army.poll()] : [401, { error: 'bad token' }]),
+  // dlouhé dotazování: skript dostane pokyn hned, jak ho aplikace zadá (dřív se ptal po 0,7 s a pokyn čekal až 0,7 s); bez pokynu odpoví po ~20 s
+  'POST /army/poll': async (req) => {
+    if (!authOk(req)) return [401, { error: 'bad token' }];
+    const end = Date.now() + 20_000;
+    army.waitStart();
+    try {
+      for (;;) {
+        const r = army.poll();
+        if (r.action === 'send' || Date.now() >= end) return [200, r];
+        await armyWait(end - Date.now());
+      }
+    } finally { army.waitEnd(); }
+  },
   'POST /army/report': async (req) => {
     if (!authOk(req)) return [401, { error: 'bad token' }];
     const body = await readJson(req);
     army.report({ id: Number(body.id), ok: !!body.ok, error: body.error });
+    wakeArmy();
     console.log(`[dohodit] ${body.ok ? 'odesláno' : `neodesláno: ${String(body.error ?? '').slice(0, 120)}`}`);
     return [200, { ok: true }];
   },
   'POST /api/army': async (req) => {
     const r = army.request((await readJson(req)).name);
-    if (r.ok) console.log(`[dohodit] požadavek: ${army.status().req?.name}`);
+    if (r.ok) { console.log(`[dohodit] požadavek: ${army.status().req?.name}`); wakeArmy(); }
     return [r.ok ? 200 : 409, r];
   },
   'GET /api/army': async () => [200, army.status()],
+  // aplikace čeká na výsledek dohození: odpoví, jakmile je požadavek vyřízený (nebo po ~20 s)
+  'GET /api/army/wait': async (req) => {
+    const id = Number(new URL(req.url, 'http://x').searchParams.get('id'));
+    const end = Date.now() + 20_000;
+    for (;;) {
+      const st = army.status();
+      if (!st.req || st.req.id !== id || !['pending', 'sending'].includes(st.req.status) || Date.now() >= end) return [200, st];
+      await armyWait(Math.min(500, end - Date.now()));
+    }
+  },
   'POST /ingest': handleIngest,
   'POST /ingest-op': handleIngestOp,
   'POST /vigilance': handleVigilance,

@@ -55,6 +55,7 @@
   .thl.own .thv { color:var(--acc); border-color:var(--acc); }
   .thl input.thin { width:112px; padding:1px 6px; font-size:11px; text-align:left; }
   td.pname .on { display:inline-block; width:8px; height:8px; margin-right:5px; border-radius:50%; vertical-align:middle; }
+  td.pname .nm { display:inline-block; } td.n:not(.pc) .pv { display:inline-block; }
   td.pname .nm.blink { animation:sgBlink .5s steps(1) infinite; border-radius:3px; padding:0 3px; font-weight:700; }
   @keyframes sgBlink { 0% { color:#fff; background:#d61f1f; } 50% { color:#ff4d4d; background:transparent; } }
   td.pname .nm[data-rank=vudce] { color:#f1c40f; font-weight:600; } td.pname .nm[data-rank=zastupce] { color:#ffffff; font-weight:600; } td.pname .nm[data-rank=ministr] { color:#3ccf4e; } td.pname .nm[data-rank=obcan] { color:#626cc6; }
@@ -302,18 +303,87 @@
   .bplanets { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 10px; }
   .bp { font-size:12px; padding:2px 9px; border-radius:99px; border:1px solid var(--line); background:var(--card2); color:var(--mut); }
   .bp.built { color:var(--ok); border-color:#2c5a46; } .bp.failed { color:var(--bad); border-color:#6a3030; } .bp.dry { color:var(--acc); border-color:var(--acc); } .bp.cur { color:var(--fg); border-color:var(--acc); }
+
+  /* ===== panel rasy v2: kompaktní hlavička, ať zbyde místo na hráče ===== */
+  .rpanel { container-type:inline-size; container-name:rp; }
+  .rhead { padding:9px 12px 7px; gap:9px; }
+  .rtitle { display:flex; align-items:baseline; gap:8px; overflow:hidden; white-space:nowrap; } .rname { font-size:15px; } .rinfo { font-size:11px; overflow:hidden; text-overflow:ellipsis; }
+  .rmode { display:inline-flex; padding:2px; gap:2px; background:var(--card2); border:1px solid var(--line); border-radius:9px; flex:0 0 auto; }
+  .rmode button { flex-direction:row; gap:5px; padding:3px 9px; border:1px solid transparent; border-radius:7px; background:transparent; font-size:12px; font-weight:600; white-space:nowrap; }
+  .rmode button .mi { font-size:13px; }
+  .rmode button.on[data-mode=off] { background:#262a33; border-color:#4a5163; }
+  .rmode button.on[data-mode=selected] { background:#2b2410; border-color:var(--acc); }
+  .rmode button.on[data-mode=all] { background:#102a1f; border-color:var(--ok); }
+  .rbarwrap { position:relative; }
+  .rbar { display:flex; align-items:center; gap:6px 8px; padding:0 12px 8px; margin:0; flex-wrap:wrap; }
+  .rpanel .rbar input[type=search] { flex:1 1 110px; min-width:80px; max-width:200px; padding:4px 9px; font-size:13px; }
+  .rbar .rcount { display:none; } .rbar .rwatch { font-size:12px; white-space:nowrap; }
+  .chip { border:1px solid var(--line); border-radius:99px; background:var(--card2); padding:2px 10px; font-size:12px; color:var(--mut); white-space:nowrap; cursor:pointer; line-height:1.6; }
+  label.chk.chip { display:inline-flex; gap:0; margin:0; } label.chk.chip input { display:none; }
+  label.chk.chip:has(input:checked) { color:var(--acc); border-color:var(--acc); background:#2b2108; }
+  .chip:hover { color:var(--fg); border-color:#3a4358; } .icon.chip { padding:2px 10px; }
+  .rcfg { position:absolute; right:12px; top:calc(100% - 4px); z-index:7; width:min(310px, calc(100% - 24px)); background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; box-shadow:0 12px 30px rgba(0,0,0,.55); }
+  .rbody { max-height:max(220px, calc(100vh - 150px)); }
+  @container rp (max-width: 580px) { .rmode button:not(.on) .mt { display:none; } .rinfo { display:none; } }
+  @container rp (max-width: 420px) { .rbar .rwatch { display:none; } }
+
+  /* ===== hlavička v2: jeden štíhlý řádek ===== */
+  header { background:linear-gradient(180deg,rgba(23,28,38,.97),rgba(12,15,21,.95)); box-shadow:0 1px 0 rgba(224,184,76,.07), 0 10px 28px rgba(0,0,0,.4); }
+  header .bar { padding:8px 16px; gap:10px; min-height:52px; }
+  .brand { display:flex; align-items:center; gap:9px; margin-right:4px; color:var(--acc); }
+  .brand b { font-size:15px; letter-spacing:.04em; color:var(--fg); font-weight:700; }
+  .logo { width:24px; height:24px; filter:drop-shadow(0 0 6px rgba(224,184,76,.45)); }
+  .nav { background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:3px; gap:2px; }
+  .navbtn { padding:5px 13px; border-radius:7px; font-size:13px; }
+  .navbtn.on { background:var(--card); color:var(--fg); box-shadow:0 0 0 1px #343c4f, inset 0 -2px 0 var(--acc); }
+  .hbtn { display:inline-flex; align-items:center; gap:7px; height:34px; padding:0 12px; background:var(--card2); color:var(--fg); border:1px solid var(--line); border-radius:9px; font-size:13px; font-weight:600; position:relative; }
+  .hbtn:hover { border-color:#3a4358; filter:none; background:#141922; } .hbtn .plus { color:var(--acc); font-size:15px; line-height:1; }
+  .hbtn.sq { width:36px; padding:0; justify-content:center; } .hbtn.sq svg { transition:transform .5s; } .hbtn.sq:hover svg { transform:rotate(60deg); }
+  .hbtn.bell { width:36px; padding:0; justify-content:center; color:var(--mut); } .hbtn.bell.on { color:var(--fg); } .hbtn.bell.open { border-color:var(--acc); }
+  .bdot { position:absolute; top:6px; right:6px; width:8px; height:8px; border-radius:50%; background:var(--bad); border:2px solid var(--card2); box-sizing:content-box; }
+  .hbtn.bell.on .bdot { background:var(--ok); box-shadow:0 0 6px var(--ok); }
+  .ctl { display:flex; align-items:center; gap:8px; }
+  .optgl { display:inline-flex; align-items:center; gap:8px; height:34px; padding:0 13px 0 9px; margin:0; background:var(--card2); border:1px solid var(--line); border-radius:9px; color:var(--mut); font-size:13px; cursor:pointer; user-select:none; }
+  .optgl b { font-weight:700; letter-spacing:.03em; } .optgl.on { color:var(--fg); border-color:#2c5a46; } .optgl:hover { border-color:#3a4358; }
+  .dstat { background:none; border:0; padding:0; gap:6px; margin-left:4px; }
+  .dstat::before { content:"DATA"; font-size:10px; letter-spacing:.12em; color:var(--mut); font-weight:700; margin-right:2px; }
+  .dstat .dh { display:none; } .dstat.bad::before { color:var(--bad); } .dstat.ok::before { color:var(--ok); }
+  .dsrc { background:var(--card2); height:26px; }
+  #opDots:empty { display:none; }
+  .ntwrap { position:relative; display:block; }
+  .ntmenu { width:350px; top:calc(100% + 12px); }
+  .ntmaster { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:8px 12px 10px; margin:0 0 4px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .ntmaster b { font-size:14px; color:var(--fg); display:block; } .ntmaster small { display:block; color:var(--mut); font-size:11.5px; line-height:1.35; font-weight:400; margin-top:2px; max-width:240px; }
+  .ntchan { display:flex; gap:6px; flex-wrap:wrap; padding:10px 10px 4px; margin-top:6px; border-top:1px solid var(--line); }
+  .addwrap .menu { left:0; right:auto; }
+  main { padding-top:14px; }
+  @media (max-width:1060px) { .dstat { order:9; flex-basis:100%; margin:0; flex-wrap:wrap; } .dstat::before { margin-right:4px; } }
+  @media (max-width:860px) { .brand b { display:none; } }
+  @media (max-width:700px) { header .bar { gap:8px; padding:8px 10px; } .hbtn .lbl { display:none; } .navbtn { padding:5px 9px; } }
 </style>
 </head>
 <body>
 <header><div class="bar">
-  <h1>Stargate dominator</h1>
+  <div class="brand" title="Stargate dominator">
+    <svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2.6" stroke-dasharray="3.45 2.05"/><circle cx="12" cy="12" r="5.4" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".5"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
+    <b>Dominator</b>
+  </div>
   <nav class="nav"><button class="navbtn on" data-nav="watch">Sledování</button><button class="navbtn" data-nav="build">Stavění<span class="dot" id="navDot"></span></button></nav>
+  <div class="addwrap">
+    <button class="hbtn" id="addPanel" title="Přidat panel rasy"><span class="plus">＋</span><span class="lbl">Rasa</span></button>
+    <div class="menu" id="addMenu" hidden></div>
+  </div>
+  <span class="muted" id="boardHint" hidden></span>
+  <div class="dstat" id="dstat"><span class="dh">● čeká na data</span></div>
+  <div class="chips" id="opDots"></div>
   <span class="spacer"></span>
-  <div class="switches">
+  <div class="ctl">
     <div class="ntwrap">
-      <label class="tgl" id="notifyTgl" title="Hlavní vypínač upozornění: zapnuto = bot posílá zprávy do Telegramu / Discordu. Vypnuto = bot nepošle vůbec nic (sledování a data v aplikaci jedou dál)."><span class="sw"><input type="checkbox" id="notifyMaster"><span></span></span> Upozornění</label>
-      <button type="button" class="tgl caret" id="notifyCaret" title="Vybrat, která upozornění se mají posílat" aria-haspopup="true">▾</button>
+      <button type="button" class="hbtn bell" id="notifyCaret" title="Upozornění do chatu: hlavní vypínač a výběr, co se posílá" aria-haspopup="true">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><i class="bdot"></i>
+      </button>
       <div class="ntmenu" id="ntMenu" hidden>
+        <label class="ntmaster"><span><b>Upozornění do chatu</b><small>Hlavní vypínač. Vypnuto = bot neposílá nic (sledování v aplikaci jede dál).</small></span><span class="sw"><input type="checkbox" id="notifyMaster"><span></span></span></label>
         <div class="ntnote">Hlavní vypínač je vypnutý – nepošle se nic, ať je zaškrtnuto cokoli.</div>
         <h4>Hlídání síly</h4>
         <label class="ntrow"><span>⚠️ Pokles pod práh<small>včetně připomínek, dokud je hráč pod prahem</small></span><span class="sw"><input type="checkbox" data-nt="threshold"><span></span></span></label>
@@ -326,29 +396,18 @@
         <h4>Mapa a systém</h4>
         <label class="ntrow"><span>🟠 OP na mapě<small>zprávy o opuštěných planetách (funguje, jen když je zapnuté OP)</small></span><span class="sw"><input type="checkbox" data-nt="op"><span></span></span></label>
         <label class="ntrow"><span>🛠 Systémové zprávy<small>výpadek dat, bdělost, teleskop, stavění (servisní chat)</small></span><span class="sw"><input type="checkbox" data-nt="service"><span></span></span></label>
+        <div class="ntchan" id="ntChan"></div>
       </div>
     </div>
-    <label class="tgl" id="opTgl" title="OP: zapnuto = bot hlásí OP na mapě, sám zapíná zastavený teleskop a potvrzuje tlačítko bdělosti. Vypnuto = bot na mapě nic nedělá."><span class="sw"><input type="checkbox" id="opMaster"><span></span></span> OP</label>
+    <label class="optgl" id="opTgl" title="OP: zapnuto = bot hlásí OP na mapě, sám zapíná zastavený teleskop a potvrzuje tlačítko bdělosti. Vypnuto = bot na mapě nic nedělá."><span class="sw"><input type="checkbox" id="opMaster"><span></span></span><b>OP</b></label>
+    <button class="hbtn sq" id="openSettings" title="Nastavení" aria-label="Nastavení">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
   </div>
-  <button id="openSettings">⚙ Nastavení</button>
-</div>
-<div class="bar sub">
-  <div class="dstat" id="dstat"><span class="dh">● čeká na data</span></div>
-  <div class="chips" id="chips"></div>
-  <div class="chips" id="opDots"></div>
 </div></header>
 
 <main>
   <section data-view="watch">
-    <div class="board-head">
-      <h2>Sledování</h2>
-      <span class="muted" id="boardHint"></span>
-      <span class="spacer"></span>
-      <div class="addwrap">
-        <button id="addPanel">＋ Přidat rasu</button>
-        <div class="menu" id="addMenu" hidden></div>
-      </div>
-    </div>
     <div class="board" id="board"></div>
     <div class="card empty big" id="boardEmpty" hidden></div>
   </section>
@@ -641,14 +700,14 @@ function savePartial(patch, quiet = false) {
 function renderChips() {
   const notify = cfg.notify !== false;
   if (document.activeElement !== $('notifyMaster')) $('notifyMaster').checked = notify;
-  $('notifyTgl').classList.toggle('on', notify);
+  $('notifyCaret').classList.toggle('on', notify);
+  $('notifyCaret').title = notify ? 'Upozornění do chatu: zapnuto. Klikni pro výběr, co se posílá' : 'Upozornění do chatu: VYPNUTO. Klikni pro zapnutí';
   ntMenu.classList.toggle('off', !notify);
   for (const cb of ntMenu.querySelectorAll('input[data-nt]')) if (document.activeElement !== cb) cb.checked = cfg.notifyTypes?.[cb.dataset.nt] !== false;
   const chip = (t, on) => `<span class="pill ${on && notify ? 'ok' : ''}">${t}</span>`;
-  $('chips').innerHTML =
-    `<span class="pill">Výchozí hranice ${fmt(cfg.threshold)}</span>` +
-    chip('Discord ' + (cfg.discord.enabled && cfg.discord.configured ? '✓' : '✗'), cfg.discord.enabled && cfg.discord.configured) +
-    chip('Telegram ' + (cfg.telegram.enabled && cfg.telegram.configured ? '✓' : '✗'), cfg.telegram.enabled && cfg.telegram.configured);
+  $('ntChan').innerHTML = chip('Telegram ' + (cfg.telegram.enabled && cfg.telegram.configured ? '✓' : '✗'), cfg.telegram.enabled && cfg.telegram.configured)
+    + chip('Discord ' + (cfg.discord.enabled && cfg.discord.configured ? '✓' : '✗'), cfg.discord.enabled && cfg.discord.configured)
+    + `<span class="pill">Výchozí práh ${fmt(cfg.threshold)}</span>`;
 }
 
 const ageOf = (r) => (r.at ? S.serverTime - r.at : null);
@@ -754,8 +813,11 @@ function buildPanel(id) {
   root.innerHTML = `
     <div class="rhead">
       <span class="dot"></span>
-      <div class="rtitle"><b class="rname"></b><div class="muted rinfo"></div></div>
+      <div class="rtitle"><b class="rname"></b><span class="muted rinfo"></span></div>
       <span class="rfsum"></span>
+      ${isW ? '' : `<div class="rmode" role="group" aria-label="Co hlídat">
+        ${modeBtn.map(([m, ic, t]) => `<button data-act="mode" data-mode="${m}" title="${modeHint[m]}"><span class="mi">${ic}</span><span class="mt">${t}</span></button>`).join('')}
+      </div>`}
       <div class="rtools">
         <button class="icon" data-act="fold" title="Sbalit / rozbalit panel">▾</button>
         <button class="icon" data-act="left" title="Posunout doleva">◀</button>
@@ -763,19 +825,19 @@ function buildPanel(id) {
         <button class="icon" data-act="close" title="Odebrat panel">✕</button>
       </div>
     </div>
-    ${isW ? '' : `
-    <div class="rmode" role="group" aria-label="Co hlídat">
-      ${modeBtn.map(([m, ic, t]) => `<button data-act="mode" data-mode="${m}" title="${modeHint[m]}"><span class="mi">${ic}</span>${t}</button>`).join('')}
-    </div>
-    <div class="rsum"><span class="rwatch"></span><span><button class="icon rrole" data-act="role" title="Naše rasa = hlídá se pokles pod práh (obrana). Cizí rasa = hlídá se, kdo je k dobytí."></button> <button class="icon rcfgbtn" data-act="cfg" title="Práh a kritická hranice této rasy"></button></span></div>
-    <div class="rcfg" hidden>
-      <label>Práh rasy<input type="text" inputmode="numeric" class="num rth"></label>
-      <label title="Kritická hranice jako % z prahu hráče">Kritická (% prahu)<input type="number" min="0" max="100" class="rcrit"></label>
-    </div>`}
-    <div class="toolbar">
-      <input type="search" class="rfilter" placeholder="Hledat hráče…">
-      <label class="chk"><input type="checkbox" class="rbelow"> <span class="rbelowtxt">jen pod prahem</span></label>
-      <span class="muted rcount"></span>
+    <div class="rbarwrap">
+      <div class="toolbar rbar">
+        <input type="search" class="rfilter" placeholder="Hledat hráče…">
+        <label class="chk chip"><input type="checkbox" class="rbelow"><span class="rbelowtxt">jen pod prahem</span></label>
+        <span class="muted rcount"></span>
+        <span class="spacer"></span>
+        <span class="rwatch"></span>
+        ${isW ? '' : `<button class="icon rrole chip" data-act="role" title="Naše rasa = hlídá se pokles pod práh (obrana). Cizí rasa = hlídá se, kdo je k dobytí."></button><button class="icon rcfgbtn chip" data-act="cfg" title="Práh a kritická hranice této rasy"></button>`}
+      </div>
+      ${isW ? '' : `<div class="rcfg" hidden>
+        <label>Práh rasy<input type="text" inputmode="numeric" class="num rth"></label>
+        <label title="Kritická hranice jako % z prahu hráče">Kritická (% prahu)<input type="number" min="0" max="100" class="rcrit"></label>
+      </div>`}
     </div>
     <div class="rbody"><table>
       <thead><tr><th class="sortable" data-act="sort" data-key="name" title="Řadit podle jména">Jméno <span class="sarrow"></span></th>${isW ? '<th>Rasa</th>' : ''}<th class="n pc sortable" data-act="sort" data-key="planets" title="Řadit podle počtu planet. Získaná planeta zeleně +1, ztracená červeně −1 (30 s od poslední změny)">Planety <span class="sarrow"></span><button type="button" class="mini ddbtn" data-act="dday" title="Ukázat u každého hráče, kolik planet získal nebo ztratil za den (údaj ze hry, jako ve hře)">±</button></th><th class="n sortable" data-act="sort" data-key="power" title="Řadit podle síly">Síla <span class="sarrow"></span></th><th class="dcol" title="Druhy útoku jako ve hře: D dobývací, P partyzánský, Z, U univerzální, N orbitální, L loupežný, S špionážní, T otrokářský. Svítí = jde zahájit">Útok</th><th class="c hcol" title="Pošle hráči rasovou armádu (stránka Jednotky → Rasová armáda musí být otevřená a vyplněná)"></th><th class="c">Hlídat</th></tr></thead>
@@ -821,10 +883,9 @@ async function dohodit(btn) {
     const r = await fetch('/api/army', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) }).then((x) => x.json());
     if (!r.ok) return toast(r.error || 'Dohodit nejde', true);
     toast(`Dohazuji ${name}…`);
-    for (let i = 0; i < 40; i++) { // max ~20 s
-      await new Promise((ok) => setTimeout(ok, 500));
-      const st = (await api('/api/army')).req;
-      if (!st || st.id !== r.id) continue;
+    for (let i = 0; i < 3; i++) { // server odpoví, jakmile je vyřízeno (dlouhé dotazování), max ~20 s na pokus
+      const st = (await api(`/api/army/wait?id=${r.id}`)).req;
+      if (!st || st.id !== r.id) break;
       if (st.status === 'sent') return toast(`Odesláno: ${name} ✓`);
       if (st.status === 'error') return toast(`Neodesláno (${name}): ${st.error}`, true);
       if (st.status === 'expired') return toast('Stránka Rasová armáda si požadavek nevyzvedla, nic se neodeslalo', true);
@@ -868,6 +929,20 @@ function flashValue(el, d) {
   if (!d || reduceMotion || !el.animate) return;
   el.animate([{ backgroundColor: d > 0 ? 'rgba(46,204,64,.42)' : 'rgba(255,77,77,.42)' }, { backgroundColor: 'rgba(0,0,0,0)' }], { duration: 1100, easing: 'ease-out' });
 }
+/** Pád pod práh: řádek vzplane červeně, jméno se zatřese a síla „udeří“. */
+function dropFx(row) {
+  if (reduceMotion || !row.tr.animate) return;
+  for (const td of row.tr.children) td.animate([{ backgroundColor: 'rgba(255,60,60,.8)' }, { backgroundColor: 'rgba(255,60,60,.18)' }], { duration: 1000, easing: 'ease-out' });
+  row.nm.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(3px)' }, { transform: 'translateX(0)' }], { duration: 460 });
+  row.pw.v.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.22)', offset: .3 }, { transform: 'scale(1)' }], { duration: 520 });
+}
+/** Návrat nad práh: řádek se zalije zelenou, jméno se rozzáří a síla se zvedne. */
+function riseFx(row) {
+  if (reduceMotion || !row.tr.animate) return;
+  for (const td of row.tr.children) td.animate([{ backgroundColor: 'rgba(90,209,154,.6)' }, { backgroundColor: 'rgba(90,209,154,0)' }], { duration: 1900, easing: 'ease-out' });
+  row.nm.animate([{ textShadow: '0 0 0 rgba(90,209,154,0)', transform: 'scale(1)' }, { textShadow: '0 0 14px rgba(90,209,154,1)', transform: 'scale(1.16)', offset: .35 }, { textShadow: '0 0 0 rgba(90,209,154,0)', transform: 'scale(1)' }], { duration: 1500, easing: 'ease-out' });
+  row.pw.v.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-5px) scale(1.15)', offset: .35 }, { transform: 'translateY(0)' }], { duration: 650, easing: 'ease-out' });
+}
 /** Plynulé přesunutí řádků po změně pořadí (FLIP): řádek se nejdřív vrátí na starou pozici a pak do nové doklouzne. */
 function flipRows(rows, first) {
   if (reduceMotion) return;
@@ -903,7 +978,7 @@ function updatePanel(id) {
     v.name.textContent = r ? r.name : `Rasa #${id}`;
     const age = r ? ageOf(r) : null;
     v.info.textContent = r && r.at
-      ? `${r.players.length} hráčů · ${r.sources} ${plural(r.sources)} · data před ${(age / 1000).toFixed(1)} s`
+      ? `${r.players.length} hráčů · ${(age / 1000).toFixed(1).replace('.', ',')} s`
       : 'zatím žádná data – otevři stránku této rasy';
     v.dot.className = 'dot' + (!r || !r.at ? '' : isLive(r) ? ' live' : ' stale');
     v.root.querySelectorAll('[data-act=mode]').forEach((b) => b.classList.toggle('on', b.dataset.mode === mode));
@@ -916,13 +991,14 @@ function updatePanel(id) {
     const w = r ? r.players.filter((p) => p.watched).length : 0;
     v.watchTxt.innerHTML = mode === 'off' ? 'Nic se nehlídá'
       : mode === 'selected' && !w ? 'Zapni hráče přepínačem vpravo'
-      : `Hlídá se <b>${w}</b> z ${total} hráčů${attack ? ` · 🎯 k dobytí <b>${r.players.filter((p) => p.target).length}</b>` : ''}`;
+      : `Hlídá <b>${w}</b>/${total}${attack ? ` · 🎯 <b>${r.players.filter((p) => p.target).length}</b>` : ''}`;
     const th = r?.threshold ?? cfg.threshold;
     const pct = r?.criticalPct ?? cfg.criticalPct;
-    v.cfgBtn.textContent = attack ? `⚙ 🎯 pod ${short(cfg.conquest.below)} · konec nad ${short(cfg.conquest.above)}` : `⚙ Práh ${short(th)}${pct ? ` · 🆘 ${pct} %` : ''}`;
+    v.cfgBtn.textContent = attack ? `⚙ 🎯 <${short(cfg.conquest.below)} / >${short(cfg.conquest.above)}` : `⚙ ${short(th)}${pct ? ` · 🆘${pct}%` : ''}`;
     v.cfgBtn.title = attack ? 'Hranice k dobytí (společné pro cizí rasy) – otevře Nastavení' : 'Práh a kritická hranice této rasy';
     v.cfgBtn.classList.toggle('open', !!st.cfgOpen && !attack);
     v.cfgBox.hidden = !st.cfgOpen || attack;
+    v.cfgBox.style.top = (v.cfgBox.parentElement.querySelector('.rbar')?.offsetHeight ?? 40) + 'px';
     v.th.placeholder = dots(cfg.threshold);
     if (document.activeElement !== v.th && !pending) v.th.value = dots(r?.threshold);
     v.crit.placeholder = String(cfg.criticalPct);
@@ -986,12 +1062,16 @@ function updatePanel(id) {
     const atk = pr.role === 'attack';
     // naše rasa: pád pod práh = jméno 10 s červeně bliká (jen při přechodu nad -> pod, ne po načtení stránky)
     const isBelow = !atk && p.power < p.threshold;
+    const alarm = isBelow && p.watched; // červený řádek a svítící Dohodit jen u hráče, kterého hlídáme
     const bk = `${pr.id}|${p.name}`;
-    if (belowSeen.get(bk) === false && isBelow) blinkUntil.set(bk, Date.now() + BLINK_MS);
+    const was = belowSeen.get(bk);
+    if (p.watched && was === false && isBelow) { blinkUntil.set(bk, Date.now() + BLINK_MS); dropFx(row); } // pád pod práh
+    else if (p.watched && was === true && !isBelow && !atk) riseFx(row); // návrat nad práh
     belowSeen.set(bk, isBelow);
-    row.nm.classList.toggle('blink', (blinkUntil.get(bk) ?? 0) > Date.now());
-    row.tr.classList.toggle('below', isBelow);
-    row.tr.classList.toggle('flash', isBelow && (blinkUntil.get(bk) ?? 0) > Date.now());
+    const blinking = alarm && (blinkUntil.get(bk) ?? 0) > Date.now();
+    row.nm.classList.toggle('blink', blinking);
+    row.tr.classList.toggle('below', alarm);
+    row.tr.classList.toggle('flash', blinking);
     row.power.classList.toggle('below', !atk && p.power < p.threshold);
     const isCrit = !atk && p.critical > 0 && p.power < p.critical;
     row.power.classList.toggle('crit', isCrit);
@@ -1369,7 +1449,7 @@ ntMenu.addEventListener('change', (e) => {
   cfg.notifyTypes = { ...cfg.notifyTypes, [k]: e.target.checked };
   savePartial({ notifyTypes: { [k]: e.target.checked } });
 });
-$('notifyMaster').onchange = () => { $('notifyTgl').classList.toggle('on', $('notifyMaster').checked); savePartial({ notify: $('notifyMaster').checked }); };
+$('notifyMaster').onchange = () => { $('notifyCaret').classList.toggle('on', $('notifyMaster').checked); ntMenu.classList.toggle('off', !$('notifyMaster').checked); savePartial({ notify: $('notifyMaster').checked }); };
 
 function render() {
   renderData(); renderBoard(); renderAlerts(); renderOp();

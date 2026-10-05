@@ -39,3 +39,14 @@ test('dohodit: chyba ze skriptu (nevyplněné jednotky) se ukáže', () => {
   a.report({ id, ok: false, error: 'na stránce nejsou vyplněné žádné jednotky' });
   assert.deepEqual(a.status(300).req, { id, name: 'Wernt', status: 'error', error: 'na stránce nejsou vyplněné žádné jednotky' });
 });
+
+test('dohodit: skript čekající dlouhým dotazováním = stránka je otevřená (i bez běžného dotazu)', () => {
+  const a = createArmy();
+  a.waitStart(0);
+  assert.equal(a.status(60_000).pageLive, true, 'čeká, takže žije');
+  const r = a.request('Wernt', 60_000);
+  assert.equal(r.ok, true);
+  a.waitEnd(61_000);
+  assert.equal(a.status(61_500).pageLive, true, 'právě se ozval');
+  assert.equal(a.status(70_000).pageLive, false, 'po skončení čekání a 5 s ticha už ne');
+});

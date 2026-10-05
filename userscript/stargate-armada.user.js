@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – rasová armáda
 // @namespace    sg-dominator
-// @version      2.0.1
+// @version      2.1.0
 // @description  Na pokyn z aplikace (tlačítko Dohodit) vepíše jméno hráče do „Odeslat hráči“ a klikne na Odeslat; pak se vrátí zpět a znovu vyplní počty jednotek podle nastavení v aplikaci (Nastavení → Dohoz).
 // @match        https://stargate-game.cz/jednotky.php*
 // @match        https://www.stargate-game.cz/jednotky.php*
@@ -43,14 +43,14 @@
   if (!nameInput || !nameInput.form) return; // není stránka Rasová armáda
   const form = nameInput.form;
 
-  function post(path, data, method = 'POST') {
+  function post(path, data, method = 'POST', timeout = 5000) {
     return new Promise((resolve) => {
       GM_xmlhttpRequest({
         method,
         url: `${SERVER}${path}`,
         headers: { 'content-type': 'application/json', 'x-token': TOKEN },
         data: data ? JSON.stringify(data) : undefined,
-        timeout: 5000,
+        timeout,
         onload: (r) => { try { resolve(JSON.parse(r.responseText)); } catch { resolve(null); } },
         onerror: () => resolve(null),
         ontimeout: () => resolve(null),
@@ -85,7 +85,7 @@
       if (!overwrite && /\d/.test(input.value)) continue; // co už někdo vyplnil, se nepřepisuje
       const value = u.max ? available : u.count > 0 ? (available != null ? Math.min(u.count, available) : u.count) : 0;
       if (!(value > 0)) continue; // v aplikaci nic nastaveno: pole nechat, jak je (třeba ručně vyplněné / obnovené prohlížečem)
-      await sleep(rnd(60, 180));
+      await sleep(rnd(25, 70));
       setValue(input, value);
       n += 1;
     }
@@ -110,7 +110,8 @@
   let busy = false;
   async function tick() {
     if (busy) return;
-    const ins = await post('/army/poll', {});
+    const ins = await post('/army/poll', {}, 'POST', 30_000); // dlouhé dotazování: server odpoví hned, jak aplikace zadá Dohodit
+    if (!ins) { await sleep(1000); return; } // server nedostupný: chvíli počkat
     if (ins?.action !== 'send' || !ins.name) return;
     busy = true;
     try {
@@ -120,7 +121,7 @@
       nameInput.value = ins.name;
       nameInput.dispatchEvent(new Event('input', { bubbles: true }));
       nameInput.dispatchEvent(new Event('change', { bubbles: true }));
-      await sleep(rnd(150, 400));
+      await sleep(rnd(50, 130));
       const btn = form.querySelector('#odeslat') || form.querySelector('input[type="image"], input[type="submit"], button[type="submit"]');
       if (!btn) { await post('/army/report', { id: ins.id, ok: false, error: 'tlačítko Odeslat nenalezeno' }); return; }
       await post('/army/report', { id: ins.id, ok: true, units: filledUnits().length });
@@ -130,6 +131,5 @@
       busy = false;
     }
   }
-  setInterval(tick, 700);
-  tick();
+  (async () => { for (;;) { try { await tick(); } catch { await sleep(1000); } } })();
 })();

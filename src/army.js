@@ -10,11 +10,12 @@ export function createArmy() {
   let seq = 0;
   let pageSeenAt = -Infinity; // stránka se zatím neozvala
   let req = null; // { id, name, at, status: 'pending'|'sending'|'sent'|'error'|'expired', error }
+  let waiting = 0; // kolik skriptů právě čeká na pokyn (dlouhé dotazování): stránka je pak otevřená, i když neposlala běžný dotaz
 
   /** Kliknutí na Dohodit v aplikaci. */
   function request(name, now = Date.now()) {
     if (typeof name !== 'string' || !name.trim() || name.length > 64) return { ok: false, error: 'chybí jméno hráče' };
-    if (now - pageSeenAt > PAGE_LIVE_MS) return { ok: false, error: 'Otevři ve hře stránku Jednotky → Rasová armáda (se skriptem) a vyplň počty jednotek.' };
+    if (!waiting && now - pageSeenAt > PAGE_LIVE_MS) return { ok: false, error: 'Otevři ve hře stránku Jednotky → Rasová armáda (se skriptem) a vyplň počty jednotek.' };
     if (req && (req.status === 'pending' || req.status === 'sending') && now - req.at < REQUEST_TTL_MS) {
       return { ok: false, error: `Ještě se dohazuje ${req.name}, chvíli počkej.` };
     }
@@ -38,10 +39,14 @@ export function createArmy() {
     req.error = ok ? '' : String(error ?? 'neznámá chyba').slice(0, 160);
   }
 
+  /** Skript začal / skončil čekat na pokyn (dlouhé dotazování). */
+  const waitStart = (now = Date.now()) => { waiting += 1; pageSeenAt = now; };
+  const waitEnd = (now = Date.now()) => { waiting = Math.max(0, waiting - 1); pageSeenAt = now; };
+
   const status = (now = Date.now()) => ({
-    pageLive: now - pageSeenAt <= PAGE_LIVE_MS,
+    pageLive: waiting > 0 || now - pageSeenAt <= PAGE_LIVE_MS,
     req: req && { id: req.id, name: req.name, status: req.status === 'pending' && now - req.at > REQUEST_TTL_MS ? 'expired' : req.status, error: req.error },
   });
 
-  return { request, poll, report, status };
+  return { request, poll, report, status, waitStart, waitEnd };
 }
