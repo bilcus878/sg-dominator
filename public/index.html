@@ -62,6 +62,13 @@
   .rpanel[data-role=defend] .dcol { display:none; }
   .rpanel[data-role=attack] .hcol { display:none; } /* dohodit jen naší rase */
   .rbody td.hcol { width:1%; white-space:nowrap; } .dohodit { padding:3px 9px; font-size:12px; }
+  /* hráč naší rasy pod prahem: celý řádek červeně (trvale), po pádu 10 s navíc pulzuje; tlačítko Dohodit svítí, ať je jasné, kam kliknout */
+  tr.below td { background:rgba(214,31,31,.14); } tr.below td:first-child { box-shadow:inset 4px 0 0 var(--bad); }
+  tr.below td.crit { background:rgba(255,107,107,.26); }
+  tr.below.flash td { animation:sgRow 1s ease-in-out infinite; } @keyframes sgRow { 50% { background:rgba(214,31,31,.42); } }
+  tr.below .dohodit { background:linear-gradient(180deg,#ff5a5a,#d61f1f); color:#fff; border-color:#ff8a8a; font-weight:700; padding:4px 12px; animation:sgGlow 1.4s ease-out infinite; }
+  tr.below .dohodit:hover { filter:brightness(1.15); }
+  @keyframes sgGlow { 0% { box-shadow:0 0 6px 0 rgba(255,77,77,.7), 0 0 0 0 rgba(255,77,77,.6); } 70% { box-shadow:0 0 16px 2px rgba(255,77,77,.95), 0 0 0 10px rgba(255,77,77,0); } 100% { box-shadow:0 0 6px 0 rgba(255,77,77,.7), 0 0 0 0 rgba(255,77,77,0); } }
   .dohodit.busy { opacity:.6; pointer-events:none; } /* D (dobýt) má smysl jen u cizí rasy */
   .rbody th.dcol, .rbody td.dcol { width:1%; white-space:nowrap; padding-left:4px; padding-right:4px; }
   /* druhy útoku jako ve hře (D P Z U N L S T): svítí = jde zahájit */
@@ -956,6 +963,8 @@ function updatePanel(id) {
     if (belowSeen.get(bk) === false && isBelow) blinkUntil.set(bk, Date.now() + BLINK_MS);
     belowSeen.set(bk, isBelow);
     row.nm.classList.toggle('blink', (blinkUntil.get(bk) ?? 0) > Date.now());
+    row.tr.classList.toggle('below', isBelow);
+    row.tr.classList.toggle('flash', isBelow && (blinkUntil.get(bk) ?? 0) > Date.now());
     row.power.classList.toggle('below', !atk && p.power < p.threshold);
     const isCrit = !atk && p.critical > 0 && p.power < p.critical;
     row.power.classList.toggle('crit', isCrit);
