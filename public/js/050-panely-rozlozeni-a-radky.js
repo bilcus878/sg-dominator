@@ -101,7 +101,7 @@ function makeRow(v, r, p) {
     <td class="c hcol"><button class="ghost dohodit" data-act="dohodit" title="Pošle hráči rasovou armádu">Dohodit</button></td>
     <td class="c"><label class="sw"><input type="checkbox"><span></span></label></td>`;
   const nameTd = tr.children[0];
-  nameTd.innerHTML = '<span class="on"></span><span class="nm"></span><span class="rcl"></span><span class="tg"></span><span class="thl"><button type="button" class="pset" aria-haspopup="dialog"><i class="pgear">⚙</i><b class="pa" hidden></b><b class="pb" hidden></b></button></span>';
+  nameTd.innerHTML = '<span class="on"></span><span class="nm"></span><span class="rcl"></span><span class="ecl"></span><span class="tg"></span><span class="thl"><button type="button" class="pset" aria-haspopup="dialog"><i class="pgear">⚙</i><b class="pa" hidden></b><b class="pb" hidden></b></button></span>';
   nameTd.querySelector('.nm').textContent = p.name;
   nameTd.addEventListener('click', (e) => { if (!e.target.closest('.thl')) copyName(p.name); });
   if (v.isW) tr.children[1].textContent = r.name;
@@ -110,7 +110,7 @@ function makeRow(v, r, p) {
   sw.dataset.kind = 'watch';
   const cell = (td) => ({ td, v: td.querySelector('.pv'), d: td.querySelector('.pd'), dd: td.querySelector('.pdd') });
   const hb = tr.querySelector('.dohodit'); hb.dataset.name = p.name;
-  return { tr, hb, nm: nameTd.querySelector('.nm'), rcl: nameTd.querySelector('.rcl'), on: nameTd.querySelector('.on'), tag: nameTd.querySelector('.tg'), thl: nameTd.querySelector('.thl'), pset, psa: pset.querySelector('.pa'), psb: pset.querySelector('.pb'), atks: tr.querySelector('.atks'), planets: cell(tr.children[v.isW ? 2 : 1]), pw: cell(tr.children[v.isW ? 3 : 2]), power: tr.children[v.isW ? 3 : 2], sw };
+  return { tr, hb, nm: nameTd.querySelector('.nm'), rcl: nameTd.querySelector('.rcl'), ecl: nameTd.querySelector('.ecl'), on: nameTd.querySelector('.on'), tag: nameTd.querySelector('.tg'), thl: nameTd.querySelector('.thl'), pset, psa: pset.querySelector('.pa'), psb: pset.querySelector('.pb'), atks: tr.querySelector('.atks'), planets: cell(tr.children[v.isW ? 2 : 1]), pw: cell(tr.children[v.isW ? 3 : 2]), power: tr.children[v.isW ? 3 : 2], sw };
 }
 
 /** Dohodit: pošle hráči rasovou armádu přes skript na stránce Jednotky → Rasová armáda a počká na výsledek. */
@@ -354,7 +354,15 @@ function updatePanel(id) {
     const rcTxt = p.recalcHour == null ? '' : `⟳ ${String(p.recalcHour).padStart(2, '0')}:00`;
     if (row.rcl.textContent !== rcTxt) {
       row.rcl.textContent = rcTxt;
-      row.rcl.title = rcTxt ? `Přepočet (vynulování Dobyt) – naposledy ${new Date(p.recalcAt).toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}` : '';
+      row.rcl.title = rcTxt ? `Vojenský přepočet (vynulování Dobyt) – naposledy ${new Date(p.recalcAt).toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}` : '';
+    }
+    // ekonomický přepočet (odhad: růst populace, 🟢 online, 🪐 přibyté planety z mateřských lodí): „💰 14:23“
+    const ecTxt = p.econAt ? `💰 ${new Date(p.econAt).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })}` : '';
+    if (row.ecl.textContent !== ecTxt) {
+      row.ecl.textContent = ecTxt;
+      const dt = (t) => new Date(t).toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
+      row.ecl.title = ecTxt ? ['Ekonomický přepočet (odhad z růstu populace)', p.econUsual ? `obvykle kolem ${String(p.econUsual.hour).padStart(2, '0')}:00 (${p.econUsual.n}×)` : '',
+        ...(p.econEvents ?? []).map((e) => `• ${dt(e.at)}${e.online ? ' 🟢 online' : ''}${e.colon > 0 ? ` 🪐 +${e.colon} planet` : ''}`)].filter(Boolean).join('\n') : '';
     }
     row.power.title = [
       recent ? `Změna síly ${signed(recent)} před ${Math.max(1, Math.round((S.serverTime - p.powerAt) / 1000))} s` : '',

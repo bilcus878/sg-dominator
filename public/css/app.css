@@ -67,7 +67,7 @@
   @keyframes sgBlink { 0% { color:#fff; background:#d61f1f; } 50% { color:#ff4d4d; background:transparent; } }
   td.pname .nm[data-rank=vudce] { color:#f1c40f; font-weight:600; } td.pname .nm[data-rank=zastupce] { color:#ffffff; font-weight:600; } td.pname .nm[data-rank=ministr] { color:#3ccf4e; } td.pname .nm[data-rank=obcan] { color:#626cc6; }
   td.pname .on.yes { background:#2ecc40; box-shadow:0 0 4px #2ecc40; }
-  td.pname .rcl { margin-left:6px; font-size:11px; color:var(--mut); white-space:nowrap; } /* přepočet hráče ⟳ 14:00 */
+  td.pname .rcl, td.pname .ecl { margin-left:6px; font-size:11px; color:var(--mut); white-space:nowrap; } /* přepočty hráče: ⟳ 14:00 vojenský, 💰 14:23 ekonomický */
   .rpanel[data-role=defend] .dcol { display:none; }
   .rpanel[data-role=attack] .hcol { display:none; } /* dohodit jen naší rase */
   .rbody td.hcol { width:1%; white-space:nowrap; } .dohodit { padding:3px 9px; font-size:12px; }

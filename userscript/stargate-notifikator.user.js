@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator
 // @namespace    sg-dominator
-// @version      3.13.0
+// @version      3.14.0
 // @description  Čte tabulku hráčů a posílá sílu na lokální notifikační server (bez zásahu do stránky)
 // @match        https://stargate-game.cz/vesmir.php*
 // @match        https://www.stargate-game.cz/vesmir.php*
@@ -51,19 +51,21 @@
     let planetsIdx = -1;
     let attackIdx = -1;
     let dobytIdx = -1;
+    let popIdx = -1;
     dDebug = '';
     for (const tr of root.querySelectorAll('tr')) {
       const td = tr.querySelectorAll(':scope > td, :scope > th');
       const texts = [...td].map((c) => c.textContent.trim());
       const iName = texts.findIndex((t) => /^Jméno/i.test(t));
       const iPower = texts.findIndex((t) => /^Síla/i.test(t));
-      if (iName >= 0 && iPower >= 0) { nameIdx = iName; powerIdx = iPower; planetsIdx = texts.findIndex((t) => /^Planety/i.test(t)); attackIdx = texts.findIndex((t) => /^Útok/i.test(t)); dobytIdx = texts.findIndex((t) => /^Dobyt/i.test(t)); continue; }
+      if (iName >= 0 && iPower >= 0) { nameIdx = iName; powerIdx = iPower; planetsIdx = texts.findIndex((t) => /^Planety/i.test(t)); attackIdx = texts.findIndex((t) => /^Útok/i.test(t)); dobytIdx = texts.findIndex((t) => /^Dobyt/i.test(t)); popIdx = texts.findIndex((t) => /^Populace/i.test(t)); continue; }
       if (td.length <= Math.max(nameIdx, powerIdx) || !/^\d+\.$/.test(texts[0])) continue;
       const name = (td[nameIdx].querySelector('a')?.textContent ?? td[nameIdx].textContent).trim();
       const power = cellNumber(td[powerIdx]);
       if (!name || !Number.isFinite(power)) continue;
       const p = { name, power, online: !!td[nameIdx].querySelector('img[src*="online"]') }; // zelená tečka před jménem = online
       if (dobytIdx >= 0 && td[dobytIdx]) { const dn = cellNumber(td[dobytIdx]); if (Number.isFinite(dn)) p.dobyt = dn; } // „11×“ -> 11; vynulování = přepočet hráče
+      if (popIdx >= 0 && td[popIdx]) { const pn = cellNumber(td[popIdx]); if (Number.isFinite(pn)) p.population = pn; } // růst populace = ekonomický přepočet (odhad)
       if (planetsIdx >= 0 && td[planetsIdx]) {
         // buňka typu "468 +19": počet planet a změna, kterou ukazuje hra (zelená +, červená −)
         const planets = cellNumber(td[planetsIdx]);
@@ -131,7 +133,7 @@
   let dirty = false; // změna přišla, zatímco předchozí odeslání ještě běželo: pošle se hned po jeho dokončení (dřív by čekala až na další změnu / 1 s)
   // diagnostika: výsledek posledního odeslání je vidět na stránce (data-sgd-*) a při chybě v konzoli, ať jde poznat, proč data nedorazila
   const mark = (k, v) => { try { if (document.documentElement.dataset[k] !== v) document.documentElement.dataset[k] = v; } catch { /* nic */ } };
-  mark('sgdScript', '3.13.0');
+  mark('sgdScript', '3.14.0');
   const finish = (label, res) => {
     mark('sgdLast', `${label} ${new Date().toLocaleTimeString('cs-CZ')}`);
     if (label !== 'ok') { mark('sgdErr', `${label}: ${JSON.stringify(res ?? {}).slice(0, 200)}`); console.warn('[Dominator] odeslání dat na server selhalo:', label, res); }
@@ -144,7 +146,7 @@
     const players = readPlayers();
     if (!players.length) return;
     for (const p of players) if (!Number.isFinite(p.planetsDelta) && deltaMap.has(p.name)) p.planetsDelta = deltaMap.get(p.name);
-    const body = JSON.stringify({ raceId, raceName: findRaceName(), page, src, ver: '3.13.0', dDebug, players });
+    const body = JSON.stringify({ raceId, raceName: findRaceName(), page, src, ver: '3.14.0', dDebug, players });
     const now = Date.now();
     const changed = body !== lastBody;
     if (inFlight) { if (changed) dirty = true; return; }
