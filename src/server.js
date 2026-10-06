@@ -218,6 +218,19 @@ function registerRace(raceId, name) {
   }
 }
 
+/** Skript „Přihlášení“ hlásí, že hru odhlásilo a jak se znovu přihlašuje. Zprávy jdou jen do servisního chatu (soukromě), nikdy do hlavní skupiny. */
+const SESSION_TEXT = { expired: '🔑', maintenance: '🛠', ok: '✅', retry: '🔁', failed: '⚠️', 'needs-user': '⚠️' };
+async function handleSession(req) {
+  if (!authOk(req)) return [401, { error: 'bad token' }];
+  const body = await readJson(req, 4096);
+  const event = typeof body.event === 'string' && body.event in SESSION_TEXT ? body.event : null;
+  const text = typeof body.text === 'string' ? body.text.slice(0, 300) : '';
+  if (!event) return [400, { error: 'invalid event' }];
+  console.log(`[přihlášení] ${event}: ${text}`);
+  if (text) sendService(cfg, `${SESSION_TEXT[event]} ${text}`);
+  return [200, { ok: true }];
+}
+
 async function handleIngest(req) {
   if (!authOk(req)) return [401, { error: 'bad token' }];
   const body = await readJson(req);
@@ -505,6 +518,7 @@ const routes = {
   'POST /vigilance': handleVigilance,
   'POST /telescope': handleTelescope,
   'POST /build/report': handleBuildReport,
+  'POST /session': handleSession,
   'GET /api/build': async () => buildView(),
   'PUT /api/build': async (req) => {
     cfg = sanitizeUpdate(cfg, { build: await readJson(req) });
@@ -595,7 +609,7 @@ button.ghost{background:transparent;color:#e7e9ee;border:1px solid #272d3b}.mute
 <p class="muted">Kód už obsahuje tvůj token a adresu serveru, proto ho kopíruj odsud, ne ze souboru ve složce. Chrome musí mít v <code>chrome://extensions</code> u Tampermonkey povolené „Uživatelské skripty“ (Allow user scripts).</p></div>
 <div id="list"></div>
 <script>
-const S=[['Rasová armáda','/armada.user.js','Tlačítko Dohodit: vepíše jméno hráče a odešle rasovou armádu.'],['Stavění','/stavby.user.js','Vyplňuje a staví na planetách.'],['Mapa (OP, bdělost, teleskop)','/mapa.user.js','Hlídá OP, potvrzuje bdělost a zapíná teleskop.'],['Síla hráčů','/userscript.user.js','Posílá sílu hráčů do hlídání.'],['Útok (D)','/utok.user.js','Vyplní dobývací útok: jednotky podle nastavení a náhodnou planetu cíle.']];
+const S=[['Rasová armáda','/armada.user.js','Tlačítko Dohodit: vepíše jméno hráče a odešle rasovou armádu.'],['Stavění','/stavby.user.js','Vyplňuje a staví na planetách.'],['Mapa (OP, bdělost, teleskop)','/mapa.user.js','Hlídá OP, potvrzuje bdělost a zapíná teleskop.'],['Síla hráčů','/userscript.user.js','Posílá sílu hráčů do hlídání.'],['Útok (D)','/utok.user.js','Vyplní dobývací útok: jednotky podle nastavení a náhodnou planetu cíle.'],['Přihlášení','/prihlaseni.user.js','Po odhlášení ze hry (každé ~3 h) se samo přihlásí a obnoví karty; v době údržby 3:00–3:31 počká.']];
 const el=document.getElementById('list');
 for(const [name,path,desc] of S){const d=document.createElement('div');d.className='card';
  d.innerHTML='<b></b> <span class="muted"></span><div class="v muted" style="margin:6px 0"></div><a class="btn"></a><button class="copy">Zkopírovat kód</button><button class="ghost show">Zobrazit kód</button><span class="msg ok"></span><textarea hidden readonly style="width:100%;height:200px;margin-top:8px;background:#10141b;color:#e7e9ee;border:1px solid #272d3b;border-radius:6px"></textarea>';
@@ -666,14 +680,14 @@ const server = createServer(async (req, res) => {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
       return res.end(INSTALL_PAGE);
     }
-    const scripts = { '/userscript.user.js': 'stargate-notifikator.user.js', '/mapa.user.js': 'stargate-mapa.user.js', '/stavby.user.js': 'stargate-stavby.user.js', '/armada.user.js': 'stargate-armada.user.js', '/utok.user.js': 'stargate-utok.user.js' };
+    const scripts = { '/userscript.user.js': 'stargate-notifikator.user.js', '/mapa.user.js': 'stargate-mapa.user.js', '/stavby.user.js': 'stargate-stavby.user.js', '/armada.user.js': 'stargate-armada.user.js', '/utok.user.js': 'stargate-utok.user.js', '/prihlaseni.user.js': 'stargate-prihlaseni.user.js' };
     if (req.method === 'GET' && scripts[path]) {
       return await serveFile(res, pub(`userscript/${scripts[path]}`), 'text/javascript', (s) =>
         s.replace('__TOKEN__', cfg.token).replace('__SERVER__', `http://127.0.0.1:${cfg.port}`),
       );
     }
     // stažení skriptu jako souboru (pro Tampermonkey → Nástroje → Importovat ze souboru, když „Instalovat odkazem“ blokuje Chrome)
-    const dl = req.method === 'GET' && /^\/dl\/(userscript|mapa|stavby|armada|utok)$/.exec(path);
+    const dl = req.method === 'GET' && /^\/dl\/(userscript|mapa|stavby|armada|utok|prihlaseni)$/.exec(path);
     if (dl) {
       const file = scripts[`/${dl[1]}.user.js`];
       const body = (await readFile(pub(`userscript/${file}`), 'utf8')).replace('__TOKEN__', cfg.token).replace('__SERVER__', `http://127.0.0.1:${cfg.port}`);
