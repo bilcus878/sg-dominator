@@ -37,6 +37,13 @@ const autoArmyIo = {
     const p = store.snapshot(raceId, Date.now()).players.find((x) => x.name === name);
     return p ? p.power < resolveWatch(cfg, raceId, name).threshold : true;
   },
+  /** Aktuální síla hráče z posledních dat (pro dohazování až po horní hranici). */
+  power(name) {
+    const raceId = playerRace.get(name);
+    if (!raceId) return null;
+    const p = store.snapshot(raceId, Date.now()).players.find((x) => x.name === name);
+    return p ? p.power : null;
+  },
   request(name) {
     const r = army.request(name);
     if (r.ok) { console.log(`[dohodit] auto: ${name}`); wakeArmy(); }
@@ -45,9 +52,10 @@ const autoArmyIo = {
 };
 setInterval(() => {
   for (const ev of autoArmy.tick(Date.now(), autoArmyIo)) {
-    if (ev.type !== 'fail') continue;
-    console.log(`[dohodit] auto selhal (${ev.name}): ${ev.error}`);
-    if (ev.notify) sendText(cfg, `⚠️ Auto-dohoz: ${ev.error}`);
+    if (ev.type === 'fail') console.log(`[dohodit] auto selhal (${ev.name}): ${ev.error}`);
+    else if (['done', 'stall', 'max'].includes(ev.type)) console.log(`[dohodit] auto ${ev.type}: ${ev.name} ${ev.text ?? ''}`);
+    const msg = ev.type === 'fail' ? (ev.notify ? `⚠️ Auto-dohoz: ${ev.error}` : '') : ev.notify ? ev.text : '';
+    if (msg && notifyOn(cfg, 'service')) sendText(cfg, msg); // systémové zprávy se dají vypnout v nabídce Upozornění
   }
 }, 300);
 const armyWait = (ms) => new Promise((ok) => { const t = setTimeout(ok, Math.max(0, ms)); armyWaiters.push(() => { clearTimeout(t); ok(); }); });

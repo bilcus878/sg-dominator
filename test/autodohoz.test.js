@@ -133,7 +133,7 @@ test('tick: stránka Rasová armáda není otevřená -> selhání, upozornění
 
 test('sanitizeAutoArmy: meze, max nikdy pod min, nesmysly se ignorují', () => {
   const n = sanitizeAutoArmy(AUTO_ARMY_DEFAULTS, { enabled: 1, minSec: '5', maxSec: '2', repeat: 1, cooldownSec: '90' });
-  assert.deepEqual(n, { enabled: true, minSec: 5, maxSec: 5, gapMinSec: 0.9, gapMaxSec: 2.5, repeat: true, cooldownSec: 90 });
+  assert.deepEqual(n, { ...AUTO_ARMY_DEFAULTS, enabled: true, minSec: 5, maxSec: 5, repeat: true, cooldownSec: 90 });
   const g = sanitizeAutoArmy(n, { gapMinSec: '7', gapMaxSec: '3' });
   assert.deepEqual([g.gapMinSec, g.gapMaxSec], [7, 7]); // max nikdy pod min
   assert.deepEqual([sanitizeAutoArmy(n, { gapMinSec: 999 }).gapMinSec, sanitizeAutoArmy(n, { gapMinSec: -1 }).gapMinSec], [60, 0]);
@@ -163,4 +163,121 @@ test('konfigurace: výchozí auto-dohoz je vypnutý a PUT ho zapne beze ztráty 
   assert.equal(next.army.auto.enabled, true);
   assert.deepEqual([next.army.auto.minSec, next.army.auto.maxSec], [1, 3]);
   assert.equal(next.army.units[0].count, 7);
+});
+
+
+// ---------- dohazování až po horní hranici ----------
+const TOP = { ...ON, minSec: 1, maxSec: 1, gapMinSec: 0, gapMaxSec: 0, topUp: true, topUpTarget: 750, topUpMaxRounds: 10, cooldownSec: 0 };
+/** io s měnitelnou sílou hráče: každý dohoz ji zvedne o `boost`. */
+const mkTopIo = (state, { boost = 150, below = () => true } = {}) => {
+  const sent = [];
+  return {
+    sent,
+    stillBelow: below,
+    power: () => state.power,
+    request: (name) => { sent.push(name); state.power += boost; return { ok: true }; },
+  };
+};
+/** Posune čas po půlvteřinách a vrací všechny události. */
+const run = (a, io, from, to, step = 500) => { const ev = []; for (let t = from; t <= to; t += step) ev.push(...a.tick(t, io)); return ev; };
+
+test('horní hranice: dohazuje opakovaně, dokud síla nepřekoná hranici, pak skončí zprávou', () => {
+  const state = { power: 60 };
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkTopIo(state, { boost: 200 });
+  a.onAlert(alert('X'), TOP, 0);
+  const ev = run(a, io, 0, 60_000);
+  assert.equal(io.sent.length, 4); // 60 -> 260 -> 460 -> 660 -> 860 (>= 750)
+  assert.equal(state.power, 860);
+  const done = ev.find((e) => e.type === 'done');
+  assert.ok(done && done.notify && /860/.test(done.text), 'čekal jsem hotovo se zprávou');
+  assert.equal(ev.filter((e) => e.type === 'sent').length, 4);
+  assert.deepEqual(a.snapshot(60_000).topping, []);
+  assert.equal(run(a, io, 60_500, 90_000).length, 0); // nic dalšího se nedohazuje
+});
+
+test('horní hranice: mezi koly se čeká na účinek (nedohazuje se naslepo)', () => {
+  const state = { power: 60 };
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkTopIo(state, { boost: 200 });
+  a.onAlert(alert('X'), TOP, 0);
+  a.tick(1000, io); // 1. dohoz
+  assert.equal(io.sent.length, 1);
+  a.tick(3000, io); // ještě není čas vyhodnotit účinek
+  a.tick(4900, io);
+  assert.equal(io.sent.length, 1);
+  a.tick(5000, io); // účinek se vyhodnotí, naplánuje se další kolo
+  a.tick(6100, io);
+  assert.equal(io.sent.length, 2);
+});
+
+test('horní hranice: síla po dohozu nevzrostla -> dohoz nezabírá, skončí varováním a neposílá dál', () => {
+  const state = { power: 60 };
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkTopIo(state, { boost: 0 }); // dohoz nic nepřidá
+  a.onAlert(alert('X'), TOP, 0);
+  const ev = run(a, io, 0, 60_000);
+  assert.equal(io.sent.length, 1);
+  const stall = ev.find((e) => e.type === 'stall');
+  assert.ok(stall && stall.notify);
+  assert.deepEqual(a.snapshot(60_000).topping, []);
+});
+
+test('horní hranice: nejvyšší počet dohozů zastaví smyčku', () => {
+  const state = { power: 10 };
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkTopIo(state, { boost: 1 }); // roste, ale strašně pomalu
+  a.onAlert(alert('X'), { ...TOP, topUpMaxRounds: 3 }, 0);
+  const ev = run(a, io, 0, 120_000);
+  assert.equal(io.sent.length, 3);
+  const max = ev.find((e) => e.type === 'max');
+  assert.ok(max && max.notify);
+});
+
+test('horní hranice: bez čerstvých dat o síle se nedohazuje donekonečna', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const sent = [];
+  const io = { stillBelow: () => true, power: () => null, request: (n) => { sent.push(n); return { ok: true }; } };
+  a.onAlert(alert('X'), TOP, 0);
+  const ev = run(a, io, 0, 60_000);
+  assert.equal(sent.length, 1);
+  assert.ok(ev.some((e) => e.type === 'stall'));
+});
+
+test('horní hranice: první dohoz se přeskočí, když je hráč už nad prahem; po dokončení jde znovu začít', () => {
+  const state = { power: 60 };
+  const a = createAutoArmy({ rand: () => 0 });
+  a.onAlert(alert('X'), TOP, 0);
+  a.tick(1000, mkTopIo(state, { below: () => false }));
+  assert.equal(a.snapshot(1000).topping.length, 0);
+  assert.equal(a.onAlert(alert('X'), TOP, 2000).scheduled, true); // žádná zbytková epizoda
+});
+
+test('horní hranice: pro jednoho hráče běží jen jedna smyčka a víc hráčů se nepřetahuje', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  assert.equal(a.onAlert(alert('X'), TOP, 0).scheduled, true);
+  assert.equal(a.onAlert(alert('X', 'threshold', { repeat: true }), { ...TOP, repeat: true }, 100).why, 'queued');
+  assert.equal(a.onAlert(alert('Y'), TOP, 100).scheduled, true);
+  assert.deepEqual(a.snapshot(100).topping.map((t) => t.name).sort(), ['X', 'Y']);
+});
+
+test('horní hranice vypnutá nebo bez cíle: chová se jako jeden dohoz', () => {
+  for (const cfg of [{ ...TOP, topUp: false }, { ...TOP, topUpTarget: 0 }]) {
+    const state = { power: 60 };
+    const a = createAutoArmy({ rand: () => 0 });
+    const io = mkTopIo(state, { boost: 10 });
+    a.onAlert(alert('X'), cfg, 0);
+    run(a, io, 0, 60_000);
+    assert.equal(io.sent.length, 1);
+  }
+});
+
+test('sanitizeAutoArmy: nastavení horní hranice se ořezává', () => {
+  const n = sanitizeAutoArmy(AUTO_ARMY_DEFAULTS, { topUp: 1, topUpTarget: '750000000.7', topUpMaxRounds: '8' });
+  assert.deepEqual([n.topUp, n.topUpTarget, n.topUpMaxRounds], [true, 750000000, 8]);
+  const c = sanitizeAutoArmy(n, { topUpTarget: -5, topUpMaxRounds: 999 });
+  assert.deepEqual([c.topUpTarget, c.topUpMaxRounds], [0, 50]);
+  assert.equal(sanitizeAutoArmy(n, { topUpMaxRounds: 0 }).topUpMaxRounds, 1);
+  assert.equal(sanitizeAutoArmy(n, { topUpTarget: 'abc' }).topUpTarget, 750000000);
+  assert.equal(AUTO_ARMY_DEFAULTS.topUp, false);
 });

@@ -38,9 +38,10 @@ function renderArmy(a) {
   $('armyAutoOn').checked = !!au.enabled; $('armyMin').value = au.minSec; $('armyMax').value = au.maxSec;
   $('armyGapMin').value = au.gapMinSec ?? 0.9; $('armyGapMax').value = au.gapMaxSec ?? 2.5;
   $('armyRepeat').checked = !!au.repeat; $('armyCooldown').value = au.cooldownSec;
+  $('armyTopUp').checked = !!au.topUp; $('armyTopTarget').value = au.topUpTarget ? dots(au.topUpTarget) : ''; $('armyTopRounds').value = au.topUpMaxRounds ?? 10;
 }
 const readArmy = () => ({ units: [...$('armyUnits').rows].map((tr) => ({ name: tr.querySelector('.aname').value.trim(), count: undots(tr.querySelector('.acount').value) ?? 0, max: tr.querySelector('.amax').checked })).filter((u) => u.name),
-  auto: { enabled: $('armyAutoOn').checked, minSec: $('armyMin').value, maxSec: $('armyMax').value, gapMinSec: $('armyGapMin').value, gapMaxSec: $('armyGapMax').value, repeat: $('armyRepeat').checked, cooldownSec: $('armyCooldown').value } });
+  auto: { enabled: $('armyAutoOn').checked, minSec: $('armyMin').value, maxSec: $('armyMax').value, gapMinSec: $('armyGapMin').value, gapMaxSec: $('armyGapMax').value, repeat: $('armyRepeat').checked, cooldownSec: $('armyCooldown').value, topUp: $('armyTopUp').checked, topUpTarget: undots($('armyTopTarget').value) ?? 0, topUpMaxRounds: $('armyTopRounds').value } });
 $('armyAdd').onclick = () => { $('armyUnits').appendChild(atkRow({ name: '', count: 0, max: false })); $('armyNone').hidden = true; markDirty(); };
 $('armyUnits').addEventListener('click', (e) => { const b = e.target.closest('.adel'); if (b) { b.closest('tr').remove(); markDirty(); } });
 function readAtk() {
@@ -87,9 +88,10 @@ function renderAutoArmy() {
   for (const cb of document.querySelectorAll('.autoarmy')) if (document.activeElement !== cb) cb.checked = on; // vypínače v záhlaví panelů
   const s = S.autoArmy;
   if (!s) return;
-  const label = { plan: 'naplánováno', sent: 'odesláno', skip: 'přeskočeno', fail: 'selhalo' };
+  const label = { plan: 'naplánováno', sent: 'odesláno', skip: 'přeskočeno', fail: 'selhalo', done: 'dosáhl horní hranice', stall: 'dohoz nezabral', max: 'došel max počet dohozů' };
   const last = s.recent[s.recent.length - 1];
   const txt = `${on ? 'Zapnuto' : 'Vypnuto'}. Odesláno ${s.sent}×, přeskočeno ${s.skipped}×, selhalo ${s.failed}×.`
+    + (s.topping?.length ? ` Dohazuje do horní hranice: ${s.topping.map((t) => `${esc(t.name)} (${t.rounds}/${t.maxRounds}, cíl ${dots(t.target)})`).join(', ')}.` : '')
     + (s.pending.length ? ` Čeká: ${s.pending.map((p) => `${esc(p.name)} za ${Math.ceil(p.inMs / 1000)} s`).join(', ')}.` : '')
     + (last ? ` Naposledy: ${esc(last.name)} – ${label[last.type] ?? last.type}${last.text ? ` (${esc(last.text)})` : ''}.` : '');
   const el = $('armyAutoStatus');
