@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – přihlášení
 // @namespace    sg-dominator
-// @version      1.0.0
+// @version      1.1.0
 // @description  Když hru po ~3 hodinách odhlásí (Vypršela platnost přihlášení), jedna karta se sama přihlásí zpátky (údaje doplní Chrome, skript hesla nezná), ostatní karty se obnoví. V době denní údržby (3:00–3:31) počká.
 // @match        https://stargate-game.cz/*
 // @match        https://www.stargate-game.cz/*
@@ -15,7 +15,7 @@
   'use strict';
   const SERVER = '__SERVER__';
   const TOKEN = '__TOKEN__';
-  const VERSION = '1.0.0'; // stejné jako @version
+  const VERSION = '1.1.0'; // stejné jako @version
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -103,6 +103,23 @@
     } catch { return false; }
   }
 
+  // Stránka s hráči rasy (vesmir.php?id_rasa=…) je nejrychlejší ukazatel: po odhlášení z ní zbyde jen prázdná stránka s počítadlem návštěv.
+  const onRacePage = /\/vesmir\.php$/.test(location.pathname) && /^\d+$/.test(new URLSearchParams(location.search).get('id_rasa') ?? '');
+  const hasPlayerRows = (root) => [...root.querySelectorAll('tr')].some((tr) => /^\d+\.$/.test((tr.cells[0]?.textContent ?? '').trim())); // řádek „1.“, „2.“…
+  async function fetchedHasPlayers() {
+    try {
+      const r = await fetch(location.href, { credentials: 'same-origin', cache: 'no-store' });
+      if (!r.ok) return true; // výpadek / údržba není odhlášení
+      const html = new TextDecoder('windows-1250').decode(await r.arrayBuffer());
+      return hasPlayerRows(new DOMParser().parseFromString(html, 'text/html'));
+    } catch { return true; }
+  }
+  /** Je hra opravdu odhlášená? (hláška o vypršení, nebo na stránce hráčů rasy chybí tabulka) */
+  async function stillLoggedOut() {
+    if (pageExpired() || (await probeExpired())) return true;
+    return onRacePage && !(await fetchedHasPlayers());
+  }
+
   // ---------- přihlášení ----------
   let heartbeat = null;
   const startHeartbeat = () => { if (!heartbeat) heartbeat = setInterval(renewLock, 20_000); };
@@ -124,7 +141,7 @@
     const end = Date.now() + wait;
     while (Date.now() < end) await sleep(Math.min(5_000, end - Date.now()) + 1);
     // znovu: mezitím se mohlo přihlásit ručně
-    if (!(await probeExpired()) && !pageExpired()) { finishQuiet('Přihlášení už platí (někdo se přihlásil sám).'); return; }
+    if (!(await stillLoggedOut())) { finishQuiet('Přihlášení už platí (někdo se přihlásil sám).'); return; }
     setState({ ...getState(), phase: 'go' });
     location.assign(location.origin + '/');
   }
@@ -192,6 +209,22 @@
     };
   }
 
+  // ---------- stránka hráčů rasy: tabulka zmizela (po odhlášení zbyde jen prázdná stránka) ----------
+  async function racePageLoop() {
+    await sleep(rnd(25_000, 40_000));
+    let missing = 0;
+    for (;;) {
+      if (!getState() && !isLoginPage() && !lockedByOther()) {
+        missing = hasPlayerRows(document) ? 0 : missing + 1;
+        if (missing >= 3) { // ~30 s bez tabulky (stránka se sama obnovuje, krátký výpadek se tím přejde)
+          if (!(await fetchedHasPlayers())) { startRelogin('na stránce hráčů rasy chybí tabulka (odhlášeno)'); return; }
+          missing = 0;
+        }
+      }
+      await sleep(rnd(8_000, 14_000));
+    }
+  }
+
   // ---------- hlídání: občas dotaz na hlavní stranu (jen jedna karta za minutu) ----------
   async function watchLoop() {
     await sleep(rnd(20_000, 40_000));
@@ -218,5 +251,6 @@
     if (isLoginPage()) return;
     if (pageExpired()) { await sleep(rnd(2_000, 6_000)); startRelogin('vypršelo přihlášení'); return; }
     watchLoop();
+    if (onRacePage) racePageLoop();
   })();
 })();
