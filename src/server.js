@@ -585,6 +585,8 @@ const routes = {
   'POST /telescope': handleTelescope,
   'POST /build/report': handleBuildReport,
   'POST /session': handleSession,
+  // uložené přihlašovací údaje dostane jen skript Přihlášení (token, jen 127.0.0.1) a jen když je jejich používání zapnuté; nikdy se nelogují
+  'GET /session/credentials': async (req) => (!authOk(req) ? [401, { error: 'bad token' }] : [200, cfg.login.enabled && cfg.login.user && cfg.login.password ? { user: cfg.login.user, password: cfg.login.password } : {}]),
   'GET /session/config': async (req) => (authOk(req) ? [200, cfg.session] : [401, { error: 'bad token' }]),
   'GET /api/build': async () => buildView(),
   'PUT /api/build': async (req) => {

@@ -56,3 +56,17 @@ test('údržba z nastavení: vlastní okno se respektuje', () => {
   assert.equal(maintenanceWaitMs(at(2, 10), cfg), 20 * 60_000 + 20_000);
   assert.equal(maintenanceWaitMs(at(3, 10), cfg), 0);
 });
+
+import { publicConfig, DEFAULTS } from '../src/config.js';
+test('uložené heslo ke hře: prázdné pole nic nemění, smazání funguje a do rozhraní se heslo nikdy nevrací', () => {
+  const base = { ...DEFAULTS, token: 'x' };
+  const a = sanitizeUpdate(base, { login: { enabled: true, user: '  bilcus87 ', password: 'tajne' } });
+  assert.deepEqual(a.login, { enabled: true, user: 'bilcus87', password: 'tajne' });
+  const b = sanitizeUpdate(a, { login: { password: '', user: 'bilcus87' } }); // prázdné = beze změny
+  assert.equal(b.login.password, 'tajne');
+  const pub = publicConfig(b);
+  assert.deepEqual(pub.login, { enabled: true, user: 'bilcus87', hasPassword: true });
+  assert.ok(!JSON.stringify(pub).includes('tajne'));
+  const c = sanitizeUpdate(b, { login: { clearPassword: true, enabled: false } });
+  assert.equal(c.login.password, ''); assert.equal(c.login.enabled, false);
+});

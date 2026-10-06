@@ -65,6 +65,7 @@ export const DEFAULTS = {
   // výjimky pro hráče: { [jméno]: { watch?: true|false, threshold?: číslo } }
   players: {},
   // skript Přihlášení: prodlevy (s) – po odhlášení do kliknutí a po konci denní údržby (3:31:20) do přihlášení
+  login: { enabled: false, user: '', password: '' }, // uložené přihlašovací údaje ke hře (jen na tomto počítači v config.json, nikdy v repozitáři); enabled = skript je při přihlášení sám vyplní
   session: { ...SESSION_DEFAULTS, notify: { ...SESSION_DEFAULTS.notify } }, // opětovné přihlášení po odhlášení ze hry (skript Přihlášení čte přes /session/config)
   op: { enabled: false, repeatSec: 10, vigilance: { ...VIGILANCE_DEFAULTS }, telescope: { ...TELESCOPE_DEFAULTS } }, // alert na tečky OP na mapě; repeatSec = připomínka, dokud svítí (0 = jen jednou); vigilance = automatické potvrzení tlačítka bdělosti po minSec až maxSec
   conquest: { ...CONQUEST_DEFAULTS }, // cizí rasy: k dobytí pod `below`, konec až nad `above`
@@ -98,6 +99,7 @@ export function loadConfig() {
   }
   const cfg = merge(DEFAULTS, stored);
   // uložená podobjekty se s výchozími slučují jen mělce, takže chybějící nová pole se doplní tady
+  cfg.login = { ...DEFAULTS.login, ...cfg.login };
   cfg.session = { ...DEFAULTS.session, ...cfg.session, notify: { ...SESSION_DEFAULTS.notify, ...cfg.session?.notify } };
   cfg.op.vigilance = { ...VIGILANCE_DEFAULTS, ...cfg.op.vigilance };
   cfg.op.telescope = { ...TELESCOPE_DEFAULTS, ...cfg.op.telescope };
@@ -264,6 +266,14 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
       if (Object.keys(rec).length) next.players[name] = rec; else delete next.players[name];
     }
   }
+  if (body.login && typeof body.login === 'object') {
+    const l = { ...DEFAULTS.login, ...cur.login };
+    if (typeof body.login.user === 'string') l.user = body.login.user.trim().slice(0, 64);
+    if (typeof body.login.password === 'string' && body.login.password) l.password = body.login.password.slice(0, 128); // prázdné pole = beze změny
+    if (body.login.clearPassword) l.password = '';
+    if ('enabled' in body.login) l.enabled = !!body.login.enabled;
+    next.login = l;
+  }
   if (body.session && typeof body.session === 'object') next.session = sanitizeSession(cur.session, body.session);
   if (body.op && typeof body.op === 'object') {
     next.op = { ...cur.op };
@@ -360,6 +370,7 @@ export function publicConfig(cfg) {
   const { token, ...rest } = cfg;
   return {
     ...rest,
+    login: { enabled: cfg.login.enabled, user: cfg.login.user, hasPassword: !!cfg.login.password }, // heslo se do rozhraní nikdy nevrací
     discord: { enabled: cfg.discord.enabled, configured: !!cfg.discord.webhookUrl },
     telegram: { enabled: cfg.telegram.enabled, configured: !!cfg.telegram.botToken, chatId: cfg.telegram.chatId, serviceChatId: cfg.telegram.serviceChatId ?? '' },
   };

@@ -332,6 +332,13 @@
         <div id="sesStatus" class="muted"></div>
       </div>
       <div class="chan">
+        <div class="chan-head"><span><b>Přihlašovací údaje</b></span><label class="sw"><input type="checkbox" id="loginUse"><span></span></label></div>
+        <p class="muted" style="margin-top:0">Zapnuto = skript údaje sám vyplní a přihlásí tě bez jediného kliknutí. Vypnuto = spoléhá se na Chrome (ten drží heslo skryté, dokud do panelu nekliknete). Heslo se ukládá <b>jen na tomto počítači</b> v textovém souboru s nastavením (<code>%LOCALAPPDATA%\sg-dominator\config.json</code>), nikdy se necommituje ani neposílá ven a do rozhraní se nevrací. Chráníš ho tím, že se k počítači nikdo cizí nedostane. Skript ho dostane jen od aplikace na tomto počítači (127.0.0.1) při přihlašování.</p>
+        <label for="loginUser">Login</label><input type="text" id="loginUser" autocomplete="off" spellcheck="false">
+        <label for="loginPass" style="margin-top:10px">Heslo <span class="muted" id="loginPassState"></span></label>
+        <div style="display:flex;gap:8px"><input type="password" id="loginPass" autocomplete="new-password" placeholder="nech prázdné = beze změny"><button class="ghost" id="loginClear" type="button" style="white-space:nowrap">Smazat heslo</button></div>
+      </div>
+      <div class="chan">
         <div class="chan-head"><span><b>Kdy se přihlásit</b></span></div>
         <div class="two"><div><label for="sesReactMin">Po odhlášení: nejdřív po (s)</label><input type="number" id="sesReactMin" min="0.5" max="30" step="0.1"></div>
           <div><label for="sesReactMax">nejpozději po (s)</label><input type="number" id="sesReactMax" min="0.5" max="30" step="0.1"></div></div>

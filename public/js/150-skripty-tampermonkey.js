@@ -58,6 +58,7 @@ $('save').onclick = async () => {
       myRace: $('myRace').value,
       army: readArmy(),
       session: collectSession(),
+      login: collectLogin(),
       discord: { enabled: $('dEnabled').checked, webhookUrl: $('dUrl').value },
       telegram: { enabled: $('tEnabled').checked, botToken: $('tToken').value, chatId: $('tChat').value, serviceChatId: $('tService').value },
     });

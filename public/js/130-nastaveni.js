@@ -22,6 +22,7 @@ function fillForm() {
   $('opRepeatSec').value = cfg.op.repeatSec; $('opEnabled2').checked = cfg.op.enabled;
   const vg = cfg.op.vigilance ?? { enabled: true, minSec: 5, maxSec: 10 };
   fillSession(cfg.session ?? {});
+  fillLogin(cfg.login ?? {});
   $('opVigEnabled').checked = vg.enabled; $('opVigMin').value = vg.minSec; $('opVigMax').value = vg.maxSec;
   $('opVigSkip').checked = vg.skipEnabled ?? true; $('opSkipMin').value = vg.skipMin ?? 5; $('opSkipMax').value = vg.skipMax ?? 10;
   $('opDownMin').value = vg.downMin ?? 3; $('opDownMax').value = vg.downMax ?? 15;
@@ -74,3 +75,14 @@ function renderSessionStatus() {
     ? 'Poslední události: ' + log.slice(0, 4).map((e) => { const [ic, t] = SES_EV[e.event] ?? ['•', e.event]; return '<div>' + ic + ' ' + new Date(e.at).toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' – ' + t + (e.text ? ': ' + e.text.replace(/</g, '&lt;') : '') + '</div>'; }).join('')
     : 'Od spuštění aplikace se skript ještě neodhlásil ani nepřihlašoval.';
 }
+
+/** Přihlašovací údaje: heslo se do pole nikdy nevrací, ukáže se jen, jestli je uložené */
+function fillLogin(l) {
+  $('loginUse').checked = !!l.enabled; $('loginUser').value = l.user ?? ''; $('loginPass').value = '';
+  $('loginPassState').textContent = l.hasPassword ? '✓ uloženo' : '(neuloženo)';
+}
+function collectLogin() { return { enabled: $('loginUse').checked, user: $('loginUser').value, password: $('loginPass').value }; }
+$('loginClear').onclick = async () => {
+  if (!confirm('Smazat uložené heslo z aplikace?')) return;
+  try { cfg = await api('/api/config', 'PUT', { login: { clearPassword: true, enabled: false } }); fillLogin(cfg.login); toast('Heslo smazáno'); } catch (e) { toast(e.message, true); }
+};

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – přihlášení
 // @namespace    sg-dominator
-// @version      1.7.0
+// @version      1.8.0
 // @description  Když hru po ~3 hodinách odhlásí, otevře se nový panel s přihlašovací stránkou, klikne na Přihlaš (údaje doplní Chrome, skript hesla nezná), panel se zavře a karty s daty se obnoví. V době denní údržby (výchozí 3:00–3:31) počká. Vše se nastavuje v aplikaci (Nastavení → Přihlášení).
 // @match        https://stargate-game.cz/*
 // @match        https://www.stargate-game.cz/*
@@ -16,7 +16,7 @@
   'use strict';
   const SERVER = '__SERVER__';
   const TOKEN = '__TOKEN__';
-  const VERSION = '1.7.0'; // stejné jako @version
+  const VERSION = '1.8.0'; // stejné jako @version
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -76,6 +76,24 @@
         onerror: () => resolve(d), ontimeout: () => resolve(d),
       });
     });
+  }
+  /** Uložené přihlašovací údaje z aplikace (jen když jsou v Nastavení → Přihlášení zapnuté); jinak {} a spoléhá se na Chrome. */
+  function loadCreds() {
+    return new Promise((resolve) => {
+      GM_xmlhttpRequest({
+        method: 'GET', url: `${SERVER}/session/credentials`, headers: { 'x-token': TOKEN }, timeout: 4000,
+        onload: (r) => { try { const j = JSON.parse(r.responseText); resolve(j.user && j.password ? j : null); } catch { resolve(null); } },
+        onerror: () => resolve(null), ontimeout: () => resolve(null),
+      });
+    });
+  }
+  /** Vyplní pole stejně jako při psaní (hra i prohlížeč vidí změnu hodnoty). */
+  function setField(el, value) {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    el.focus();
+    setter.call(el, value);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
   }
   const rndSec = (c, a, b) => rnd(c[a] * 1000, c[b] * 1000);
 
@@ -186,6 +204,8 @@
     startHeartbeat();
     const cfg = await loadCfg();
     const user = $('log-jmeno'), pw = $('log-heslo'), btn = $('loginButton'), form = $('prihlaseni');
+    const creds = await loadCreds();
+    if (creds) { setField(user, creds.user); setField(pw, creds.password); } // údaje uložené v aplikaci; jinak je doplní Chrome
     const filled = () => (user.value && pw.value) || (user.matches(':-webkit-autofill') && pw.matches(':-webkit-autofill'));
     // Chrome doplní uložené údaje sám; skript je nezná ani nevyplňuje
     let waited = 0;

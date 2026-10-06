@@ -268,3 +268,16 @@ test('Telegram: tlačítka Najít skupinu (hlavní i servisní) něco udělají 
   }
   await b.eval(`document.getElementById('closeSettings').click(); 1`);
 });
+
+test('Nastavení → Přihlášení: heslo se uloží, v rozhraní se ukáže jen „uloženo“ a smazat ho jde', { skip, timeout: 30_000 }, async () => {
+  await b.eval(`document.getElementById('openSettings').click(); document.querySelector('[data-tab=login]').click(); 1`); await sleep(300);
+  await b.eval(`(() => { const sv = (id, v) => { const e = document.getElementById(id); e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); }; sv('loginUser', 'tester'); sv('loginPass', 'heslo123'); })(); document.getElementById('loginUse').click(); document.getElementById('save').click(); 1`); await sleep(900);
+  const cfgNow = await app.api('/api/config');
+  assert.equal(cfgNow.login.hasPassword, true); assert.equal(cfgNow.login.user, 'tester'); assert.ok(!JSON.stringify(cfgNow).includes('heslo123'));
+  await b.eval(`document.getElementById('openSettings').click(); document.querySelector('[data-tab=login]').click(); 1`); await sleep(300);
+  assert.equal(await b.eval(`document.getElementById('loginPass').value`), '', 'heslo se do pole nevrací');
+  assert.match(await b.eval(`document.getElementById('loginPassState').textContent`), /uloženo/);
+  await b.eval(`window.confirm = () => true; document.getElementById('loginClear').click(); 1`); await sleep(700);
+  assert.equal((await app.api('/api/config')).login.hasPassword, false);
+  await b.eval(`document.getElementById('closeSettings').click(); 1`);
+});
