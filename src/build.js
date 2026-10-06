@@ -163,13 +163,21 @@ export function visitReasons(row, cfgBuild, entry, forceAll = false) {
 }
 
 /** Tabulka -> fronta planet k návštěvě (v pořadí tabulky) + počet přeskočených. */
-export function buildQueue(table, cfgBuild, ledgerPlanets = {}, forceAll = false) {
+/**
+ * Fronta planet. stage: 'auto' = když jsou v plánu města a někde chybí, vrátí jen průchod městy (stage 'cities');
+ * jinak celou frontu ('all'). 'rest' = druhý průchod po městech: všechno kromě měst.
+ * Položka může mít phases (které fáze na planetě dělat; bez nich všechny).
+ */
+export function buildQueue(table, cfgBuild, ledgerPlanets = {}, forceAll = false, stage = 'auto') {
   const queue = [];
   let skipped = 0;
+  const cityItems = [];
   for (const row of table) {
-    const why = visitReasons(row, cfgBuild, ledgerPlanets[row.id], forceAll);
+    let why = visitReasons(row, cfgBuild, ledgerPlanets[row.id], forceAll);
+    if (stage === 'rest') why = why.filter((w) => w !== 'mesto');
     if (!why.length) { skipped++; continue; }
     const item = { id: row.id, name: row.name, why };
+    if (stage === 'rest') item.phases = [1, 2];
     // města jdou postavit klikem na zelené maximum v tabulce, když plán chce maximum (nebo cíl aspoň na maximum)
     const pm = cfgBuild.plan?.mesto;
     const wantsMax = pm?.mode === 'max' || (pm?.mode === 'target' && Number.isFinite(row.mestaMax) && pm.n >= row.mestaMax);
@@ -177,9 +185,12 @@ export function buildQueue(table, cfgBuild, ledgerPlanets = {}, forceAll = false
       item.viaCities = true;
       item.cityAdd = Math.max(0, row.mestaMax - row.c.mesto);
     }
+    if (stage === 'auto' && why.includes('mesto')) cityItems.push({ ...item, why: ['mesto'], phases: [0] });
     queue.push(item);
   }
-  return { queue, skipped };
+  // města jsou v plánu a někde chybí: nejdřív projít jen města na všech planetách (zbytek po novém načtení tabulky)
+  if (stage === 'auto' && cityItems.length) return { queue: cityItems, skipped: table.length - cityItems.length, stage: 'cities' };
+  return { queue, skipped, stage: stage === 'rest' ? 'rest' : 'all' };
 }
 
 /** Surová tabulka ze skriptu -> řádky pro frontu. Nečitelný počet = -1, takže planeta se raději navštíví, než aby se omylem přeskočila. */
@@ -218,7 +229,7 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
   function fresh() {
     return {
       status: 'idle', startedAt: 0, lastSeenAt: 0, current: null, dry: false, staleNotified: false,
-      queue: null, queueTotal: 0, skipped: 0, excluded: 0, tableSize: 0, reasons: {}, gotoTries: {},
+      queue: null, queueTotal: 0, skipped: 0, excluded: 0, tableSize: 0, reasons: {}, gotoTries: {}, stage: 'auto',
       planets: [], cur: null, pending: null, failedInRow: 0, log: [],
     };
   }
@@ -271,10 +282,23 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
   const speed = (cfgBuild) => Math.round((Number(cfgBuild.pace) || 1) * (0.7 + rand() * 1.0) * 100) / 100;
 
   /** Další krok po dokončení planety: přejít na další planetu z fronty, nebo skončit. */
+  /** Fronta je prázdná: po průchodu městy ještě zbytek (nová tabulka), jinak konec. */
+  function queueDone(now) {
+    if (run.stage === 'cities') {
+      run.stage = 'rest';
+      run.queue = null;
+      run.gotoTries = {};
+      addLog('Města na všech planetách hotová, teď ostatní stavby', now);
+      return { action: 'send-table' };
+    }
+    finish(now);
+    return { action: 'done' };
+  }
+
   function routeNext(cfgBuild, now) {
     for (;;) {
       const head = run.queue[0];
-      if (!head) { finish(now); return { action: 'done' }; }
+      if (!head) return queueDone(now);
       const tries = (run.gotoTries[head.id] = (run.gotoTries[head.id] ?? 0) + 1);
       if (tries > MAX_GOTO_TRIES) { // na planetu se nedá přejít (zmizela z tabulky?) -> přeskočit
         run.queue.shift();
@@ -304,7 +328,9 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
     if (!run.dry) { // zkušební běh nic nestaví, takže historii nesmí měnit
       const old = ledger.planets[cur.id] ?? {};
       const entry = { ...old, name: cur.name, at: now, sat: cur.sat, satKnown: true, tried: { ...(old.tried ?? {}), ...cur.tried } };
-      if (state === 'failed') { // neúspěch (třeba došly suroviny) se nepamatuje jako „hotovo“, příště se zkusí znovu
+      if (cur.phases && !cur.phases.includes(1)) { // jen města: planeta ještě není hotová, „hotovo“ z dřívějška nechat beze změny
+        // nic
+      } else if (state === 'failed') { // neúspěch (třeba došly suroviny) se nepamatuje jako „hotovo“, příště se zkusí znovu
         delete entry.final;
         delete entry.capsKey;
       } else {
@@ -332,6 +358,7 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
       cur.note = 'spokojenost nerozpoznána, parky přeskočeny';
     }
     for (let p = cur.phase; p < PHASES.length; p++) {
+      if (cur.phases && !cur.phases.includes(p)) continue; // průchod jen městy / jen zbytkem
       const targets = planChanges(cfgBuild, rep.buildings, sat, p);
       if (!Object.keys(targets).length) continue;
       cur.phase = p;
@@ -400,13 +427,15 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
       const table = norm.table.filter((r) => !ledger.planets[r.id]?.uninhabitable); // neobyvatelné z dřívějška
       const { valid } = norm;
       const excluded = norm.excluded + (norm.table.length - table.length);
-      const { queue, skipped } = buildQueue(table, cfgBuild, ledger.planets, forceAll);
+      const { queue, skipped, stage } = buildQueue(table, cfgBuild, ledger.planets, forceAll, run.stage === 'rest' ? 'rest' : 'auto');
+      run.stage = stage;
       run.queue = queue;
       run.queueTotal = queue.length;
       run.skipped = skipped;
       run.excluded = excluded;
       run.tableSize = valid;
       run.reasons = summarizeQueue(queue);
+      if (stage === 'cities') addLog(`Nejdřív města: ${queue.length} planet`, now);
       addLog(`Tabulka: ${valid} planet (${excluded} se nestaví: (CP)/(DP)/(PP) nebo neobyvatelné), k návštěvě ${queue.length}, přeskočeno ${skipped} (hotové podle tabulky a historie)`, now);
     }
     if (!run.queue) return { action: 'send-table' };
@@ -433,10 +462,10 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
     }
     if (!run.cur) {
       const head = run.queue[0];
-      if (!head) { finish(now); return { action: 'done' }; }
+      if (!head) return queueDone(now);
       if (head.id !== plId) return routeNext(cfgBuild, now);
       const sat = rep.satisfaction === undefined || rep.satisfaction === null ? null : Number(rep.satisfaction);
-      run.cur = { id: plId, name, sat, phase: 0, grew: [], dry: [], failed: null, note: '', noted: false, tried: {} };
+      run.cur = { id: plId, name, sat, phase: 0, grew: [], dry: [], failed: null, note: '', noted: false, tried: {}, phases: head.phases ?? null };
     }
     const cur = run.cur;
 

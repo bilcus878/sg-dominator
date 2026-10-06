@@ -136,7 +136,7 @@ test('buildQueue: pořadí z tabulky a počet přeskočených', () => {
 const mkRun = (opts = {}) => createBuildRun({ rand: () => 0.5, ...opts });
 const rep = (plId, extra = {}) => ({ plId, planet: `P${plId}`, satisfaction: -50, buildings: page(), uninhabitable: false, ...extra });
 
-test('běh: tabulka -> fronta -> města -> ostatní (bez dolu) -> důl -> přechod na další planetu -> konec', () => {
+test('běh: nejdřív města na všech planetách, pak nová tabulka a ostatní (bez dolu) -> důl -> další planeta -> konec', () => {
   const sent = [];
   const ledger = { planets: {} };
   const run = mkRun({ notify: (t) => sent.push(t), ledger });
@@ -152,7 +152,18 @@ test('běh: tabulka -> fronta -> města -> ostatní (bez dolu) -> důl -> přech
   assert.deepEqual(ins.values, { mesto: 430 });
 
   const afterTowns = page({ mesto: { cur: 430, max: 430 } });
+  // průchod městy: po městech planety 1 hned na planetu 2 a 3, ostatní stavby až potom
   ins = run.report(rep('1', { phase: 'load', buildings: afterTowns }), c, 3);
+  assert.deepEqual([ins.action, ins.plId], ['goto', '2']);
+  assert.equal(ledger.planets['1']?.final, undefined, 'návštěva jen kvůli městům planetu za hotovou nepovažuje');
+  assert.deepEqual(run.report(rep('2', { phase: 'load' }), c, 3.1).values, { mesto: 430 });
+  assert.deepEqual([run.report(rep('2', { phase: 'load', buildings: afterTowns }), c, 3.2).plId], ['3']);
+  assert.deepEqual(run.report(rep('3', { phase: 'load' }), c, 3.3).values, { mesto: 430 });
+  assert.equal(run.report(rep('3', { phase: 'load', buildings: afterTowns }), c, 3.4).action, 'send-table'); // města všude hotová
+  const table2 = [row('1', { mesto: 430 }), row('2', { mesto: 430 }), row('3', { mesto: 430 })];
+  ins = run.report(rep('3', { phase: 'table', table: table2, buildings: afterTowns }), c, 3.5);
+  assert.deepEqual([ins.action, ins.plId], ['goto', '1']); // zbytek od začátku fronty
+  ins = run.report(rep('1', { phase: 'load', buildings: afterTowns }), c, 3.6);
   assert.equal(ins.phase, 1);
   assert.deepEqual(ins.values, { laborator: 50, park: 300 }); // důl v tomhle kroku není
 
@@ -173,8 +184,9 @@ test('běh: tabulka -> fronta -> města -> ostatní (bez dolu) -> důl -> přech
   assert.equal(run.report(rep('3', { phase: 'load', buildings: done }), c, 7).action, 'done');
   const snap = run.snapshot();
   assert.equal(snap.status, 'finished');
-  assert.deepEqual(snap.planets.map((p) => p.state), ['built', 'nothing', 'nothing']);
-  assert.match(snap.planets[0].note, /města.*ostatní stavby.*naquadahový důl/);
+  assert.deepEqual(snap.planets.map((p) => p.state), ['built', 'built', 'built', 'built', 'nothing', 'nothing']);
+  assert.match(snap.planets[0].note, /^města$/);
+  assert.match(snap.planets[3].note, /ostatní stavby.*naquadahový důl/);
   assert.match(sent.at(-1), /hotovo/);
 });
 
@@ -221,7 +233,10 @@ test('běh: fáze bez práce se přeskočí (města už na maximu -> rovnou osta
   const run = mkRun();
   const c = full();
   run.start(c, 0);
-  const ins = run.report(rep('1', { phase: 'table', table: [row('1')], satisfaction: 10, buildings: page({ mesto: { cur: 430, max: 430 } }) }), c, 1);
+  const towns = page({ mesto: { cur: 430, max: 430 } });
+  // tabulka ještě hlásí málo měst -> průchod městy, na stránce už jsou na maximu -> nic, pak nová tabulka
+  assert.equal(run.report(rep('1', { phase: 'table', table: [row('1')], satisfaction: 10, buildings: towns }), c, 1).action, 'send-table');
+  const ins = run.report(rep('1', { phase: 'table', table: [row('1', { mesto: 430 })], satisfaction: 10, buildings: towns }), c, 2);
   assert.equal(ins.phase, 1);
   assert.deepEqual(ins.values, { laborator: 50, park: 100 });
 });
@@ -270,10 +285,11 @@ test('zkušební běh: vyplní všechny fáze bez přenačtení, planetu nezapí
   run.start(c, 0);
   const table = [row('1')];
   assert.equal(run.report(rep('1', { phase: 'table', table }), c, 1).phase, 0);
-  assert.equal(run.report(rep('1', { phase: 'filled' }), c, 2).phase, 1);
+  assert.equal(run.report(rep('1', { phase: 'filled' }), c, 1.5).action, 'send-table'); // města všude, pak zbytek
+  assert.equal(run.report(rep('1', { phase: 'table', table }), c, 1.7).phase, 1);
   assert.equal(run.report(rep('1', { phase: 'filled' }), c, 3).phase, 2);
   assert.equal(run.report(rep('1', { phase: 'filled' }), c, 4).action, 'done');
-  assert.equal(run.snapshot().planets[0].state, 'dry');
+  assert.deepEqual(run.snapshot().planets.map((p) => p.state), ['dry', 'dry']);
   assert.deepEqual(ledger.planets, {});
 });
 
