@@ -103,10 +103,19 @@ test('sbalený panel ukazuje název a nabídka ⋮ se ukáže celá (neuřízne 
   await b.eval(`document.body.click(); document.querySelector('${P} [data-act=fold]').click(); 1`); await sleep(400);
 });
 
+test('nadpis panelu: štítky se v úzkém panelu nepřekrývají', { skip }, async () => {
+  for (const w of ['520px', '440px', '380px']) {
+    await b.eval(`document.querySelector('${P}').style.width = '${w}'; 1`); await sleep(500);
+    const r = await b.eval(`(() => { const k = [...document.querySelectorAll('${P} .rtitle > *')].filter((e) => e.offsetWidth > 0 && getComputedStyle(e).display !== 'none').map((e) => e.getBoundingClientRect()); for (let i = 1; i < k.length; i++) if (k[i].left < k[i - 1].right - 1) return 'překryv ' + i; return 'ok'; })()`);
+    assert.equal(r, 'ok', w);
+  }
+  await b.eval(`document.querySelector('${P}').style.width = ''; 1`);
+});
+
 test('široký panel nic nezkracuje: tužka prahu i sloupec ± zůstávají, dokud je místo', { skip }, async () => {
   await b.eval(`document.querySelector('${P}').style.width = '720px'; 1`); await sleep(600);
   const w = await b.eval(`(() => { const p = document.querySelector('${P}'); return { fit: p.dataset.fit, tuzka: getComputedStyle(p.querySelector('.thl')).display, slot: getComputedStyle(p.querySelector('.ddslot')).display }; })()`);
-  assert.equal(w.fit, ''); assert.notEqual(w.tuzka, 'none'); assert.notEqual(w.slot, 'none');
+  assert.ok(!/s\d/.test(w.fit), 'zkráceno: ' + w.fit); assert.notEqual(w.tuzka, 'none'); assert.notEqual(w.slot, 'none');
   await b.eval(`document.querySelector('${P}').style.width = ''; 1`);
 });
 

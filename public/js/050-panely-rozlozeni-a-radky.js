@@ -86,6 +86,9 @@ function fitPanel(v) {
     if (v.body.scrollWidth <= v.body.clientWidth + 1) break;
     cur.push(st); v.root.dataset.fit = cur.join(' ');
   }
+  // hlavička: když se nadpis nevejde, nejdřív zmizí počet hlídaných (název a stáří dat zůstávají)
+  const t = v.root.querySelector('.rtitle');
+  if (t && t.scrollWidth > t.clientWidth + 1) { cur.push('h1'); v.root.dataset.fit = cur.join(' '); }
 }
 function scheduleFit(v) { if (v.fitQueued) return; v.fitQueued = true; requestAnimationFrame(() => fitPanel(v)); }
 
@@ -225,7 +228,7 @@ function updatePanel(id) {
 
     const total = r ? r.players.length : 0;
     const w = r ? r.players.filter((p) => p.watched).length : 0;
-    v.watchTxt.innerHTML = mode === 'off' ? 'nehlídá se'
+    v.watchTxt.innerHTML = mode === 'off' ? ''
       : mode === 'selected' && !w ? 'zapni hráče vpravo'
       : `<b>${w}</b>/${total}${attack && r.players.some((p) => p.target) ? ` · 🎯 <b>${r.players.filter((p) => p.target).length}</b>` : ''}`;
     v.watchTxt.title = mode === 'off' ? 'Nic se nehlídá' : `Hlídá se ${w} z ${total} hráčů${attack ? `, k dobytí ${r.players.filter((p) => p.target).length}` : ''}`;

@@ -341,7 +341,7 @@
   .chip:hover { color:var(--fg); border-color:#3a4358; } .icon.chip { padding:2px 10px; }
   .rcfg { position:absolute; right:12px; top:calc(100% - 4px); z-index:7; width:min(310px, calc(100% - 24px)); background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; box-shadow:0 12px 30px rgba(0,0,0,.55); }
   .rbody { max-height:max(220px, calc(100vh - 150px)); }
-  @container rp (max-width: 700px) { .rmode button:not(.on) .mt { display:none; } .rinfo { display:none; } }
+  @container rp (max-width: 820px) { .rmode button:not(.on) .mt { display:none; } .rinfo { display:none; } }
   @container rp (max-width: 600px) { .rmode button .mt { display:none; } .rmode button { padding:3px 8px; } .rrole .rt { display:none; } .rhead { gap:7px; } }
 
   /* ===== zvukový poplach ===== */
@@ -469,6 +469,9 @@
   .rpanel[data-fit~="s4"] .dcol, .rpanel[data-fit~="s4"] th.dcol, .rpanel[data-fit~="s4"] .rwatch { display:none; } .rpanel[data-fit~="s4"] .rbody td, .rpanel[data-fit~="s4"] .rbody th { padding-left:5px; padding-right:5px; }
   .rpanel[data-fit~="s5"] .pcw, .rpanel[data-fit~="s5"] th.pc, .rpanel[data-fit~="s5"] td.pc { display:none; }
   .rtitle .rwatch { margin-left:0; }
+  .rwatch:empty { display:none; }
+  .rtitle > .rname { flex:0 1 auto; min-width:72px; overflow:hidden; text-overflow:ellipsis; } .rtitle > .rage, .rtitle > .rwatch { flex:0 0 auto; }
+  .rpanel[data-fit~="h1"] .rwatch { display:none; }
   /* přístupnost: viditelné zaostření, dostatečně velké cíle */
   :focus-visible { outline:2px solid var(--acc); outline-offset:2px; border-radius:6px; }
   button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline:none; }
