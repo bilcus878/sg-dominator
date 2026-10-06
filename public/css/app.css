@@ -324,7 +324,7 @@
   .rmode button.on[data-mode=all] { background:#102a1f; border-color:var(--ok); }
   .rhead { flex-wrap:nowrap; } .rhead .rtitle { flex:1 1 auto; min-width:0; } .rwatch { font-size:11px; color:var(--mut); white-space:nowrap; } .rwatch b { color:var(--fg); }
   .rhead .chip { flex:0 0 auto; }
-  .rmwrap { position:relative; } .rmenu { position:absolute; right:0; top:calc(100% + 4px); z-index:9; min-width:190px; background:var(--card); border:1px solid var(--line); border-radius:9px; padding:4px; box-shadow:0 12px 30px rgba(0,0,0,.55); }
+  .rmwrap { position:relative; } .rmenu { position:fixed; z-index:90; min-width:190px; background:var(--card); border:1px solid var(--line); border-radius:9px; padding:4px; box-shadow:0 12px 30px rgba(0,0,0,.55); }
   .rmenu button { display:block; width:100%; text-align:left; background:transparent; color:var(--fg); font-weight:500; font-size:13px; padding:7px 10px; border-radius:6px; } .rmenu button:hover { background:var(--card2); filter:none; }
   .thname { white-space:nowrap; } .thname .rfilter { width:120px; max-width:60%; padding:2px 7px; font-size:12px; vertical-align:middle; }
   .mini.srch { padding:0 5px; font-size:11px; line-height:16px; margin-left:5px; opacity:.7; } .mini.srch.on, .mini.srch:hover { opacity:1; background:var(--card2); }
@@ -427,6 +427,9 @@
   .rpanel .pdd, .rpanel .ddslot { width:46px; padding-left:20px; } .rpanel .ddslot .mini { width:26px; padding:0; }
   .rpanel .rbody td.n, .rpanel .rbody th.n { padding-right:24px; } .rpanel .rbody td.pc, .rpanel .rbody th.pc { padding-right:6px; }
 
+  /* sbalený panel: jen název, stáří a souhrn (přepínač režimu a čipy by se nevešly a skryly název) */
+  .rpanel.folded .rmode, .rpanel.folded .rrole, .rpanel.folded .rcfgbtn { display:none; }
+  .rpanel.folded .rtitle { flex:1 0 auto; } .rpanel.folded .rhead { flex-wrap:nowrap; }
   /* ===== v4: velikost tabulky (proměnné), čísla na středu řádku, nenápadné Dohodit, staré údaje, responzivita, přístupnost ===== */
   body { --tfs:16px; --padY:4px; }
   body[data-dens=s] { --tfs:14px; --padY:3px; } body[data-dens=m] { --tfs:15px; --padY:3.5px; }

@@ -47,13 +47,7 @@ function buildPanel(id) {
       <button class="icon rcfgbtn chip" data-act="cfg" title="Práh a kritická hranice této rasy"></button>`}
       <div class="rtools">
         <button class="icon" data-act="fold" title="Sbalit / rozbalit panel">▾</button>
-        <div class="rmwrap"><button class="icon" data-act="menu" title="Další: posunout, odebrat">⋮</button>
-          <div class="rmenu" hidden>
-            <button data-act="left">◀ Posunout doleva</button>
-            <button data-act="right">▶ Posunout doprava</button>
-            <button data-act="close">✕ Odebrat panel</button>
-          </div>
-        </div>
+        <div class="rmwrap"><button class="icon" data-act="menu" title="Další: posunout, odebrat" aria-haspopup="true">⋮</button></div>
       </div>
     </div>
     ${isW ? '' : `<div class="rcfg" hidden>

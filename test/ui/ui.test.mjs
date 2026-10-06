@@ -93,6 +93,16 @@ test('Nastavení → Vzhled: malá velikost zmenší řádky a zkrácená čísl
   await b.eval(`document.querySelector('#uiDens [data-v=l]').click(); document.getElementById('uiShort').click(); document.getElementById('closeSettings').click(); 1`); await sleep(300);
 });
 
+test('sbalený panel ukazuje název a nabídka ⋮ se ukáže celá (neuřízne ji panel)', { skip }, async () => {
+  await b.eval(`document.querySelector('${P} [data-act=fold]').click(); 1`); await sleep(500);
+  const f = await b.eval(`(() => { const p = document.querySelector('${P}'); const n = p.querySelector('.rname').getBoundingClientRect(); return { jmeno: Math.round(n.width), rezim: getComputedStyle(p.querySelector('.rmode')).display, text: p.querySelector('.rname').textContent }; })()`);
+  assert.ok(f.jmeno > 30 && f.text.length > 2, 'název sbaleného panelu není vidět'); assert.equal(f.rezim, 'none');
+  await b.eval(`document.querySelector('${P} [data-act=menu]').click(); 1`); await sleep(300);
+  const m = await b.eval(`(() => { const r = document.querySelector('.rmenu').getBoundingClientRect(); return { viditelne: !document.querySelector('.rmenu').hidden, uvnitr: r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight, vyska: Math.round(r.height) }; })()`);
+  assert.ok(m.viditelne && m.uvnitr && m.vyska > 60, JSON.stringify(m));
+  await b.eval(`document.body.click(); document.querySelector('${P} [data-act=fold]').click(); 1`); await sleep(400);
+});
+
 test('úzký panel zkrátí sloupce místo přetékání', { skip }, async () => {
   await b.eval(`document.querySelector('${P}').style.width = '380px'; 1`); await sleep(500);
   assert.equal(await b.eval(`(() => { const r = document.querySelector('${P} .rbody'); return r.scrollWidth > r.clientWidth + 2; })()`), false);

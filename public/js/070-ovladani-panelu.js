@@ -17,8 +17,29 @@ function setMode(raceId, mode) {
 }
 
 const v_ = (id) => view.get(id);
-const closeRmenus = () => document.querySelectorAll('.rmenu').forEach((m) => { m.hidden = true; });
-document.addEventListener('click', (e) => { if (!e.target.closest('.rmwrap')) closeRmenus(); });
+// nabídka ⋮ je u těla stránky (position: fixed), ne uvnitř panelu: panel má overflow:hidden, takže uvnitř by se u sbaleného nebo úzkého panelu uřízla
+const rmenuPop = document.createElement('div');
+rmenuPop.className = 'rmenu'; rmenuPop.hidden = true;
+rmenuPop.innerHTML = '<button data-rm="left">◀ Posunout doleva</button><button data-rm="right">▶ Posunout doprava</button><button data-rm="close">✕ Odebrat panel</button>';
+document.body.appendChild(rmenuPop);
+let rmenuId = null;
+const closeRmenus = () => { rmenuPop.hidden = true; rmenuId = null; };
+document.addEventListener('click', (e) => { if (!e.target.closest('.rmwrap, .rmenu')) closeRmenus(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeRmenus(); });
+rmenuPop.addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-rm]'); if (!b || rmenuId == null) return;
+  const id = rmenuId, act = b.dataset.rm; closeRmenus();
+  if (act === 'close') { panels = panels.filter((x) => x !== id); saveUi(); renderBoard(); return; }
+  const i = panels.indexOf(id), j = act === 'left' ? i - 1 : i + 1;
+  if (j >= 0 && j < panels.length) { [panels[i], panels[j]] = [panels[j], panels[i]]; saveUi(); renderBoard(); }
+});
+function openRmenu(id, btn) {
+  const same = !rmenuPop.hidden && rmenuId === id; closeRmenus(); if (same) return;
+  rmenuId = id; rmenuPop.hidden = false;
+  const r = btn.getBoundingClientRect(), w = rmenuPop.offsetWidth || 200;
+  rmenuPop.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.right - w)) + 'px';
+  rmenuPop.style.top = Math.min(innerHeight - rmenuPop.offsetHeight - 8, r.bottom + 6) + 'px';
+}
 $('board').addEventListener('click', (e) => {
   if (e.target.closest('.rfilter')) return; // klik do hledacího pole neřadí
   const chip = e.target.closest('a.atk');
@@ -32,7 +53,7 @@ $('board').addEventListener('click', (e) => {
   if (act === 'fold') { const P = lp(id); P.folded = !P.folded; saveLayouts(); renderBoard(); }
   else if (act === 'close') { panels = panels.filter((x) => x !== id); saveUi(); renderBoard(); }
   else if (act === 'why') { if (btn.classList.contains('bad') || btn.classList.contains('warn')) showWhy(id, btn); }
-  else if (act === 'menu') { const m = btn.parentElement.querySelector('.rmenu'); const open = m.hidden; closeRmenus(); m.hidden = !open; }
+  else if (act === 'menu') openRmenu(id, btn);
   else if (act === 'search') {
     const st = ps(id), open = !(st.searchOpen || st.filter);
     st.searchOpen = open; if (!open) st.filter = '';
