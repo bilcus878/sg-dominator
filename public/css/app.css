@@ -510,7 +510,7 @@
   .rbody thead th[aria-sort=ascending] .sarrow, .rbody thead th[aria-sort=descending] .sarrow { color:var(--acc); }
 
   /* ===== jméno ve dvou řádcích: nahoře jméno (menší), pod ním přepočty (⟳, 💰) a ⚙ nastavení hráče; řádky jsou vyšší ===== */
-  td.pname .nl1 { display:flex; align-items:center; white-space:nowrap; }
+  td.pname .nl1 { display:flex; align-items:center; white-space:nowrap; padding-top:21px; } /* stejně vysoká „zátěž“ nad jménem jako řádek pod ním (18 + 3 px): jméno je přesně uprostřed řádku, na úrovni tlačítka Dohodit */
   td.pname .nl2 { display:flex; align-items:center; gap:9px; margin-top:3px; padding-left:13px; min-height:18px; white-space:nowrap; font-size:11px; color:var(--mut); }
   td.pname .nl2 .rcl, td.pname .nl2 .ecl { margin:0; } td.pname .nl2 .thl { margin:0; }
   .rpanel td.pname .nm { font-size:calc(var(--tfs) * .9); }
