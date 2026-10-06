@@ -398,8 +398,8 @@
         <label for="tChat" style="margin-top:10px">ID skupiny</label>
         <div style="display:flex;gap:8px"><input type="text" id="tChat" placeholder="např. -1001234567890"><button class="ghost" id="findChats" style="white-space:nowrap">Najít skupinu</button></div>
         <label for="tService" style="margin-top:10px">ID servisního chatu <span class="muted">(systémové zprávy)</span></label>
-        <input type="text" id="tService" placeholder="prázdné = systémové zprávy na Telegram nechodí">
-        <small class="muted" style="display:block;margin-top:5px">Sem jdou jen systémové věci: výpadek dat ras a mapy, tlačítko bdělosti, teleskop a stavění. Do hlavní skupiny jen OP, síla a k dobytí.</small>
+        <div style="display:flex;gap:8px"><input type="text" id="tService" placeholder="prázdné = systémové zprávy na Telegram nechodí"><button class="ghost" id="findServiceChats" style="white-space:nowrap">Najít skupinu</button></div>
+        <small class="muted" style="display:block;margin-top:5px">Sem jdou jen systémové věci: výpadek dat ras a mapy, tlačítko bdělosti, teleskop, stavění, auto-dohoz a přihlášení. Do hlavní skupiny jen OP, síla a k dobytí.</small>
         <div id="chatList" style="margin-top:8px"></div>
         <details open><summary>Postup</summary><p>
           1) V Telegramu najdi <b>@BotFather</b>, napiš mu <code>/newbot</code> a dostaneš <b>token</b>, vlož ho výše.<br>

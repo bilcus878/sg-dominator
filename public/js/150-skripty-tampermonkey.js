@@ -64,7 +64,8 @@ $('save').onclick = async () => {
     fillForm(); renderChips(); toast('Uloženo'); closeDrawer(); refresh();
   } catch (e) { toast('Uložení selhalo: ' + e.message, true); }
 };
-$('findChats').onclick = async () => {
+/** Najde skupiny, do kterých bot nedávno dostal zprávu. target: 'tChat' | 'tService' = nabídne jen toto pole; bez něj obě. */
+async function findChats(target) {
   const box = $('chatList'); box.textContent = 'Hledám…';
   try {
     const { chats } = await api('/api/telegram/chats', 'POST', { botToken: $('tToken').value });
@@ -76,7 +77,8 @@ $('findChats').onclick = async () => {
       const pick = (field, label) => { const b = document.createElement('button'); b.className = 'ghost'; b.textContent = label;
         b.onclick = () => { $(field).value = c.id; box.innerHTML = `<span class="muted">Vybráno ✓ (${label.replace('→ ', '')}) – teď ulož.</span>`; $('dirtyNote').textContent = 'neuložené změny'; };
         return b; };
-      row.append(t, pick('tChat', '→ hlavní'), pick('tService', '→ servisní'));
+      if (target) row.append(t, pick(target, 'Použít'));
+      else row.append(t, pick('tChat', '→ hlavní'), pick('tService', '→ servisní'));
       box.appendChild(row);
     }
   } catch (e) { box.innerHTML = `<span style="color:var(--bad)">${esc(e.message)}</span>`; }
