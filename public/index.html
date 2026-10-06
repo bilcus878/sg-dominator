@@ -253,26 +253,31 @@
       <p class="muted" style="margin-top:10px">„Vše“ pošle všechny jednotky toho typu z armády. Víc, než máš v armádě, se neposílá. Počet 0 bez „Vše“ = jednotka se nevyplní.</p>
       <div class="chan" style="margin-top:14px">
         <div class="chan-head"><span>Automatický dohoz</span><label class="sw"><input type="checkbox" id="armyAutoOn"><span></span></label></div>
-        <p class="muted" style="margin-top:0">Když hráč <b>naší rasy</b> spadne pod práh, bot za <b>náhodnou dobu</b> v tomhle rozmezí sám klikne na Dohodit (jako bys to udělal ty). Když padne víc hráčů naráz, dohazují se <b>postupně</b> s odstupem, který si nastavíš níže. Potřebuje otevřenou stránku Jednotky → Rasová armáda. Stejný vypínač je nahoře v hlavičce (DOHOZ).</p>
-        <div class="two"><div><label for="armyMin">Čekat nejdřív (s)</label><input type="number" id="armyMin" min="0" max="120" step="0.5"></div>
-          <div><label for="armyMax">… nejdéle (s)</label><input type="number" id="armyMax" min="0" max="120" step="0.5"></div></div>
-        <div class="two" style="margin-top:12px"><div><label for="armyGapMin">Odstup mezi hráči nejmíň (s)</label><input type="number" id="armyGapMin" min="0" max="60" step="0.1"></div>
-          <div><label for="armyGapMax">… nejvíc (s)</label><input type="number" id="armyGapMax" min="0" max="60" step="0.1"></div></div>
-        <p class="muted" style="margin:6px 0 0">Když spadne víc hráčů najednou, další se dohodí nejdřív za tenhle odstup po předchozím (náhodně v rozmezí), ne všichni naráz.</p>
-        <div class="field" style="margin-top:12px"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
-          <span class="sw"><input type="checkbox" id="armyRepeat"><span></span></span> Dohazovat znovu, dokud je hráč pod prahem</label>
-          <small>Při každé připomínce „pod prahem“ (po pauze níže) se dohodí znovu. Vypnuto = jednou za pád.</small></div>
-        <div class="field" style="margin-top:12px"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
+        <p class="muted" style="margin-top:0">Když hráč <b>naší rasy</b> spadne pod práh, bot sám klikne na Dohodit (jako bys to udělal ty). Potřebuje otevřenou stránku Jednotky → Rasová armáda. Stejný vypínač je nahoře v hlavičce (DOHOZ) a v záhlaví každého panelu (AUTO).</p>
+
+        <div class="asec">⏱ Časování <span class="muted">pokaždé náhodný čas mezi „od“ a „do“ (v sekundách)</span></div>
+        <div class="trows">
+        <div class="trow"><div class="tl"><b>1 · Po pádu pod práh počkat</b><small>Než bot poprvé klikne na Dohodit.</small></div>
+          <div class="tr"><input type="number" id="armyMin" min="0" max="120" step="0.5" aria-label="od"><span>–</span><input type="number" id="armyMax" min="0" max="120" step="0.5" aria-label="do"><i>s</i></div></div>
+        <div class="trow"><div class="tl"><b>2 · Odstup mezi hráči</b><small>Když padne víc hráčů naráz, další se dohodí nejdřív po tomhle čase po předchozím (ne všichni naráz).</small></div>
+          <div class="tr"><input type="number" id="armyGapMin" min="0" max="60" step="0.1" aria-label="od"><span>–</span><input type="number" id="armyGapMax" min="0" max="60" step="0.1" aria-label="do"><i>s</i></div></div>
+        <div class="trow"><div class="tl"><b>3 · Pauza mezi dohozy téhož hráče</b><small>Mezi koly dohazování jednoho hráče k horní hranici (viz níže).</small></div>
+          <div class="tr"><input type="number" id="armyRoundMin" min="0" max="120" step="0.5" aria-label="od"><span>–</span><input type="number" id="armyRoundMax" min="0" max="120" step="0.5" aria-label="do"><i>s</i></div></div>
+        <div class="trow"><div class="tl"><b>4 · Znovu začít dohazovat téhož hráče</b><small>Když stejný hráč znovu spadne pod práh, dřív než za tuhle dobu po posledním dohození se nezačne dohazovat znovu.</small></div>
+          <div class="tr"><input type="number" id="armyCoolMin" min="0" max="3600" step="1" aria-label="od"><span>–</span><input type="number" id="armyCoolMax" min="0" max="3600" step="1" aria-label="do"><i>s</i></div></div>
+        </div>
+        <p class="muted" style="margin:6px 0 0">Průběh: pád pod práh → <b>1</b> → Dohodit → (víc hráčů: <b>2</b>) → (další kola: <b>3</b>) → hotovo → (nový pád: nejdřív po <b>4</b>).</p>
+
+        <div class="asec">🎯 Do kdy dohazovat</div>
+        <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
           <span class="sw"><input type="checkbox" id="armyTopUp"><span></span></span> Dohazovat, dokud síla nepřekoná horní hranici</label>
-          <small>Jeden dohoz často nestačí (jednotky dají třeba 150 mil., hráč potřebuje 700 mil.). Bot sleduje sílu hráče živě: jakmile po dohození vzroste a je pořád pod horní hranicí, po náhodné prodlevě (výše) dohodí znovu. Když padne <b>víc hráčů naráz</b>, bot nejdřív dostane <b>každého nad práh</b> (jednoho po druhém) a teprve potom je střídavě dohazuje dál k horní hranici. Zastaví se, jakmile hráč hranici překoná, když po dohození síla <b>nevzroste</b> (dohoz nezabírá) nebo po nejvyšším počtu dohozů. Končí zprávou na Telegram.</small></div>
+          <small>Jeden dohoz často nestačí (jednotky dají třeba 150 mil., hráč potřebuje 700 mil.). Bot sleduje sílu hráče živě: jakmile po dohození vzroste a je pořád pod horní hranicí, po pauze <b>3</b> dohodí znovu. Když padne <b>víc hráčů naráz</b>, nejdřív dostane <b>každého nad práh</b> (jednoho po druhém) a teprve potom je střídavě dohazuje dál k horní hranici. Zastaví se, jakmile hráč hranici překoná, když po dohození síla <b>nevzroste</b> (dohoz nezabírá) nebo po nejvyšším počtu dohozů. Končí zprávou na Telegram.</small></div>
         <div class="two"><div><label for="armyTopTarget">Horní hranice (síla)</label><input type="text" inputmode="numeric" class="num" id="armyTopTarget" placeholder="např. 750 000 000"></div>
           <div><label for="armyTopRounds">Nejvíc dohozů na hráče</label><input type="number" id="armyTopRounds" min="1" max="50"></div></div>
-        <div class="two" style="margin-top:12px"><div><label for="armyRoundMin">Pauza mezi dohozy téhož hráče nejmíň (s)</label><input type="number" id="armyRoundMin" min="0" max="120" step="0.5"></div>
-          <div><label for="armyRoundMax">… nejvíc (s)</label><input type="number" id="armyRoundMax" min="0" max="120" step="0.5"></div></div>
-        <p class="muted" style="margin:6px 0 0">Mezi dohozy jednoho hráče (kola k horní hranici) se čeká <b>náhodný čas</b> v tomhle rozmezí, pokaždé jiný.</p>
-        <div class="two" style="margin-top:12px"><div><label for="armyCoolMin">Znovu začít dohazovat téhož hráče nejdřív za (s)</label><input type="number" id="armyCoolMin" min="0" max="3600"></div>
-          <div><label for="armyCoolMax">… nejpozději za (s)</label><input type="number" id="armyCoolMax" min="0" max="3600"></div></div>
-        <p class="muted" style="margin:6px 0 0">Když stejný hráč znovu spadne pod práh, dřív než za <b>náhodnou dobu</b> v tomhle rozmezí po posledním dohození se nezačne dohazovat znovu.</p>
+        <div class="field" style="margin-top:12px"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
+          <span class="sw"><input type="checkbox" id="armyRepeat"><span></span></span> Bez horní hranice: dohazovat znovu při každé připomínce „pod prahem“</label>
+          <small>Platí, když není zapnutá horní hranice. Při každé připomínce, že je hráč pořád pod prahem (po pauze <b>4</b>), se dohodí znovu. Vypnuto = jednou za pád.</small></div>
+
         <p class="muted" id="armyAutoStatus" style="margin-bottom:0"></p>
       </div>
     </div>
