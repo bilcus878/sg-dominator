@@ -405,6 +405,7 @@
   .ctl { display:flex; align-items:center; gap:8px; }
   .optgl { display:inline-flex; align-items:center; gap:8px; height:34px; padding:0 13px 0 9px; margin:0; background:var(--card2); border:1px solid var(--line); border-radius:9px; color:var(--mut); font-size:13px; cursor:pointer; user-select:none; }
   .optgl b { font-weight:700; letter-spacing:.03em; } .optgl.on { color:var(--fg); border-color:#2c5a46; } .optgl:hover { border-color:#3a4358; }
+  .optgl.warn { border-color:#8a3a3a; color:var(--bad); } .optgl.warn b::after { content:' !'; }
   .dstat { background:none; border:0; padding:0; gap:6px; margin-left:4px; }
   .dstat::before { display:none; } .dstat:empty { display:none; }
   .dstat .dh { display:none; } .dstat.bad::before { color:var(--bad); } .dstat.ok::before { color:var(--ok); }

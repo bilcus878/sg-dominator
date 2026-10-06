@@ -29,25 +29,36 @@ const army = createArmy(); // tlačítko Dohodit -> skript na stránce Rasová a
 let armyWaiters = [];
 const wakeArmy = () => { for (const f of armyWaiters.splice(0)) f(); };
 const autoArmy = createAutoArmy(); // pád vlastního hráče pod práh -> po náhodné prodlevě sám požadavek Dohodit
+const DATA_FRESH_MS = 10_000; // data rasy starší než tohle (okno se zavřelo / zpomalilo) se pro dohazování nepoužijí
+/** Hráč z čerstvých dat; null = žádná použitelná data (neznámý hráč, stará data, nulová síla = nejspíš chyba čtení). */
+function freshPlayer(name) {
+  const raceId = playerRace.get(name);
+  if (!raceId) return null;
+  const now = Date.now();
+  const snap = store.snapshot(raceId, now);
+  const p = snap.players.find((x) => x.name === name);
+  if (!p || now - (p.seenAt ?? snap.at ?? 0) > DATA_FRESH_MS) return null; // čerstvost se měří za konkrétního hráče (jeho stránku může posílat jiné okno než zbytek rasy)
+  return Number.isFinite(p.power) && p.power > 0 ? { raceId, p } : null;
+}
 const autoArmyIo = {
-  /** Je hráč pořád pod prahem? (Mezitím ho mohl dohodit někdo jiný nebo se sám zvednout.) */
+  /** Je hráč pořád pod prahem? true/false, null = bez čerstvých dat (podle starých dat se nedohazuje). */
   stillBelow(name) {
-    const raceId = playerRace.get(name);
-    if (!raceId) return true;
-    const p = store.snapshot(raceId, Date.now()).players.find((x) => x.name === name);
-    return p ? p.power < resolveWatch(cfg, raceId, name).threshold : true;
+    const f = freshPlayer(name);
+    return f ? f.p.power < resolveWatch(cfg, f.raceId, name).threshold : null;
   },
   /** Práh hráče (od něj je „pod prahem“): hráč nejdřív musí nad něj, teprve pak se dohazuje k horní hranici. */
   threshold(name) {
     const raceId = playerRace.get(name);
     return raceId ? resolveWatch(cfg, raceId, name).threshold : null;
   },
-  /** Aktuální síla hráče z posledních dat (pro dohazování až po horní hranici). */
+  /** Aktuální síla hráče z čerstvých dat (pro dohazování až po horní hranici); null = bez čerstvých dat. */
   power(name) {
-    const raceId = playerRace.get(name);
-    if (!raceId) return null;
-    const p = store.snapshot(raceId, Date.now()).players.find((x) => x.name === name);
-    return p ? p.power : null;
+    return freshPlayer(name)?.p.power ?? null;
+  },
+  /** Výsledek požadavku podle jeho id (pending/sending/sent/error/expired); null = už ho přepsal jiný požadavek. */
+  result(id) {
+    const r = army.status().req;
+    return r && r.id === id ? { status: r.status, error: r.error } : null;
   },
   request(name) {
     const r = army.request(name);
@@ -55,12 +66,21 @@ const autoArmyIo = {
     return r;
   },
 };
+/** Zprávy auto-dohozu: do servisního chatu, a když není nastavený, do hlavního (selhání dohozu se nesmí ztratit). */
+function sendDohoz(text) {
+  if (cfg.telegram.serviceChatId) sendService(cfg, text);
+  else if (notifyOn(cfg, 'service')) sendText(cfg, text);
+}
 setInterval(() => {
-  for (const ev of autoArmy.tick(Date.now(), autoArmyIo)) {
+  for (const ev of autoArmy.tick(Date.now(), autoArmyIo, !!cfg.army.auto.enabled)) {
     if (ev.type === 'fail') console.log(`[dohodit] auto selhal (${ev.name}): ${ev.error}`);
-    else if (['done', 'stall', 'max'].includes(ev.type)) console.log(`[dohodit] auto ${ev.type}: ${ev.name} ${ev.text ?? ''}`);
-    const msg = ev.type === 'fail' ? (ev.notify ? `⚠️ Auto-dohoz: ${ev.error}` : '') : ev.notify ? ev.text : '';
-    if (msg && notifyOn(cfg, 'service')) sendText(cfg, msg); // systémové zprávy se dají vypnout v nabídce Upozornění
+    else if (['done', 'stall', 'max', 'breaker'].includes(ev.type)) console.log(`[dohodit] auto ${ev.type}: ${ev.name ?? ''} ${ev.text ?? ''}`);
+    if (ev.type === 'breaker') { // pojistka: auto-dohoz se vypne i v nastavení, ať je to vidět a nezapne se samo
+      cfg.army = { ...cfg.army, auto: { ...cfg.army.auto, enabled: false } };
+      saveConfig(cfg);
+      pushState();
+    }
+    if (ev.notify && ev.text) sendDohoz(ev.text);
   }
 }, 300);
 const armyWait = (ms) => new Promise((ok) => { const t = setTimeout(ok, Math.max(0, ms)); armyWaiters.push(() => { clearTimeout(t); ok(); }); });

@@ -38,3 +38,15 @@ test('store: získané/ztracené planety se sčítají, dokud nepřijde 30 s bez
   a = at(99, 60_000); // víc než 30 s od poslední změny: začíná znovu
   assert.deepEqual([a.planetsChange, a.planetsAt], [1, 60_000]);
 });
+
+
+test('snapshot: hráč na víc stránkách – vyhrají nejčerstvější data a každý hráč má čas posledního čtení (seenAt)', () => {
+  const st = createStore();
+  st.ingest({ raceId: '1', page: 1, players: [{ name: 'A', power: 100 }, { name: 'B', power: 50 }] }, 1000);
+  st.ingest({ raceId: '1', page: 2, players: [{ name: 'A', power: 140 }, { name: 'C', power: 70 }] }, 5000);
+  const byName = Object.fromEntries(st.snapshot('1', 6000).players.map((p) => [p.name, p]));
+  assert.equal(byName.A.power, 140); // novější stránka vyhrává, i když má vyšší číslo stránky i když je starší stránka první
+  assert.deepEqual([byName.A.seenAt, byName.B.seenAt, byName.C.seenAt], [5000, 1000, 5000]);
+  st.ingest({ raceId: '1', page: 1, players: [{ name: 'A', power: 90 }, { name: 'B', power: 50 }] }, 7000);
+  assert.equal(st.snapshot('1', 7100).players.find((p) => p.name === 'A').power, 90);
+});

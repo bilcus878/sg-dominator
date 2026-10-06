@@ -38,7 +38,7 @@ export function createStore() {
   /** Souhrn za rasu: sloučené hráči ze všech stránek, čas posledních dat a počet aktivních oken. */
   function snapshot(raceId, now = Date.now()) {
     const entries = [...pages.values()].filter((e) => e.raceId === raceId).sort((a, b) => a.page - b.page);
-    const seen = new Set();
+    const seen = new Map(); // jméno -> index v players
     const players = [];
     const srcs = new Set();
     let at = 0;
@@ -46,11 +46,12 @@ export function createStore() {
       at = Math.max(at, e.at);
       for (const [s, ts] of e.sources) if (now - ts < SOURCE_ACTIVE_MS) srcs.add(s);
       for (const p of e.players) {
-        if (seen.has(p.name)) continue;
-        seen.add(p.name);
+        const at = seen.get(p.name);
+        if (at !== undefined && players[at].seenAt >= e.at) continue; // hráč je na víc stránkách: vyhrávají nejčerstvější data
         const c = changes.get(`${raceId}|${p.name}`);
         const pc = plChanges.get(`${raceId}|${p.name}`);
-        players.push({ ...p, powerDelta: c?.delta ?? 0, powerAt: c?.at ?? 0, planetsChange: pc?.delta ?? 0, planetsAt: pc?.at ?? 0 });
+        const obj = { ...p, seenAt: e.at, powerDelta: c?.delta ?? 0, powerAt: c?.at ?? 0, planetsChange: pc?.delta ?? 0, planetsAt: pc?.at ?? 0 };
+        if (at === undefined) { seen.set(p.name, players.length); players.push(obj); } else players[at] = obj;
       }
     }
     return { at, sources: srcs.size, players };

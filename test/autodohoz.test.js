@@ -85,13 +85,33 @@ test('tick: odešle až po termínu, jen když je hráč pořád pod prahem', ()
   assert.equal(b.snapshot(5000).skipped, 1);
 });
 
-test('tick: pauza mezi dohozy téhož hráče (cooldown)', () => {
+test('tick: pauza po dohození – nový pád se neztratí, dohoz se odloží na konec pauzy', () => {
   const a = createAutoArmy({ rand: () => 0 }); // 2 s
   const io = mkIo();
   a.onAlert(alert('X'), ON, 0);
+  a.tick(2000, io); // dohodil; pauza 60 s -> do 62 000
+  const r = a.onAlert(alert('X', 'threshold', { repeat: true }), { ...ON, repeat: true }, 30_000);
+  assert.equal(r.scheduled, true);
+  assert.equal(r.deferred, true);
+  assert.ok(r.dueAt >= 62_000 && r.dueAt <= 63_000, `dueAt ${r.dueAt}`);
+  assert.equal(a.onAlert(alert('X', 'threshold', { repeat: true }), { ...ON, repeat: true }, 31_000).why, 'queued'); // jen jeden čekající
+  run(a, io, 30_000, 61_000);
+  assert.equal(io.sent.length, 1, 'před koncem pauzy se nedohazuje');
+  run(a, io, 61_000, 65_000);
+  assert.equal(io.sent.length, 2, 'po pauze se dohodí');
+});
+
+test('pauza po dohození: hráč, který mezitím vyskočil nad práh, se po pauze přeskočí', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  let below = true;
+  const io = mkIo({ below: () => below });
+  a.onAlert(alert('X'), ON, 0);
   a.tick(2000, io);
-  assert.equal(a.onAlert(alert('X', 'threshold', { repeat: true }), { ...ON, repeat: true }, 30_000).why, 'cooldown');
-  assert.equal(a.onAlert(alert('X', 'threshold', { repeat: true }), { ...ON, repeat: true }, 62_001).scheduled, true);
+  a.onAlert(alert('X', 'threshold', { repeat: true }), { ...ON, repeat: true }, 30_000);
+  below = false; // dohozem se dostal nad práh
+  const ev = run(a, io, 30_000, 70_000);
+  assert.equal(io.sent.length, 1);
+  assert.ok(ev.some((e) => e.type === 'skip'));
 });
 
 test('tick: zadává se nejvýš jeden požadavek najednou', () => {
@@ -122,13 +142,27 @@ test('tick: stránka Rasová armáda není otevřená -> selhání, upozornění
   const a = createAutoArmy({ rand: () => 0 });
   const closed = mkIo({ result: () => ({ ok: false, error: 'Otevři ve hře stránku Jednotky → Rasová armáda (se skriptem) a vyplň počty jednotek.' }) });
   a.onAlert(alert('X'), { ...ON, minSec: 0, maxSec: 0, cooldownMinSec: 0, cooldownMaxSec: 0 }, 0);
-  const e1 = a.tick(1000, closed)[0];
+  assert.deepEqual(a.tick(1000, closed), []); // stránka se může zrovna načítat: zatím jen čekání
+  assert.deepEqual(a.tick(20_000, closed), []);
+  const e1 = a.tick(31_000, closed)[0];
   assert.deepEqual([e1.type, e1.page, e1.notify], ['fail', true, true]);
-  a.onAlert(alert('Y'), { ...ON, minSec: 0, maxSec: 0 }, 5000);
-  const e2 = a.tick(7000, closed)[0];
+  a.onAlert(alert('Y'), { ...ON, minSec: 0, maxSec: 0 }, 32_000);
+  a.tick(33_000, closed);
+  const e2 = a.tick(63_500, closed)[0];
   assert.deepEqual([e2.page, e2.notify], [true, false]); // hlášeno před chvílí
   a.onAlert(alert('Z'), { ...ON, minSec: 0, maxSec: 0 }, 700_000);
-  assert.equal(a.tick(702_000, closed)[0].notify, true);
+  a.tick(701_000, closed);
+  assert.equal(a.tick(732_000, closed)[0].notify, true);
+
+  // stránka se mezitím otevřela: žádné selhání, dohoz projde
+  const b = createAutoArmy({ rand: () => 0 });
+  let open = false;
+  const io = mkIo({ result: () => (open ? { ok: true } : { ok: false, error: 'Otevři ve hře stránku Jednotky → Rasová armáda' }) });
+  b.onAlert(alert('X'), { ...ON, minSec: 0, maxSec: 0 }, 0);
+  assert.deepEqual(b.tick(1000, io), []);
+  open = true;
+  const ev = b.tick(2500, io);
+  assert.deepEqual(ev.map((e) => e.type), ['sent']);
 });
 
 test('sanitizeAutoArmy: meze, max nikdy pod min, nesmysly se ignorují', () => {
@@ -241,7 +275,7 @@ test('horní hranice: síla po dohozu nevzrostla -> dohoz nezabírá, skončí v
 test('horní hranice: nejvyšší počet dohozů zastaví smyčku', () => {
   const state = { power: 10 };
   const a = createAutoArmy({ rand: () => 0 });
-  const io = mkTopIo(state, { boost: 1 }); // roste, ale strašně pomalu
+  const io = mkTopIo(state, { boost: 3 }); // roste, ale pomalu
   a.onAlert(alert('X'), { ...TOP, topUpMaxRounds: 3 }, 0);
   const ev = run(a, io, 0, 120_000);
   assert.equal(io.sent.length, 3);
@@ -378,18 +412,19 @@ test('snapshot ukazuje fázi hráče (záchrana / k hranici)', () => {
 // ---------- náhodné pauzy místo pevných ----------
 test('pauza před opětovným dohazováním téhož hráče je náhodná v rozmezí (ne pevná)', () => {
   const cfg = { ...ON, minSec: 0, maxSec: 0, gapMinSec: 0, gapMaxSec: 0, cooldownMinSec: 20, cooldownMaxSec: 40, repeat: true };
-  const unblock = new Set();
+  const due = new Set();
   for (let i = 0; i < 80; i++) {
     const a = createAutoArmy();
     const io = mkIo();
     a.onAlert(alert('X'), cfg, 0);
     a.tick(0, io); // dohodí hned (prodleva 0) a zablokuje na náhodnou dobu
-    let t = 0;
-    while (!a.onAlert(alert('X', 'threshold', { repeat: true }), cfg, t).scheduled && t < 60_000) t += 100;
-    assert.ok(t >= 20_000 && t <= 40_100, `odblokováno po ${t} ms`);
-    unblock.add(t);
+    a.tick(16_000, io); // ověřování dohozu doběhlo
+    const r = a.onAlert(alert('X', 'threshold', { repeat: true }), cfg, 17_000);
+    assert.equal(r.deferred, true);
+    assert.ok(r.dueAt >= 20_000 && r.dueAt <= 41_000, `další dohoz za ${r.dueAt} ms`);
+    due.add(Math.round(r.dueAt / 100));
   }
-  assert.ok(unblock.size > 20, 'pauza se vždy opakuje – není náhodná');
+  assert.ok(due.size > 20, 'pauza se vždy opakuje – není náhodná');
 });
 
 test('pauza mezi dohozy téhož hráče (kola k horní hranici) je náhodná v roundMin–roundMax', () => {
@@ -423,4 +458,214 @@ test('migrace: stará pevná pauza cooldownSec a kola s prodlevou prvního dohoz
   // přes army (načtení konfigurace) taky
   const army = sanitizeArmy(ARMY_DEFAULTS, { units: [], auto: { enabled: true, cooldownSec: 5 } });
   assert.deepEqual([army.auto.cooldownMinSec, army.auto.cooldownMaxSec], [5, 5]);
+});
+
+
+// ---------- bezpečnost: nic se nesmí zacyklit, plýtvat ani poslat naslepo ----------
+test('vypnutí auto-dohozu okamžitě zruší naplánované i rozjeté dohazování', () => {
+  const state = { power: 60 };
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkTopIo(state, { boost: 100 });
+  a.onAlert(alert('X'), TOP, 0);
+  a.onAlert(alert('Y'), TOP, 0);
+  a.tick(1000, io); // první dohoz odešel
+  assert.equal(io.sent.length, 1);
+  assert.deepEqual(a.tick(1100, io, false), []); // uživatel vypnul
+  assert.equal(a.snapshot(1100).pending.length, 0);
+  assert.equal(a.snapshot(1100).topping.length, 0);
+  run(a, io, 1200, 60_000); // dál se nesmí poslat nic
+  assert.equal(io.sent.length, 1);
+  assert.equal(a.snapshot(60_000).recent.at(-1).type, 'cancel');
+});
+
+test('bez čerstvých dat (null) se nedohazuje naslepo; po 30 s se hráč vzdá se zprávou', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const sent = [];
+  const io = { stillBelow: () => null, power: () => null, threshold: () => 100, request: (n) => { sent.push(n); return { ok: true }; } };
+  a.onAlert(alert('X'), { ...ON, minSec: 0, maxSec: 0 }, 0);
+  const ev = run(a, io, 0, 29_000);
+  assert.equal(sent.length, 0);
+  assert.equal(ev.length, 0);
+  const end = run(a, io, 29_500, 33_000);
+  assert.equal(sent.length, 0);
+  const fail = end.find((e) => e.type === 'fail');
+  assert.ok(fail && fail.notify && /čerstvá data/.test(fail.error));
+  // data se vrátila včas: dohoz projde
+  const b = createAutoArmy({ rand: () => 0 });
+  let fresh = false;
+  const io2 = { stillBelow: () => (fresh ? true : null), power: () => (fresh ? 50 : null), threshold: () => 100, request: (n) => { sent.push(n); return { ok: true }; } };
+  b.onAlert(alert('Y'), { ...ON, minSec: 0, maxSec: 0 }, 0);
+  run(b, io2, 0, 5000);
+  fresh = true;
+  run(b, io2, 5500, 8000);
+  assert.deepEqual(sent, ['Y']);
+});
+
+test('chyba skriptu na stránce armády ukončí dohazování se zprávou (nezůstane ticho)', () => {
+  const state = { power: 60 };
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkTopIo(state, { boost: 0 });
+  let status = { status: 'sending' };
+  io.request = (n) => { io.sent.push(n); return { ok: true, id: 7 }; };
+  io.result = (id) => (id === 7 ? status : null);
+  a.onAlert(alert('X'), TOP, 0);
+  a.tick(1000, io);
+  assert.deepEqual(a.tick(5000, io), []); // skript ještě pracuje: na účinek se nečeká a nic se neposílá
+  status = { status: 'error', error: 'nejsou vyplněné žádné jednotky (nastav je v aplikaci: Nastavení → Dohoz)' };
+  const ev = a.tick(5500, io);
+  assert.equal(ev[0].type, 'fail');
+  assert.ok(ev[0].notify && /nejsou vyplněné žádné jednotky/.test(ev[0].text));
+  assert.equal(io.sent.length, 1);
+  assert.equal(a.snapshot(5500).failed, 1);
+  assert.equal(a.snapshot(5500).topping.length, 0);
+  run(a, io, 6000, 40_000);
+  assert.equal(io.sent.length, 1);
+});
+
+test('požadavek, který stránka armády nikdy nevyzvedla (expired), se ohlásí', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = { stillBelow: () => true, power: () => 60, threshold: () => 100, request: () => ({ ok: true, id: 3 }), result: () => ({ status: 'expired' }) };
+  a.onAlert(alert('X'), TOP, 0);
+  const ev = run(a, io, 0, 5000);
+  const f = ev.find((e) => e.type === 'fail');
+  assert.ok(f && f.notify && /nevyzvedla/.test(f.text));
+});
+
+test('dokud skript neodeslal, drobné kolísání síly se nebere jako účinek dohozu', () => {
+  const state = { power: 1000 };
+  const a = createAutoArmy({ rand: () => 0 });
+  const sent = [];
+  const io = {
+    stillBelow: () => true, threshold: () => 2000, power: () => state.power,
+    request: (n) => { sent.push(n); return { ok: true, id: 1 }; },
+    result: () => ({ status: 'sending' }),
+  };
+  a.onAlert(alert('X'), { ...TOP, topUpTarget: 750_000 }, 0);
+  a.tick(1000, io);
+  state.power += 400; // náhodný růst, dohoz se ještě neprovedl
+  run(a, io, 1500, 10_000);
+  assert.equal(sent.length, 1, 'druhé kolo se nesmí poslat, dokud skript prvnímu dohozu neodeslal');
+});
+
+test('malé kolísání pod 0,1 % cíle není účinek: dohoz se bere jako nezabraný', () => {
+  const state = { power: 1_000_000 };
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkTopIo(state, { boost: 100 }); // jen +100 při cíli 750 mil. (0,1 % = 750 000)
+  a.onAlert(alert('X'), { ...TOP, topUpTarget: 750_000_000 }, 0);
+  const ev = run(a, io, 0, 60_000);
+  assert.equal(io.sent.length, 1);
+  assert.ok(ev.some((e) => e.type === 'stall' && e.notify));
+});
+
+test('bez horní hranice se jeden dohoz taky ověří: nezabral -> zpráva, zabral -> ticho', () => {
+  const noTop = { ...ON, minSec: 0, maxSec: 0 };
+  const bad = { power: 60 };
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkTopIo(bad, { boost: 0 });
+  a.onAlert(alert('X'), noTop, 0);
+  const ev = run(a, io, 0, 60_000);
+  assert.equal(io.sent.length, 1);
+  assert.ok(ev.some((e) => e.type === 'stall' && e.notify), 'nezabralo -> musí být zpráva');
+
+  const good = { power: 60 };
+  const b = createAutoArmy({ rand: () => 0 });
+  const io2 = mkTopIo(good, { boost: 200 }); // 60 -> 260, práh 100
+  io2.threshold = () => 100;
+  b.onAlert(alert('Y'), noTop, 0);
+  const ev2 = run(b, io2, 0, 60_000);
+  assert.equal(io2.sent.length, 1);
+  assert.equal(ev2.filter((e) => e.notify).length, 0, 'když dohoz zabral, žádná zpráva');
+  assert.equal(b.snapshot(60_000).recent.some((r) => r.type === 'verified'), true);
+});
+
+test('hráč, který se při dohazování k hranici znovu propadne pod práh, má opět přednost před ostatními', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkMulti({ Bob: 50, Eva: 60 }, { Bob: 100, Eva: 100 });
+  const log = [];
+  const orig = io.request;
+  io.request = (n) => { log.push([n, { ...io.powers }]); return orig(n); };
+  const cfg = { ...TWO, topUpTarget: 2000, topUpMaxRounds: 50 };
+  a.onAlert(alert('Bob'), cfg, 0);
+  a.onAlert(alert('Eva'), cfg, 0);
+  run(a, io, 0, 5000); // oba už jsou nad prahem a dohazují se k hranici
+  assert.ok(io.powers.Bob >= 100 && io.powers.Eva >= 100);
+  assert.equal(a.snapshot(5000).topping.every((t) => t.phase === 'topup'), true);
+  io.powers.Bob = 40; // Bobovi někdo srazil sílu pod práh
+  const from = log.length;
+  const ev = run(a, io, 5000, 14_000);
+  assert.ok(ev.length >= 0);
+  assert.equal(a.snapshot(5001).topping.find((t) => t.name === 'Bob').phase === 'rescue' || log.slice(from)[0][0] === 'Bob', true);
+  // dokud je Bob pod prahem, Eva se k hranici nedohazuje
+  for (const [name, powers] of log.slice(from)) {
+    if (name === 'Eva') assert.ok(powers.Bob >= 100, `Eva se dohodila, i když byl Bob pod prahem: ${JSON.stringify(powers)}`);
+  }
+  assert.equal(log.slice(from).some(([n]) => n === 'Bob'), true);
+});
+
+test('pojistka: příliš mnoho dohozů za hodinu auto-dohoz zastaví a pošle zprávu', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const sent = [];
+  const io = { stillBelow: () => true, power: () => 50, threshold: () => 100, request: (n) => { sent.push(n); return { ok: true }; } };
+  const cfg = { ...ON, minSec: 0, maxSec: 0, gapMinSec: 0, gapMaxSec: 0, cooldownMinSec: 0, cooldownMaxSec: 0, maxPerHour: 3, repeat: true };
+  let breaker = null;
+  for (let i = 0; i < 10 && !breaker; i++) {
+    const t = i * 20_000; // každých 20 s znovu spadne
+    a.tick(t, io); // předchozí ověřování doběhne (síla nevzrostla -> stall)
+    a.tick(t + 16_000, io);
+    a.onAlert(alert('X', 'threshold', { repeat: true }), cfg, t + 17_000);
+    breaker = a.tick(t + 18_000, io).find((e) => e.type === 'breaker');
+  }
+  assert.equal(sent.length, 3, 'víc než limit se poslat nesmí');
+  assert.ok(breaker && breaker.notify && /pojistkou/.test(breaker.text));
+  assert.equal(a.snapshot(200_000).pending.length, 0);
+});
+
+test('pojistka počítá jen poslední hodinu', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = { stillBelow: () => true, power: () => 50, threshold: () => 100, request: () => ({ ok: true }) };
+  const cfg = { ...ON, minSec: 0, maxSec: 0, gapMinSec: 0, gapMaxSec: 0, cooldownMinSec: 0, cooldownMaxSec: 0, maxPerHour: 2, repeat: true };
+  for (const [i, base] of [0, 4_000_000].entries()) { // dvě skupiny dohozů s odstupem víc než hodina
+    for (let k = 0; k < 2; k++) {
+      const t = base + k * 40_000;
+      a.onAlert(alert(`P${i}${k}`, 'threshold'), cfg, t);
+      const ev = a.tick(t + 100, io);
+      assert.equal(ev.some((e) => e.type === 'breaker'), false);
+    }
+  }
+  assert.equal(a.snapshot(4_100_000).lastHour, 2);
+});
+
+test('konfigurace: pojistka maxPerHour se ořezává a výchozí je 60', () => {
+  assert.equal(AUTO_ARMY_DEFAULTS.maxPerHour, 60);
+  assert.equal(sanitizeAutoArmy(AUTO_ARMY_DEFAULTS, { maxPerHour: 0 }).maxPerHour, 1);
+  assert.equal(sanitizeAutoArmy(AUTO_ARMY_DEFAULTS, { maxPerHour: 99999 }).maxPerHour, 1000);
+  assert.equal(sanitizeAutoArmy(AUTO_ARMY_DEFAULTS, { maxPerHour: '30.9' }).maxPerHour, 30);
+  assert.equal(sanitizeAutoArmy(AUTO_ARMY_DEFAULTS, { maxPerHour: 'abc' }).maxPerHour, 60);
+});
+
+
+test('nový pád krátce po úspěšném dohození (bez horní hranice) se neztratí', () => {
+  const state = { power: 60 };
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkTopIo(state, { boost: 200 });
+  io.threshold = () => 100;
+  const cfg = { ...ON, minSec: 1, maxSec: 1, gapMinSec: 0, gapMaxSec: 0, cooldownMinSec: 30, cooldownMaxSec: 30 };
+  a.onAlert(alert('X'), cfg, 0);
+  run(a, io, 0, 3000); // dohoz 60 -> 260, ověřeno
+  assert.equal(io.sent.length, 1);
+  state.power = 40; // hráče znovu někdo napadl
+  const r = a.onAlert(alert('X'), cfg, 5000); // nový alert (není připomínka)
+  assert.equal(r.scheduled, true);
+  run(a, io, 5000, 40_000);
+  assert.equal(io.sent.length, 2, 'po pauze 30 s se dohodí znovu');
+});
+
+test('během ověřování dohozu přijde nový pád: nové plánování nesmí zůstat blokované', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkIo();
+  const cfg = { ...ON, minSec: 0, maxSec: 0, gapMinSec: 0, gapMaxSec: 0, cooldownMinSec: 0, cooldownMaxSec: 0 };
+  a.onAlert(alert('X'), cfg, 0);
+  a.tick(100, io); // odesláno, běží ověřování
+  assert.equal(io.sent.length, 1);
+  assert.equal(a.onAlert(alert('X'), cfg, 200).scheduled, true);
 });
