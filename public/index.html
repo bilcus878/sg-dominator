@@ -1076,8 +1076,8 @@ function updatePanel(id) {
     row.nm.classList.toggle('blink', blinking);
     row.tr.classList.toggle('below', alarm);
     row.tr.classList.toggle('flash', blinking);
-    row.power.classList.toggle('below', !atk && p.power < p.threshold);
-    const isCrit = !atk && p.critical > 0 && p.power < p.critical;
+    row.power.classList.toggle('below', alarm); // červeně a 🆘 jen u hlídaného hráče; vypnuté hlídání = bez upozornění
+    const isCrit = alarm && p.critical > 0 && p.power < p.critical;
     row.power.classList.toggle('crit', isCrit);
     row.hb.hidden = atk; // dohodit jen hráčům naší rasy
     // zelená tečka před jménem = hráč je online (stejně jako ve hře)
