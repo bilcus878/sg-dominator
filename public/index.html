@@ -430,6 +430,46 @@
   .rpanel .mini { font-size:12px; line-height:16px; padding:0 6px; }
   .rpanel .pdd, .rpanel .ddslot { width:46px; padding-left:20px; } .rpanel .ddslot .mini { width:26px; padding:0; }
   .rpanel .rbody td.n, .rpanel .rbody th.n { padding-right:24px; } .rpanel .rbody td.pc, .rpanel .rbody th.pc { padding-right:6px; }
+
+  /* ===== v4: velikost tabulky (proměnné), čísla na středu řádku, nenápadné Dohodit, staré údaje, responzivita, přístupnost ===== */
+  body { --tfs:16px; --padY:4px; }
+  body[data-dens=s] { --tfs:14px; --padY:3px; } body[data-dens=m] { --tfs:15px; --padY:3.5px; }
+  .rpanel .rbody table { font-size:var(--tfs); } .rpanel .rbody td, .rpanel .rbody th { padding-top:var(--padY); padding-bottom:var(--padY); }
+  .rpanel .rbody tbody tr { height:calc(var(--tfs) * 2.9); }
+  .rpanel .pnum .pv { line-height:calc(var(--tfs) * 1.25); } .rpanel .pdd { line-height:calc(var(--tfs) * 1.25); }
+  /* číslo je svisle na středu řádku, přírůstek pod ním visí mimo tok (výška řádku se nemění) */
+  .pnum { display:inline-block; position:relative; text-align:right; }
+  .rpanel .pnum .pv { display:block; }
+  .rpanel .pnum .pd { position:absolute; right:0; top:100%; margin-top:-3px; height:12px; line-height:12px; white-space:nowrap; }
+  .pcw { align-items:center; }
+  /* hranice prahu: u hráče jen vlastní (žlutě); výchozí se ukáže až při najetí na řádek */
+  .thl:not(.own) .thv { opacity:0; } tr:hover .thl:not(.own) .thv, .thl .thv:focus-visible { opacity:.9; }
+  /* Dohodit u každého hráče, ale tiše: výrazné jen při najetí na řádek a když je hráč pod prahem */
+  .rpanel .dohodit { background:transparent; border-color:transparent; color:var(--mut); }
+  .rpanel tr:hover .dohodit, .rpanel .dohodit:focus-visible { background:var(--card2); border-color:var(--line); color:var(--fg); }
+  .rpanel tr.below .dohodit { color:#fff; border-color:#ff8a8a; }
+  /* staré údaje: panel ztlumený, okraj žlutý/červený, alarmy vypnuté */
+  .rpanel[data-fresh=warn] { border-top-color:var(--acc) !important; } .rpanel[data-fresh=bad] { border-top-color:var(--bad) !important; }
+  .rpanel[data-fresh=bad] .rbody tbody { opacity:.42; filter:saturate(.3); transition:opacity .4s; }
+  .rpanel[data-fresh=bad] tr.below td { background:none; box-shadow:none; animation:none; } .rpanel[data-fresh=bad] tr.below .dohodit { background:transparent; box-shadow:none; animation:none; color:var(--mut); border-color:transparent; }
+  .rage.bad, .rage.warn { cursor:pointer; } .rage.bad::after, .rage.warn::after { content:" ?"; opacity:.8; }
+  .whypop { position:fixed; z-index:70; width:min(360px, 92vw); background:var(--card); border:1px solid var(--bad); border-radius:10px; padding:12px 14px; box-shadow:0 16px 40px rgba(0,0,0,.6); font-size:13px; line-height:1.5; }
+  .whypop h4 { margin:0 0 6px; color:var(--bad); font-size:13px; } .whypop ol { margin:6px 0 8px; padding-left:18px; color:var(--mut); } .whypop button { padding:4px 12px; font-size:12px; }
+  /* stav systému: LED + nabídka */
+  .led { width:11px; height:11px; border-radius:50%; background:#444b5c; display:block; } .led.ok { background:var(--ok); box-shadow:0 0 8px var(--ok); } .led.warn { background:var(--acc); box-shadow:0 0 8px var(--acc); } .led.bad { background:var(--bad); box-shadow:0 0 8px var(--bad); animation:pulse 1s infinite; }
+  .hlwrap { position:relative; } .hlmenu { width:330px; padding:8px 0; }
+  .hlrow { display:flex; align-items:center; gap:10px; padding:6px 14px; font-size:13px; } .hlrow i { width:9px; height:9px; border-radius:50%; flex:0 0 auto; background:#444b5c; } .hlrow i.ok { background:var(--ok); } .hlrow i.warn { background:var(--acc); } .hlrow i.bad { background:var(--bad); }
+  .hlrow span { flex:1; } .hlrow b { font-weight:500; color:var(--mut); font-variant-numeric:tabular-nums; font-size:12px; }
+  .hlhd { padding:2px 14px 6px; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--mut); }
+  /* responzivita: úzký panel zkrátí tabulku místo přetékání */
+  @container rp (max-width: 560px) { .rpanel .ddslot, .rpanel .pdd { display:none; } .rpanel .thl { display:none; } .rpanel .dohodit { padding:3px 7px; font-size:12px; } .rpanel .rbody td.n, .rpanel .rbody th.n { padding-right:10px; } }
+  @container rp (max-width: 460px) { .rpanel .dcol, .rpanel th.dcol { display:none; } .rpanel .rwatch { display:none; } .rpanel .rbody td, .rpanel .rbody th { padding-left:5px; padding-right:5px; } }
+  @container rp (max-width: 380px) { .rpanel .pcw, .rpanel th.pc, .rpanel td.pc { display:none; } }
+  /* přístupnost: viditelné zaostření, dostatečně velké cíle */
+  :focus-visible { outline:2px solid var(--acc); outline-offset:2px; border-radius:6px; }
+  button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline:none; }
+  .rpanel .icon { min-width:28px; min-height:28px; }
+  .rbody thead th[aria-sort=ascending] .sarrow, .rbody thead th[aria-sort=descending] .sarrow { color:var(--acc); }
 </style>
 </head>
 <body>
@@ -450,6 +490,10 @@
   <div class="chips" id="opDots"></div>
   <span class="spacer"></span>
   <div class="ctl">
+    <div class="hlwrap">
+      <button type="button" class="hbtn sq" id="hlBtn" title="Stav systému" aria-haspopup="true"><i class="led" id="hlLed"></i></button>
+      <div class="ntmenu hlmenu" id="hlMenu" hidden></div>
+    </div>
     <label class="optgl" id="opTgl" title="OP: zapnuto = bot hlásí OP na mapě, sám zapíná zastavený teleskop a potvrzuje tlačítko bdělosti. Vypnuto = bot na mapě nic nedělá."><span class="sw"><input type="checkbox" id="opMaster"><span></span></span><b>OP</b></label>
     <div class="addwrap">
       <button class="hbtn add" id="addPanel" title="Přidat panel rasy"><span class="plus">＋</span><span class="lbl">Rasa</span></button>
@@ -639,6 +683,11 @@
 
     <div class="pane" id="pane-look">
       <p class="muted" style="margin-top:0">Velikost panelů ras se pamatuje <b>zvlášť pro každý monitor</b> (poznává ho podle rozlišení a polohy okna). Tenhle monitor: <b id="lookMon"></b>. Změny platí hned, nemusíš ukládat.</p>
+      <div class="field"><label>Velikost tabulky hráčů</label>
+        <div class="seg" id="uiDens"><button type="button" data-v="s">Malá</button><button type="button" data-v="m">Střední</button><button type="button" data-v="l">Velká</button></div>
+        <small>Písmo a výška řádků. Platí jen v tomhle prohlížeči.</small></div>
+      <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0"><span class="sw"><input type="checkbox" id="uiShort"><span></span></span> Zkrácená čísla síly (927,5 mil)</label>
+        <small>Čísla se lépe porovnávají. Přesná hodnota je v bublině po najetí myší.</small></div>
       <div class="field"><label for="lookW">Výchozí šířka panelu: <b id="lookWv"></b> px</label><input type="range" id="lookW" min="320" max="1100" step="10">
         <small>Platí pro panely, které sis neroztáhl ručně.</small></div>
       <div class="field"><label for="lookH">Výchozí výška tabulky: <b id="lookHv"></b></label><input type="range" id="lookH" min="0" max="1600" step="20">
@@ -729,7 +778,7 @@
   </div>
   <div class="d-foot"><button id="save">Uložit</button><button class="ghost" id="cancel">Zrušit</button><span class="muted" id="dirtyNote"></span></div>
 </aside>
-<div id="alarmBar" class="alarmbar" hidden><span class="aicon">🚨</span><b id="alarmTxt"></b><button type="button" id="alarmStop">🔕 Ztlumit</button></div>
+<div id="alarmBar" class="alarmbar" role="alert" hidden><span class="aicon">🚨</span><b id="alarmTxt"></b><button type="button" id="alarmStop">🔕 Ztlumit</button></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -837,11 +886,13 @@ function tickAges() {
     if (v.isW) { v.age.hidden = true; continue; }
     const r = raceOf(id), age = r?.at ? dAge(r.at) : null;
     const cls = age == null ? '' : age < 3000 ? 'ok' : age < 10_000 ? 'warn' : 'bad';
-    const txt = age == null ? 'bez dat' : age >= 10_000 ? 'bez dat ' + dSec(age) : dSec(age);
+    const txt = age == null ? 'bez dat' : age >= 10_000 ? '⚠ ' + dSec(age) : dSec(age);
     if (v.age.dataset.c !== cls) { v.age.dataset.c = cls; v.age.className = 'rage ' + cls; }
     if (v.age.textContent !== txt) v.age.textContent = txt;
     const dot = 'dot' + (age == null ? '' : age < 3000 ? ' live' : ' stale');
     if (v.dot.className !== dot) v.dot.className = dot;
+    const fresh = cls || 'none';
+    if (v.root.dataset.fresh !== fresh) v.root.dataset.fresh = fresh; // warn/bad: tabulka ztlumená, alarmy vypnuté
   }
 }
 setInterval(() => { if (S.serverTime) { renderData(); tickAges(); } }, 250);
@@ -874,6 +925,9 @@ function short(n) {
 const monKey = () => `${screen.width}x${screen.height}@${screen.availLeft ?? 0},${screen.availTop ?? 0}`;
 const readLayouts = () => loadJson('layouts', {});
 let layouts = readLayouts();
+const ui = (() => { const c = (() => { try { return JSON.parse(store.get('uicfg')) ?? {}; } catch { return {}; } })(); return { dens: ['s', 'm', 'l'].includes(c.dens) ? c.dens : 'l', short: !!c.short }; })();
+const saveUi2 = () => { store.set('uicfg', JSON.stringify(ui)); document.body.dataset.dens = ui.dens; };
+document.body.dataset.dens = ui.dens;
 const lay = () => (layouts[monKey()] ??= { defW: 600, defH: 0, panels: {} });
 const lp = (id) => (lay().panels[id] ??= {});
 /** Uloží jen klíč tohoto monitoru; ostatní se čtou znovu, ať okno na jiném monitoru nepřepíše cizí změny. */
@@ -906,7 +960,7 @@ function buildPanel(id) {
   root.innerHTML = `
     <div class="rhead">
       <span class="dot"></span>
-      <div class="rtitle"><b class="rname"></b><span class="rage" title="Jak čerstvá jsou data z hry (zelená do 3 s)"></span><span class="muted rinfo" hidden></span></div>
+      <div class="rtitle"><b class="rname"></b><span class="rage" data-act="why" title="Jak čerstvá jsou data z hry (zelená do 3 s). Když jsou stará, klikni pro nápovědu."></span><span class="muted rinfo" hidden></span></div>
       <span class="rfsum"></span>
       ${isW ? '' : `<div class="rmode" role="group" aria-label="Co hlídat">
         ${modeBtn.map(([m, ic, t]) => `<button data-act="mode" data-mode="${m}" title="${modeHint[m]}"><span class="mi">${ic}</span><span class="mt">${t}</span></button>`).join('')}
@@ -937,6 +991,7 @@ function buildPanel(id) {
     <div class="rgrip e" data-dir="e" title="Táhni pro změnu šířky (dvojklik = výchozí)"></div>
     <div class="rgrip s" data-dir="s" title="Táhni pro změnu výšky (dvojklik = výchozí)"></div>
     <div class="rgrip se" data-dir="se" title="Táhni pro změnu velikosti (dvojklik = výchozí)"></div>`;
+  root.querySelectorAll('button[title]').forEach((b) => { if (!b.getAttribute('aria-label')) b.setAttribute('aria-label', b.title); });
   const q = (s) => root.querySelector(s);
   const v = { root, isW, rows: new Map(), body: q('.rbody'), fsum: q('.rfsum'), foldBtn: q('[data-act=fold]'), dot: q('.dot'), name: q('.rname'), age: q('.rage'), info: q('.rinfo'), th: q('.rth'), crit: q('.rcrit'), qb: q('.rqb'), qa: q('.rqa'),
     watchTxt: q('.rwatch'), cfgBtn: q('.rcfgbtn'), cfgBox: q('.rcfg'), roleBtn: q('.rrole'), belowTxt: q('.rbelowtxt'),
@@ -950,7 +1005,7 @@ function makeRow(v, r, p) {
   const tr = document.createElement('tr');
   tr.dataset.race = r.id; tr.dataset.name = p.name;
   tr.innerHTML = `<td class="pname" title="Klikni pro zkopírování jména"></td>${v.isW ? '<td></td>' : ''}<td class="n pc"><div class="pcw"><span class="pnum"><span class="pv"></span><span class="pd"></span></span><span class="pdd"></span></div></td>
-    <td class="n"><span class="pv"></span><span class="pd"></span></td>
+    <td class="n"><span class="pnum"><span class="pv"></span><span class="pd"></span></span></td>
     <td class="dcol"><span class="atks"></span></td>
     <td class="c hcol"><button class="ghost dohodit" data-act="dohodit" title="Pošle hráči rasovou armádu">Dohodit</button></td>
     <td class="c"><label class="sw"><input type="checkbox"><span></span></label></td>`;
@@ -1112,6 +1167,7 @@ function updatePanel(id) {
     const active = th.dataset.key === sortKey && st.sort !== 'game';
     th.classList.toggle('active', active);
     th.querySelector('.sarrow').textContent = active ? (st.sort === 'desc' ? '↓' : '↑') : '↕';
+    th.setAttribute('aria-sort', active ? (st.sort === 'desc' ? 'descending' : 'ascending') : 'none');
   }
   v.root.classList.toggle('dday', !!st.dday);
   v.ddBtn.classList.toggle('on', !!st.dday);
@@ -1142,7 +1198,8 @@ function updatePanel(id) {
     let row = v.rows.get(key);
     if (!row) { row = makeRow(v, pr, p); v.rows.set(key, row); }
     if (v.tbody.children[i] !== row.tr) { v.tbody.insertBefore(row.tr, v.tbody.children[i] ?? null); moved = true; }
-    const txt = fmt(p.power);
+    const txt = ui.short ? short(p.power) : fmt(p.power);
+    if (row.pw.v.title !== fmt(p.power)) row.pw.v.title = ui.short ? fmt(p.power) : '';
     if (row.pw.v.textContent !== txt) { if (row.lastPower != null) flashValue(row.pw.v, p.power - row.lastPower); row.pw.v.textContent = txt; }
     row.lastPower = p.power;
     const recent = p.powerDelta && p.powerAt && S.serverTime - p.powerAt < CHANGE_MS ? p.powerDelta : 0;
@@ -1165,11 +1222,12 @@ function updatePanel(id) {
     const atk = pr.role === 'attack';
     // naše rasa: pád pod práh = jméno 10 s červeně bliká (jen při přechodu nad -> pod, ne po načtení stránky)
     const isBelow = !atk && p.power < p.threshold;
-    const alarm = isBelow && p.watched; // červený řádek a svítící Dohodit jen u hráče, kterého hlídáme
+    const stale = pr.at && dAge(pr.at) >= 10_000; // údaje starší než 10 s: žádný alarm ani efekty
+    const alarm = isBelow && p.watched && !stale; // červený řádek a svítící Dohodit jen u hlídaného hráče s čerstvými daty
     const bk = `${pr.id}|${p.name}`;
     const was = belowSeen.get(bk);
-    if (p.watched && was === false && isBelow) { blinkUntil.set(bk, Date.now() + BLINK_MS); dropFx(row); } // pád pod práh
-    else if (p.watched && was === true && !isBelow && !atk) riseFx(row); // návrat nad práh
+    if (p.watched && !stale && was === false && isBelow) { blinkUntil.set(bk, Date.now() + BLINK_MS); dropFx(row); } // pád pod práh
+    else if (p.watched && !stale && was === true && !isBelow && !atk) riseFx(row); // návrat nad práh
     belowSeen.set(bk, isBelow);
     const blinking = alarm && (blinkUntil.get(bk) ?? 0) > Date.now();
     row.nm.classList.toggle('blink', blinking);
@@ -1211,7 +1269,7 @@ function updatePanel(id) {
     ].filter(Boolean).join('\n');
     row.tr.classList.toggle('off', !p.watched);
     const own = p.ownThreshold != null;
-    const thTxt = short(own ? p.ownThreshold : p.threshold); // jen číslo (např. 100 mil), vlastní práh žlutě, globální modře; vysvětlení je v bublině
+    const thTxt = own ? short(p.ownThreshold) : '✎ ' + short(p.threshold); // jen číslo (např. 100 mil), vlastní práh žlutě, globální modře; vysvětlení je v bublině
     if (row.thv.textContent !== thTxt) row.thv.textContent = thTxt;
     row.thv.title = own ? `Vlastní práh ${dots(p.ownThreshold)} (výchozí rasy ${dots(p.threshold)}). Klikni pro úpravu, prázdné = výchozí` : `Práh ${dots(p.threshold)} (výchozí rasy). Klikni a nastav hráči vlastní`;
     row.thl.classList.toggle('own', own);
@@ -1341,6 +1399,7 @@ $('board').addEventListener('click', (e) => {
   const act = btn.dataset.act;
   if (act === 'fold') { const P = lp(id); P.folded = !P.folded; saveLayouts(); renderBoard(); }
   else if (act === 'close') { panels = panels.filter((x) => x !== id); saveUi(); renderBoard(); }
+  else if (act === 'why') { if (btn.classList.contains('bad') || btn.classList.contains('warn')) showWhy(id, btn); }
   else if (act === 'menu') { const m = btn.parentElement.querySelector('.rmenu'); const open = m.hidden; closeRmenus(); m.hidden = !open; }
   else if (act === 'search') {
     const st = ps(id), open = !(st.searchOpen || st.filter);
@@ -1494,7 +1553,60 @@ function fillLook() {
 $('lookW').addEventListener('input', (e) => { lay().defW = Number(e.target.value); $('lookWv').textContent = e.target.value; saveLayouts(); applyAllLayouts(); });
 $('lookH').addEventListener('input', (e) => { const n = Number(e.target.value); lay().defH = n; $('lookHv').textContent = n ? `${n} px` : 'automaticky'; saveLayouts(); applyAllLayouts(); });
 $('lookReset').addEventListener('click', () => { lay().panels = {}; saveLayouts(); applyAllLayouts(); renderBoard(); toast('Panely vráceny na výchozí velikost'); });
-document.querySelector('[data-tab="look"]').addEventListener('click', fillLook);
+function fillUiSet() {
+  $('uiShort').checked = ui.short;
+  for (const b of $('uiDens').children) b.classList.toggle('on', b.dataset.v === ui.dens);
+}
+$('uiDens').addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (!b) return; ui.dens = b.dataset.v; saveUi2(); fillUiSet(); });
+$('uiShort').addEventListener('change', () => { ui.short = $('uiShort').checked; saveUi2(); for (const id of view.keys()) updatePanel(id); });
+document.querySelector('[data-tab="look"]').addEventListener('click', () => { fillLook(); fillUiSet(); });
+fillUiSet();
+
+/* ---------- proč nejsou data: nápověda u štítku se stářím ---------- */
+const whyPop = document.createElement('div'); whyPop.className = 'whypop'; whyPop.hidden = true; document.body.appendChild(whyPop);
+function showWhy(id, anchor) {
+  const r = raceOf(id); if (!r) return;
+  const age = r.at ? dAge(r.at) : null;
+  whyPop.innerHTML = `<h4>${age == null ? `Data rasy ${esc(r.name)} zatím nepřišla` : `Data rasy ${esc(r.name)} nepřišla ${esc(dSec(age))}`}</h4>
+    Skript Síla hráčů ${r.script ? `se hlásí s verzí <b>${esc(r.script)}</b>` : 'se u této rasy ještě nehlásil'}; oken se stránkou rasy: <b>${r.sources}</b>.
+    <ol><li>Je ve hře otevřená stránka <b>Vesmír → ${esc(r.name)}</b> a je vidět (ne minimalizovaná, ne v jiné záložce)? Chrome kartu na pozadí zpomalí.</li>
+    <li>Je v Tampermonkey zapnutý skript <b>Síla hráčů</b> (verze 3.12.1 nebo novější)?</li>
+    <li>Pomůže F5 na té stránce ve hře.</li></ol><button class="ghost" type="button">Zavřít</button>`;
+  const b = anchor.getBoundingClientRect();
+  whyPop.style.left = Math.max(8, Math.min(innerWidth - 372, b.left)) + 'px'; whyPop.style.top = (b.bottom + 8) + 'px';
+  whyPop.hidden = false;
+  whyPop.querySelector('button').onclick = () => { whyPop.hidden = true; };
+}
+document.addEventListener('click', (e) => { if (!whyPop.hidden && !e.target.closest('.whypop, .rage')) whyPop.hidden = true; });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') whyPop.hidden = true; });
+
+/* ---------- stav systému (LED v hlavičce) ---------- */
+let sseUp = false;
+function healthItems() {
+  const items = [];
+  const stream = sseUp && Date.now() - lastPush < 4000;
+  items.push({ cls: stream ? 'ok' : 'bad', t: 'Server Dominatora', v: stream ? 'připojeno' : 'bez spojení' });
+  for (const r of S.races ?? []) {
+    if (r.mode === 'off') continue;
+    const age = r.at ? dAge(r.at) : null;
+    items.push({ cls: age == null ? 'bad' : age < 3000 ? 'ok' : age < 10_000 ? 'warn' : 'bad', t: `Data: ${r.name}`, v: age == null ? 'čeká na data' : dSec(age) });
+  }
+  const op = S.op;
+  if (op?.enabled) { const a = op.at ? dAge(op.at) : null; items.push({ cls: a == null ? 'bad' : a < 3000 ? 'ok' : a < 10_000 ? 'warn' : 'bad', t: 'OP: mapa', v: a == null ? 'čeká na mapu' : dSec(a) }); }
+  if (cfg && cfg.notify !== false) { const ok = cfg.telegram?.enabled && cfg.telegram?.configured; items.push({ cls: ok ? 'ok' : 'warn', t: 'Telegram', v: ok ? 'nastaveno' : 'nenastaveno, zprávy se neposílají' }); }
+  return items;
+}
+function renderHealth() {
+  if (!S.serverTime) return;
+  const items = healthItems();
+  const worst = items.some((i) => i.cls === 'bad') ? 'bad' : items.some((i) => i.cls === 'warn') ? 'warn' : 'ok';
+  const led = $('hlLed'); if (led.dataset.c !== worst) { led.dataset.c = worst; led.className = 'led ' + worst; $('hlBtn').title = { ok: 'Vše v pořádku', warn: 'Něco je zpožděné nebo nenastavené', bad: 'Problém: klikni pro podrobnosti' }[worst]; }
+  if (!$('hlMenu').hidden) $('hlMenu').innerHTML = '<div class="hlhd">Stav systému</div>' + items.map((i) => `<div class="hlrow"><i class="${i.cls}"></i><span>${esc(i.t)}</span><b>${esc(i.v)}</b></div>`).join('');
+}
+$('hlBtn').onclick = (e) => { e.stopPropagation(); closeMenu(); viewMenu.hidden = true; toggleNt(false); toggleAl(false); $('hlMenu').hidden = !$('hlMenu').hidden; renderHealth(); };
+document.addEventListener('click', (e) => { if (!$('hlMenu').hidden && !e.target.closest('.hlwrap')) $('hlMenu').hidden = true; });
+setInterval(renderHealth, 500);
+
 
 /* ---------- alerty (pod nástěnkou, sbalitelné) ---------- */
 const alMenu = $('alMenu');
@@ -1703,7 +1815,8 @@ function scheduleRender() { // víc zpráv za sebou se vykreslí jednou, nejdř�
 function startStream() {
   if (!window.EventSource) return;
   const es = new EventSource('/api/stream');
-  es.onmessage = (e) => { try { S = JSON.parse(e.data); } catch { return; } fetchedAt = Date.now(); lastPush = fetchedAt; scheduleRender(); };
+  es.onmessage = (e) => { try { S = JSON.parse(e.data); } catch { return; } fetchedAt = Date.now(); lastPush = fetchedAt; sseUp = true; scheduleRender(); };
+  es.onerror = () => { sseUp = false; };
 }
 async function refresh() {
   try { S = await api('/api/state'); fetchedAt = Date.now(); render(); }

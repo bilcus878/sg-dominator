@@ -299,6 +299,7 @@ function buildState() {
       threshold: rec.threshold,
       criticalPct: rec.criticalPct ?? null,
       conquest: conquestFor(id), conquestOwn: rec.conquest ?? null,
+      script: scriptInfo.get(id)?.ver ?? null, // verze skriptu Síla hráčů, který data této rasy posílá (diagnostika)
       at: snap.at,
       sources: snap.sources,
       rate: (raceIngest.get(id) ?? []).filter((t) => t > now - 5_000).length / 5, // příjmů za vteřinu (posledních 5 s)
