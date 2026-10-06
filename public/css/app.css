@@ -510,9 +510,13 @@
   .rbody thead th[aria-sort=ascending] .sarrow, .rbody thead th[aria-sort=descending] .sarrow { color:var(--acc); }
 
   /* ===== jméno ve dvou řádcích: nahoře jméno (menší), pod ním přepočty (⟳, 💰) a ⚙ nastavení hráče; řádky jsou vyšší ===== */
-  td.pname .nlw { display:flex; flex-direction:column; align-items:center; width:fit-content; margin-left:13px; } td.pname .nl1 { position:relative; } td.pname .nl1 .on, .rpanel td.pname .nl1 .on { position:absolute; left:-13px; top:50%; margin:-4px 0 0; } td.pname .tg:empty, td.pname .nl2 .rcl:empty, td.pname .nl2 .ecl:empty { display:none; } /* jméno je vodorovně na středu řádku pod ním (přepočty + ⚙) */
-  td.pname .nl1 { display:flex; align-items:center; white-space:nowrap; } /* jméno je jediný obsah buňky v toku, proto je vždy přesně uprostřed řádku (jako čísla a tlačítko Dohodit) */
-  td.pname .nl2 { display:flex; align-items:center; gap:9px; height:14px; margin:0 0 -14px; line-height:14px; white-space:nowrap; font-size:calc(var(--tfs) * .74); color:var(--mut); } /* přepočty a ⚙ visí pod jménem a řádek nezvětšují (záporný spodní okraj) */
+  /* dvouřádkový blok: nahoře jméno, pod ním pevné sloupce přepočty | ⚙ (každý hráč je má na stejném místě); blok je v řádku svisle uprostřed, takže nad jménem i pod spodním řádkem je stejně místa */
+  td.pname .nlw { display:block; width:fit-content; margin-left:13px; }
+  td.pname .nl1 { position:relative; display:flex; align-items:center; white-space:nowrap; }
+  td.pname .nl1 .on, .rpanel td.pname .nl1 .on { position:absolute; left:-13px; top:50%; margin:-4px 0 0; }
+  td.pname .tg:empty, td.pname .nl2 .rcl:empty, td.pname .nl2 .ecl:empty { display:none; }
+  td.pname .nl2 { display:flex; align-items:center; height:15px; margin-top:1px; white-space:nowrap; font-size:calc(var(--tfs) * .74); line-height:15px; color:var(--mut); }
+  td.pname .nl2 .rc { display:flex; gap:7px; min-width:calc(var(--tfs) * 3.7); }
   td.pname .nl2 .rcl, td.pname .nl2 .ecl { margin:0; } td.pname .nl2 .thl { margin:0; }
   .rpanel td.pname .nm { font-size:var(--tfs); }
   .rpanel .rbody tbody tr { height:calc(var(--tfs) * 3.3); }
