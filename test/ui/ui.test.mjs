@@ -205,25 +205,27 @@ test('OP v hlavičce: víc teček = jeden odznak s počtem, sektory v rozbalovac
   // vše v jednom kroku: server mezitím posílá nový stav a přepsal by testovací OP
   const r = await b.eval(`(() => {
     S.op = { enabled: true, at: Date.now(), dots: [${dots}], vigilance: { count: 0, lastClickedAt: 0, pendingSince: 0 }, telescope: {} };
-    renderOp();
-    const box = document.getElementById('opDots'), pop = () => box.querySelector('.oppop');
-    const out = { badges: box.querySelectorAll('.opdot').length, text: box.querySelector('.opsum')?.firstChild?.textContent, sectors: box.querySelectorAll('.opsec').length, popText: pop()?.textContent, hidden: getComputedStyle(pop()).display };
-    box.querySelector('.opsum').focus();
+    const chip = document.getElementById('opChip'), pop = () => document.getElementById('opChipPop');
+    renderData();
+    const out = { visible: !document.getElementById('dstat').hidden, chips: document.querySelectorAll('#dstat .dsrc').length, text: chip.textContent.replace(pop().textContent, ''), sectors: document.querySelectorAll('#opChipPop .opsec').length, popText: pop().textContent, hidden: getComputedStyle(pop()).display };
+    chip.focus();
     out.shown = getComputedStyle(pop()).display;
     out.header = document.querySelector('header').getBoundingClientRect().height;
-    const node = box.querySelector('.opsum'); renderOp(); out.same = node === box.querySelector('.opsum'); // beze změny se nepřekresluje
-    S.op.dots = []; renderOp(); out.empty = box.innerHTML;
+    const popNode = pop().firstChild; renderData(); out.same = popNode === pop().firstChild; // beze změny se nepřekresluje
+    S.op.dots = []; renderData(); out.empty = pop().textContent; out.noN = document.getElementById('opChipN').textContent;
     return out;
   })()`);
-  assert.equal(r.badges, 1, 'jediný odznak místo jednoho na každý sektor');
-  assert.match(r.text, /5/);
+  assert.equal(r.visible, true);
+  assert.equal(r.chips, 1, 'jediný čip místo čipu + odznaku');
+  assert.match(r.text, /OP.*5/);
   assert.equal(r.sectors, 5);
   assert.match(r.popText, /Sektor 68 · Tokra/);
   assert.equal(r.hidden, 'none', 'sektory jsou skryté, dokud se nenajede');
   assert.equal(r.shown, 'block', 'po najetí/kliknutí se ukážou');
   assert.ok(r.header < 70, 'hlavička zůstala štíhlá');
-  assert.equal(r.same, true, 'překreslení beze změny odznak nezahodí');
+  assert.equal(r.same, true, 'překreslení beze změny seznam nezahodí');
   assert.equal(r.empty, '');
+  assert.equal(r.noN, '');
 });
 
 test('auto-dohoz: v hlavičce už není vypínač DOHOZ, ovládá se přepínačem AUTO v panelech; selhání dohozu ho podbarví červeně', { skip, timeout: 30_000 }, async () => {

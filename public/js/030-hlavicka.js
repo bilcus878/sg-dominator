@@ -29,21 +29,32 @@ function dataItem(label, at, extra = {}) {
   else { cls = 'bad'; txt = 'bez dat ' + dSec(age); }
   if (extra.hit && cls === 'ok') cls = 'hit';
   const tip = extra.tip ? `title="${esc(extra.tip)}"` : '';
-  return { cls, html: `<span class="dsrc ${cls}${extra.link ? ' link' : ''}" ${tip} ${extra.link ? 'data-go="op"' : ''}><i></i>${esc(label)}${extra.extra ? ' ' + esc(extra.extra) : ''} <b>${esc(txt)}</b></span>` };
+  return { cls, txt, html: `<span class="dsrc ${cls}${extra.link ? ' link' : ''}" ${tip} ${extra.link ? 'data-go="op"' : ''}><i></i>${esc(label)}${extra.extra ? ' ' + esc(extra.extra) : ''} <b>${esc(txt)}</b></span>` };
 }
 function renderData() {
   const box = $('dstat');
   if (!S.races) return;
-  const items = []; // data ras jsou u názvu každého panelu (stáří v s); tady jen OP a to jen když je zapnuté
-  const op = S.op;
-  if (op && (op.enabled || op.dots.length)) {
-    const n = op.dots.length;
-    items.push(dataItem('OP', op.at, { off: !op.enabled, wait: 'čeká na mapu', hit: n > 0 && op.enabled, link: true, extra: n ? `${n} ${n === 1 ? 'tečka' : n < 5 ? 'tečky' : 'teček'}` : '', tip: op.enabled ? 'Mapa (mapa.php): data o OP. Klikni pro nastavení OP.' : 'OP je vypnuto (přepínač OP nahoře). Klikni pro nastavení.' }));
+  const op = S.op, show = !!(op && (op.enabled || op.dots.length)); // jen OP, a to jen když je zapnuté nebo na mapě svítí tečky
+  box.hidden = !show;
+  if (!show) return;
+  // jediný čip „● OP 🟠 N · stáří“: DOM je stálý, mění se jen text a třída (popover se sektory pod myší nemizí)
+  const n = op.dots.length, chip = $('opChip');
+  const d = dataItem('OP', op.at, { off: !op.enabled, wait: 'čeká na mapu', hit: n > 0 && op.enabled });
+  const cls = 'dsrc opsum link ' + d.cls;
+  if (chip.className !== cls) chip.className = cls;
+  const nTxt = n ? ' 🟠 ' + n : '';
+  if ($('opChipN').textContent !== nTxt) $('opChipN').textContent = nTxt;
+  if ($('opChipAge').textContent !== d.txt) $('opChipAge').textContent = d.txt;
+  const tip = op.enabled ? 'Mapa (mapa.php): data o OP. Klikni pro nastavení OP.' : 'OP je vypnuto (přepínač OP nahoře). Klikni pro nastavení.';
+  if (chip.title !== tip) chip.title = tip;
+  const key = op.dots.map((x) => `${x.id}|${x.label}`).join(',');
+  const pop = $('opChipPop');
+  if (pop.dataset.k !== key) {
+    pop.dataset.k = key;
+    pop.innerHTML = n ? `<b>${n === 1 ? 'OP na mapě' : `OP na mapě (${n})`}</b>${op.dots.map((x) => `<span class="opsec">🟠 Sektor ${esc(x.id)}${/^\d+$/.test(x.label) || !x.label ? '' : ` · ${esc(x.label)}`}</span>`).join('')}` : '';
   }
-  const bad = items.some((i) => i.cls === 'bad'), warn = items.some((i) => i.cls === 'warn');
-  box.className = 'dstat ' + (bad ? 'bad' : warn ? '' : items.length ? 'ok' : '');
-  const html = items.length ? items.map((i) => i.html).join('') : '';
-  if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
+  pop.style.display = n ? '' : 'none';
+  box.className = 'dstat ' + (d.cls === 'bad' ? 'bad' : d.cls === 'warn' ? '' : 'ok');
 }
 /** Stáří dat u názvu každého panelu rasy: přepočítává se čtyřikrát za vteřinu (zelená do 3 s, žlutá do 10 s, červená dál). */
 function tickAges() {

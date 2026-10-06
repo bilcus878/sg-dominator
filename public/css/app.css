@@ -149,8 +149,8 @@
   .oppill.ok .opdotlive { background:var(--ok); } .oppill.bad .opdotlive { background:var(--bad); }
   .oppill.hit .opdotlive { background:var(--acc); animation:pulse 1s infinite; }
   @keyframes pulse { 50% { opacity:.25; } }
-  .opdot.sm { margin:0; padding:1px 9px; font-size:12px; }
   /* OP v hlavičce: jeden odznak s počtem, sektory v rozbalovacím seznamu po najetí/kliknutí */
+  .dstat[hidden] { display:none; }
   .opsum { position:relative; cursor:default; white-space:nowrap; outline:none; }
   .opsum .oppop { display:none; position:absolute; top:calc(100% + 6px); left:0; z-index:25; min-width:150px; background:var(--card); border:1px solid var(--line); border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.55); padding:8px 12px; text-align:left; font-weight:500; color:var(--fg); }
   .opsum .oppop b { display:block; color:var(--acc); font-size:12px; margin-bottom:4px; }
@@ -427,7 +427,6 @@
   .dstat::before { display:none; } .dstat:empty { display:none; }
   .dstat .dh { display:none; } .dstat.bad::before { color:var(--bad); } .dstat.ok::before { color:var(--ok); }
   .dsrc { background:var(--card2); height:26px; }
-  #opDots:empty { display:none; }
   .ntwrap { position:relative; display:block; }
   .ntmenu { width:350px; top:calc(100% + 12px); }
   .ntmaster { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:8px 12px 10px; margin:0 0 4px; border-bottom:1px solid var(--line); cursor:pointer; }
@@ -436,7 +435,7 @@
   .addwrap .menu { left:0; right:auto; }
   main { padding-top:14px; }
   header .bar { flex-wrap:nowrap; } .ctl { flex:0 0 auto; } .nav, .addwrap, .brand { flex:0 0 auto; }
-  .dstat { flex:1 1 auto; min-width:0; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; } .dstat::-webkit-scrollbar { display:none; } .dsrc { flex:0 0 auto; }
+  .dstat { flex:0 1 auto; min-width:0; flex-wrap:nowrap; } .dsrc { flex:0 0 auto; }
   @media (max-width:1000px) { .dstat::before { display:none; } .brand b { display:none; } }
   @media (max-width:640px) { header .bar { gap:6px; padding:8px 8px; } .hbtn .lbl { display:none; } .navbtn { padding:5px 8px; } .logo { display:none; } .optgl { padding:0 9px 0 6px; } }
 

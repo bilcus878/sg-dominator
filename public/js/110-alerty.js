@@ -66,13 +66,5 @@ function renderOp() {
     if (tl.skipped) parts.push(`vynecháno ${tl.skipped}×`);
     $('opTeleStatus').textContent = parts.join(' · ') + '.';
   }
-  { // OP na mapě: jeden odznak s počtem (hlavička se nerozbije), sektory se ukážou po najetí / kliknutí; překresluje se jen při změně, ať seznam pod myší nemizí
-    const box = $('opDots'), n = op.dots.length;
-    const key = n ? op.dots.map((d) => `${d.id}|${d.label}`).join(',') : '';
-    if (box.dataset.k !== key) {
-      box.dataset.k = key;
-      box.innerHTML = n ? `<span class="opdot sm opsum" tabindex="0" aria-label="OP na mapě: ${n}">🟠 ${n}<span class="oppop" role="tooltip"><b>${n === 1 ? 'OP na mapě' : `OP na mapě (${n})`}</b>${op.dots.map((d) => `<span class="opsec">🟠 Sektor ${esc(d.id)}${/^\d+$/.test(d.label) || !d.label ? '' : ` · ${esc(d.label)}`}</span>`).join('')}</span></span>` : '';
-    }
-  }
 }
 $('opMaster').onchange = () => savePartial({ op: { enabled: $('opMaster').checked } });
