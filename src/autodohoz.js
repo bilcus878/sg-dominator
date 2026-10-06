@@ -37,7 +37,7 @@ export const AUTO_ARMY_DEFAULTS = {
 const GIVE_UP_MS = 30_000; // tak dlouho se po termínu zkouší, když je dohoz zaneprázdněný / stránka armády se načítá / chybí čerstvá data
 const PAGE_ALERT_GAP_MS = 10 * 60_000; // „stránka není otevřená“ se hlásí nejvýš jednou za 10 minut
 const BELOW_REASONS = new Set(['threshold', 'critical']); // pád pod práh (propad nad prahem a návrat se nedohazují)
-const NOGAIN_MS = 4_000; // dohoz odeslán, ale síla nevzrostla: stránka armády je nejspíš zastaralá (po odhlášení/přihlášení) – obnovit ji a dohodit znovu
+const NOGAIN_MS = 2_500; // dohoz odeslán, ale síla nevzrostla: stránka armády je nejspíš zastaralá (po odhlášení/přihlášení) – obnovit ji a dohodit znovu
 const STALL_MS = 15_000; // pojistka: síla po dohození do téhle doby nevzrostla = dohoz nezabírá, přestat (běžně síla naskočí hned)
 const GAIN_FRACTION = 0.001; // „síla vzrostla“ = o víc než 0,1 % cíle (filtr drobného přirozeného kolísání)
 const HOUR_MS = 3_600_000;
