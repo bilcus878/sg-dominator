@@ -4,7 +4,7 @@
  * mezi víc hráči mají zajistit, že to nevypadá jako stroj. Čistá logika bez I/O; skutečný požadavek dělá `io.request`.
  */
 
-export const AUTO_ARMY_DEFAULTS = { enabled: false, minSec: 2, maxSec: 4, repeat: false, cooldownSec: 60 };
+export const AUTO_ARMY_DEFAULTS = { enabled: false, minSec: 2, maxSec: 4, gapMinSec: 0.9, gapMaxSec: 2.5, repeat: false, cooldownSec: 60 };
 
 const GIVE_UP_MS = 30_000; // tak dlouho se po termínu zkouší, když je dohoz zaneprázdněný, pak se hráč vzdá
 const PAGE_ALERT_GAP_MS = 10 * 60_000; // „stránka není otevřená“ se hlásí nejvýš jednou za 10 minut
@@ -19,8 +19,11 @@ export function sanitizeAutoArmy(cur, body) {
   if ('repeat' in body) next.repeat = !!body.repeat;
   if ('minSec' in body) next.minSec = num(body.minSec, 0, 120, next.minSec);
   if ('maxSec' in body) next.maxSec = num(body.maxSec, 0, 120, next.maxSec);
+  if ('gapMinSec' in body) next.gapMinSec = num(body.gapMinSec, 0, 60, next.gapMinSec);
+  if ('gapMaxSec' in body) next.gapMaxSec = num(body.gapMaxSec, 0, 60, next.gapMaxSec);
   if ('cooldownSec' in body) next.cooldownSec = num(body.cooldownSec, 0, 3600, next.cooldownSec);
   if (next.maxSec < next.minSec) next.maxSec = next.minSec;
+  if (next.gapMaxSec < next.gapMinSec) next.gapMaxSec = next.gapMinSec;
   return next;
 }
 
@@ -51,7 +54,7 @@ export function createAutoArmy({ rand = Math.random } = {}) {
     const last = lastSent.get(alert.name);
     if (last !== undefined && now - last < auto.cooldownSec * 1000) return { scheduled: false, why: 'cooldown' };
     let dueAt = now + Math.round(randRange(auto.minSec, auto.maxSec) * 1000);
-    dueAt = Math.max(dueAt, lastDueAt + Math.round(randRange(900, 2500))); // dva hráči naráz nikdo neklikne ve stejné vteřině
+    dueAt = Math.max(dueAt, lastDueAt + Math.round(randRange(auto.gapMinSec ?? 0.9, auto.gapMaxSec ?? 2.5) * 1000)); // odstup mezi hráči: dva hráči naráz nikdo neklikne ve stejné vteřině
     lastDueAt = dueAt;
     queue.push({ name: alert.name, dueAt, firstDueAt: dueAt });
     note(now, 'plan', alert.name, `za ${Math.round((dueAt - now) / 100) / 10} s`);

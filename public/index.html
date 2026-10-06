@@ -253,9 +253,12 @@
       <p class="muted" style="margin-top:10px">„Vše“ pošle všechny jednotky toho typu z armády. Víc, než máš v armádě, se neposílá. Počet 0 bez „Vše“ = jednotka se nevyplní.</p>
       <div class="chan" style="margin-top:14px">
         <div class="chan-head"><span>Automatický dohoz</span><label class="sw"><input type="checkbox" id="armyAutoOn"><span></span></label></div>
-        <p class="muted" style="margin-top:0">Když hráč <b>naší rasy</b> spadne pod práh, bot za <b>náhodnou dobu</b> v tomhle rozmezí sám klikne na Dohodit (jako bys to udělal ty). Víc hráčů naráz dohazuje postupně s odstupem. Potřebuje otevřenou stránku Jednotky → Rasová armáda. Stejný vypínač je nahoře v hlavičce (DOHOZ).</p>
+        <p class="muted" style="margin-top:0">Když hráč <b>naší rasy</b> spadne pod práh, bot za <b>náhodnou dobu</b> v tomhle rozmezí sám klikne na Dohodit (jako bys to udělal ty). Když padne víc hráčů naráz, dohazují se <b>postupně</b> s odstupem, který si nastavíš níže. Potřebuje otevřenou stránku Jednotky → Rasová armáda. Stejný vypínač je nahoře v hlavičce (DOHOZ).</p>
         <div class="two"><div><label for="armyMin">Čekat nejdřív (s)</label><input type="number" id="armyMin" min="0" max="120" step="0.5"></div>
           <div><label for="armyMax">… nejdéle (s)</label><input type="number" id="armyMax" min="0" max="120" step="0.5"></div></div>
+        <div class="two" style="margin-top:12px"><div><label for="armyGapMin">Odstup mezi hráči nejmíň (s)</label><input type="number" id="armyGapMin" min="0" max="60" step="0.1"></div>
+          <div><label for="armyGapMax">… nejvíc (s)</label><input type="number" id="armyGapMax" min="0" max="60" step="0.1"></div></div>
+        <p class="muted" style="margin:6px 0 0">Když spadne víc hráčů najednou, další se dohodí nejdřív za tenhle odstup po předchozím (náhodně v rozmezí), ne všichni naráz.</p>
         <div class="field" style="margin-top:12px"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
           <span class="sw"><input type="checkbox" id="armyRepeat"><span></span></span> Dohazovat znovu, dokud je hráč pod prahem</label>
           <small>Při každé připomínce „pod prahem“ (po pauze níže) se dohodí znovu. Vypnuto = jednou za pád.</small></div>

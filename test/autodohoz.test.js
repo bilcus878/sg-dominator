@@ -44,6 +44,20 @@ test('víc hráčů naráz: dohazují se postupně s odstupem, ne ve stejnou vte
   assert.ok(times[1] - times[0] >= 900 && times[2] - times[1] >= 900, `odstupy ${times}`);
 });
 
+test('odstup mezi hráči jde nastavit (gapMinSec–gapMaxSec)', () => {
+  for (let i = 0; i < 100; i++) {
+    const a = createAutoArmy();
+    const cfg = { ...ON, minSec: 1, maxSec: 1, gapMinSec: 5, gapMaxSec: 8 };
+    const t = ['A', 'B', 'C'].map((n) => a.onAlert(alert(n), cfg, 0).dueAt);
+    const gaps = [t[1] - t[0], t[2] - t[1]];
+    for (const g of gaps) assert.ok(g >= 5000 && g <= 8000, `odstup ${g}`);
+  }
+  // nulový odstup: všichni hned po své prodlevě
+  const z = createAutoArmy();
+  const t = ['A', 'B'].map((n) => z.onAlert(alert(n), { ...ON, minSec: 2, maxSec: 2, gapMinSec: 0, gapMaxSec: 0 }, 0).dueAt);
+  assert.deepEqual(t, [2000, 2000]);
+});
+
 test('jeden čekající požadavek na hráče; připomínky se bez opakování ignorují', () => {
   const a = createAutoArmy();
   assert.equal(a.onAlert(alert('X'), ON, 0).scheduled, true);
@@ -119,7 +133,10 @@ test('tick: stránka Rasová armáda není otevřená -> selhání, upozornění
 
 test('sanitizeAutoArmy: meze, max nikdy pod min, nesmysly se ignorují', () => {
   const n = sanitizeAutoArmy(AUTO_ARMY_DEFAULTS, { enabled: 1, minSec: '5', maxSec: '2', repeat: 1, cooldownSec: '90' });
-  assert.deepEqual(n, { enabled: true, minSec: 5, maxSec: 5, repeat: true, cooldownSec: 90 });
+  assert.deepEqual(n, { enabled: true, minSec: 5, maxSec: 5, gapMinSec: 0.9, gapMaxSec: 2.5, repeat: true, cooldownSec: 90 });
+  const g = sanitizeAutoArmy(n, { gapMinSec: '7', gapMaxSec: '3' });
+  assert.deepEqual([g.gapMinSec, g.gapMaxSec], [7, 7]); // max nikdy pod min
+  assert.deepEqual([sanitizeAutoArmy(n, { gapMinSec: 999 }).gapMinSec, sanitizeAutoArmy(n, { gapMinSec: -1 }).gapMinSec], [60, 0]);
   const c = sanitizeAutoArmy(n, { minSec: 9999, maxSec: 'abc', cooldownSec: -4 });
   assert.deepEqual([c.minSec, c.maxSec, c.cooldownSec], [120, 120, 0]);
   assert.deepEqual(sanitizeAutoArmy(n, {}), n);
