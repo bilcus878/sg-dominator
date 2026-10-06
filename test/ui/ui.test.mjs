@@ -199,3 +199,21 @@ test('Dohodit svítí při najetí jen na samotné tlačítko, ne na celý řád
   assert.ok(sel.length >= 1, 'hover styl tlačítka chybí');
   for (const s of sel) assert.doesNotMatch(s, /(tr|td|\.rbody|tbody)[^,]*:hover[^,]*\.dohodit/, `podsvícení celým řádkem: ${s}`);
 });
+
+test('OP v hlavičce: víc teček = jeden odznak s počtem, sektory v rozbalovacím seznamu; hlavička se nerozbije', { skip, timeout: 30_000 }, async () => {
+  const dots = [['30', '30'], ['25', '25'], ['68', 'Tokra'], ['86', '86'], ['51', '51']].map(([id, label]) => `{ id: '${id}', label: '${label}' }`).join(', ');
+  await b.eval(`S.op = { enabled: true, at: Date.now(), dots: [${dots}], vigilance: { count: 0, lastClickedAt: 0, pendingSince: 0 }, telescope: {} }; renderOp(); 1`);
+  assert.equal(await b.eval(`document.querySelectorAll('#opDots .opdot').length`), 1, 'jediný odznak místo jednoho na každý sektor');
+  assert.match(await b.eval(`document.querySelector('#opDots .opsum').firstChild.textContent`), /5/);
+  assert.equal(await b.eval(`document.querySelectorAll('#opDots .opsec').length`), 5);
+  assert.match(await b.eval(`document.querySelector('#opDots .oppop').textContent`), /Sektor 68 · Tokra/);
+  assert.equal(await b.eval(`getComputedStyle(document.querySelector('#opDots .oppop')).display`), 'none', 'sektory jsou skryté, dokud se nenajede');
+  await b.eval(`document.querySelector('#opDots .opsum').focus(); 1`);
+  assert.equal(await b.eval(`getComputedStyle(document.querySelector('#opDots .oppop')).display`), 'block', 'po najetí/kliknutí se ukážou');
+  assert.ok(await b.eval(`document.querySelector('header').getBoundingClientRect().height`) < 70, 'hlavička zůstala štíhlá');
+  // překreslení beze změny nezahodí odznak (seznam pod myší nemizí)
+  await b.eval(`window.__opNode = document.querySelector('#opDots .opsum'); renderOp(); 1`);
+  assert.equal(await b.eval(`window.__opNode === document.querySelector('#opDots .opsum')`), true);
+  await b.eval(`S.op.dots = []; renderOp(); 1`);
+  assert.equal(await b.eval(`document.getElementById('opDots').innerHTML`), '');
+});

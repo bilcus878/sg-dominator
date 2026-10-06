@@ -149,6 +149,12 @@
   .oppill.hit .opdotlive { background:var(--acc); animation:pulse 1s infinite; }
   @keyframes pulse { 50% { opacity:.25; } }
   .opdot.sm { margin:0; padding:1px 9px; font-size:12px; }
+  /* OP v hlavičce: jeden odznak s počtem, sektory v rozbalovacím seznamu po najetí/kliknutí */
+  .opsum { position:relative; cursor:default; white-space:nowrap; outline:none; }
+  .opsum .oppop { display:none; position:absolute; top:calc(100% + 6px); left:0; z-index:25; min-width:150px; background:var(--card); border:1px solid var(--line); border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.55); padding:8px 12px; text-align:left; font-weight:500; color:var(--fg); }
+  .opsum .oppop b { display:block; color:var(--acc); font-size:12px; margin-bottom:4px; }
+  .opsum .opsec { display:block; font-size:13px; line-height:1.7; }
+  .opsum:hover .oppop, .opsum:focus .oppop, .opsum:focus-within .oppop { display:block; }
   /* alerty pod nástěnkou */
   .alertsbox { padding:12px 16px; }
   .alertsbox .card-head { margin-bottom:6px; }
