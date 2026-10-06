@@ -37,6 +37,11 @@ const autoArmyIo = {
     const p = store.snapshot(raceId, Date.now()).players.find((x) => x.name === name);
     return p ? p.power < resolveWatch(cfg, raceId, name).threshold : true;
   },
+  /** Práh hráče (od něj je „pod prahem“): hráč nejdřív musí nad něj, teprve pak se dohazuje k horní hranici. */
+  threshold(name) {
+    const raceId = playerRace.get(name);
+    return raceId ? resolveWatch(cfg, raceId, name).threshold : null;
+  },
   /** Aktuální síla hráče z posledních dat (pro dohazování až po horní hranici). */
   power(name) {
     const raceId = playerRace.get(name);

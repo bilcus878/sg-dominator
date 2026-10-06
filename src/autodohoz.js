@@ -7,6 +7,10 @@
  * dostat nad 700 mil.), proto bot po každém dohození počká, až se síla hráče ukáže v datech, a když je pořád pod horní
  * hranicí a síla vzrostla, po náhodné prodlevě dohodí znovu. Zastaví se, jakmile hráč hranici překoná, nebo když
  * dohoz nezabírá (síla nevzrostla) či dojde nejvyšší počet kol, ať se jednotky neposílají donekonečna.
+ *
+ * Pojistka při víc hráčích: nejdřív se každý hráč pod prahem dostane NAD PRÁH (záchrana, jeden po druhém), a teprve když
+ * už nikdo pod prahem není, dohazují se hráči střídavě dál k horní hranici. Jeden hráč tak nespotřebuje všechny jednotky,
+ * zatímco druhý zůstává pod prahem.
  */
 
 export const AUTO_ARMY_DEFAULTS = {
@@ -44,7 +48,7 @@ export function createAutoArmy({ rand = Math.random } = {}) {
   let queue = []; // [{ name, dueAt, firstDueAt, episode }]
   let lastDueAt = 0; // kdy byl naplánovaný poslední dohoz (kvůli rozestupu mezi hráči)
   const lastSent = new Map(); // jméno -> kdy se naposled dohodilo
-  const episodes = new Map(); // jméno -> { target, maxRounds, rounds, minSec, maxSec, gapMinSec, gapMaxSec, startedAt } (jen při dohazování po horní hranici)
+  const episodes = new Map(); // jméno -> { phase: 'rescue'|'topup', target, maxRounds, rounds, minSec, maxSec, gapMinSec, gapMaxSec, startedAt } (jen při dohazování po horní hranici)
   const watch = new Map(); // jméno -> { sentAt, powerAtSend }: čeká se, až se ukáže účinek posledního dohozu
   const recent = []; // poslední události pro UI
   const total = { sent: 0, skipped: 0, failed: 0 };
@@ -63,6 +67,8 @@ export function createAutoArmy({ rand = Math.random } = {}) {
     return at;
   };
   const fmt = (n) => Math.round(n).toLocaleString('cs-CZ');
+  const hasRescue = () => [...episodes.values()].some((e) => e.phase === 'rescue'); // někdo je ještě pod prahem a čeká na záchranu
+  const isTop = (q) => !!q.episode && q.episode.phase === 'topup';
 
   /**
    * Alert z hlídání. Naplánuje dohoz jen pro pád pod práh (a při zapnutém opakování i pro připomínky),
@@ -79,7 +85,7 @@ export function createAutoArmy({ rand = Math.random } = {}) {
     const dueAt = dueFor(now, auto);
     const topUp = auto.topUp && auto.topUpTarget > 0;
     const episode = topUp
-      ? { target: auto.topUpTarget, maxRounds: Math.max(1, auto.topUpMaxRounds), rounds: 0, minSec: auto.minSec, maxSec: auto.maxSec, gapMinSec: auto.gapMinSec, gapMaxSec: auto.gapMaxSec, startedAt: now }
+      ? { phase: 'rescue', target: auto.topUpTarget, maxRounds: Math.max(1, auto.topUpMaxRounds), rounds: 0, minSec: auto.minSec, maxSec: auto.maxSec, gapMinSec: auto.gapMinSec, gapMaxSec: auto.gapMaxSec, startedAt: now }
       : null;
     if (episode) episodes.set(alert.name, episode);
     queue.push({ name: alert.name, dueAt, firstDueAt: dueAt, episode });
@@ -114,9 +120,14 @@ export function createAutoArmy({ rand = Math.random } = {}) {
           endEpisode(name, now, 'max', `max ${ep.maxRounds} dohozů, síla ${fmt(p)}`, events, true, `⚠️ Auto-dohoz: ${name} je po ${ep.rounds} dohozech jen na ${fmt(p)} (cíl ${fmt(ep.target)}), dohazování končí.`);
         } else {
           watch.delete(name);
+          const thr = io.threshold?.(name);
+          if (ep.phase === 'rescue' && (thr == null || p >= thr)) { // je nad prahem: záchrana hotová, dál už jen k horní hranici
+            ep.phase = 'topup';
+            note(now, 'rescued', name, `nad prahem (${fmt(p)})`);
+          }
           const dueAt = dueFor(now, ep);
           queue.push({ name, dueAt, firstDueAt: dueAt, episode: ep });
-          note(now, 'plan', name, `kolo ${ep.rounds + 1}/${ep.maxRounds} za ${Math.round((dueAt - now) / 100) / 10} s (síla ${fmt(p)})`);
+          note(now, 'plan', name, `${ep.phase === 'rescue' ? 'nad práh' : 'k hranici'}: kolo ${ep.rounds + 1}/${ep.maxRounds} za ${Math.round((dueAt - now) / 100) / 10} s (síla ${fmt(p)})`);
         }
       } else if (age > STALL_MS) {
         endEpisode(name, now, 'stall', `síla ${fmt(p)} nevzrostla`, events, true, `⚠️ Auto-dohoz: ${name} – po dohození síla nevzrostla (${fmt(p)}), dohazování končí. Zkontroluj armádu a stránku Rasová armáda.`);
@@ -125,16 +136,21 @@ export function createAutoArmy({ rand = Math.random } = {}) {
   }
 
   /**
-   * Zpracuje splatné dohazy. io: { stillBelow(name) -> bool, power(name) -> číslo|null, request(name) -> {ok, error?} }.
+   * Zpracuje splatné dohazy. io: { stillBelow(name) -> bool, power(name) -> číslo|null, threshold(name) -> číslo|null, request(name) -> {ok, error?} }.
    * @returns události k zalogování: [{type: 'sent'|'skip'|'fail'|'done'|'stall'|'max', name, error?, page?, notify?, text?}]
    */
   function tick(now, io) {
     const events = [];
     followUp(now, io, events);
-    const due = queue.filter((q) => q.dueAt <= now).sort((a, b) => a.dueAt - b.dueAt);
+    // nejdřív záchrana (hráči pod prahem), dohazování k horní hranici až potom; uvnitř skupiny podle termínu
+    const due = queue.filter((q) => q.dueAt <= now).sort((a, b) => Number(isTop(a)) - Number(isTop(b)) || a.dueAt - b.dueAt);
     for (const item of due) {
       const drop = () => { queue = queue.filter((q) => q !== item); };
       const ep = item.episode;
+      if (isTop(item) && hasRescue()) { // někdo je ještě pod prahem: ten má přednost, tenhle počká
+        item.dueAt = now + Math.round(randRange(500, 1200));
+        continue;
+      }
       if (ep && ep.rounds > 0) { // další kolo dohazování: jde jen o to, jestli je pořád pod horní hranicí
         const p = io.power?.(item.name);
         if (p != null && p >= ep.target) {
@@ -177,7 +193,7 @@ export function createAutoArmy({ rand = Math.random } = {}) {
 
   const snapshot = (now = Date.now()) => ({
     pending: queue.map((q) => ({ name: q.name, inMs: Math.max(0, q.dueAt - now) })),
-    topping: [...episodes].map(([name, e]) => ({ name, rounds: e.rounds, maxRounds: e.maxRounds, target: e.target })),
+    topping: [...episodes].map(([name, e]) => ({ name, phase: e.phase, rounds: e.rounds, maxRounds: e.maxRounds, target: e.target })),
     ...total,
     recent: recent.slice(-6),
   });

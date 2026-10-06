@@ -281,3 +281,80 @@ test('sanitizeAutoArmy: nastavení horní hranice se ořezává', () => {
   assert.equal(sanitizeAutoArmy(n, { topUpTarget: 'abc' }).topUpTarget, 750000000);
   assert.equal(AUTO_ARMY_DEFAULTS.topUp, false);
 });
+
+
+// ---------- víc hráčů: nejdřív všechny nad práh, pak k horní hranici ----------
+/** io pro víc hráčů: každý má svou sílu a sílu, kterou mu dohoz přidá; práh je společný. */
+const mkMulti = (powers, boosts, threshold = 100) => {
+  const sent = [];
+  return {
+    sent, powers,
+    stillBelow: (n) => powers[n] < threshold,
+    power: (n) => powers[n] ?? null,
+    threshold: () => threshold,
+    request: (n) => { sent.push(n); powers[n] += boosts[n]; return { ok: true }; },
+  };
+};
+const TWO = { ...TOP, topUpTarget: 750 };
+
+test('víc hráčů: nejdřív oba nad práh, teprve potom k horní hranici (jeden nespotřebuje všechno)', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkMulti({ Bob: 50, Eva: 60 }, { Bob: 150, Eva: 150 }); // jeden dohoz je dostane nad práh 100
+  a.onAlert(alert('Bob'), TWO, 0);
+  a.onAlert(alert('Eva'), TWO, 0);
+  run(a, io, 0, 120_000);
+  // záchrana: Bob, Eva; teprve pak se střídají k hranici 750
+  assert.deepEqual(io.sent.slice(0, 2), ['Bob', 'Eva']);
+  const rest = io.sent.slice(2);
+  assert.ok(rest.length >= 6 && rest.includes('Bob') && rest.includes('Eva'));
+  // střídání: nikdo nedostane dvě kola těsně po sobě, dokud druhý nedosáhl hranice
+  assert.ok(io.powers.Bob >= 750 && io.powers.Eva >= 750, JSON.stringify(io.powers));
+  assert.ok(Math.abs(io.sent.filter((n) => n === 'Bob').length - io.sent.filter((n) => n === 'Eva').length) <= 1, io.sent.join());
+});
+
+test('víc hráčů: hráč, který potřebuje víc dohozů nad práh, má přednost před dohazováním druhého k hranici', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  // Bob potřebuje 3 dohozy (20 -> 50 -> 80 -> 110), Eva stačí jeden (60 -> 160)
+  const io = mkMulti({ Bob: 20, Eva: 60 }, { Bob: 30, Eva: 100 });
+  const cfg = { ...TWO, topUpMaxRounds: 50 };
+  a.onAlert(alert('Bob'), cfg, 0);
+  a.onAlert(alert('Eva'), cfg, 0);
+  run(a, io, 0, 400_000, 1000);
+  const firstEvaTop = io.sent.indexOf('Eva', io.sent.indexOf('Eva') + 1); // druhý dohoz Evy = už k hranici
+  const bobRescue = io.sent.slice(0, firstEvaTop).filter((n) => n === 'Bob').length;
+  assert.equal(bobRescue, 3, `Bob má být zachráněn dřív, než se Eva dohazuje dál: ${io.sent.join()}`);
+  assert.ok(io.powers.Bob >= 750 && io.powers.Eva >= 750);
+});
+
+test('víc hráčů: nový hráč pod prahem předběhne dohazování ostatních k hranici', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkMulti({ Bob: 50, Eva: 500 }, { Bob: 150, Eva: 150 });
+  a.onAlert(alert('Bob'), TWO, 0);
+  run(a, io, 0, 30_000); // Bob je dávno nad prahem a dohazuje se k hranici
+  const before = io.sent.length;
+  assert.ok(before >= 2);
+  io.powers.Eva = 50; // Eva spadla pod práh uprostřed dohazování Boba
+  a.onAlert(alert('Eva'), TWO, 30_000);
+  const ev = run(a, io, 30_000, 31_000 + 6000);
+  const next = io.sent.slice(before);
+  assert.equal(next[0], 'Eva', `Eva má jít první: ${next.join()}`);
+  assert.ok(ev.some((e) => e.type === 'sent' && e.name === 'Eva'));
+});
+
+test('záchrana: bez prahu u hráče (neznámý) se po prvním dohozu jde rovnou k hranici', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkMulti({ Bob: 50 }, { Bob: 200 });
+  io.threshold = () => null;
+  a.onAlert(alert('Bob'), TWO, 0);
+  run(a, io, 0, 60_000);
+  assert.ok(io.powers.Bob >= 750);
+});
+
+test('snapshot ukazuje fázi hráče (záchrana / k hranici)', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkMulti({ Bob: 50 }, { Bob: 200 });
+  a.onAlert(alert('Bob'), TWO, 0);
+  assert.equal(a.snapshot(0).topping[0].phase, 'rescue');
+  run(a, io, 0, 12_000);
+  assert.equal(a.snapshot(12_000).topping[0].phase, 'topup');
+});

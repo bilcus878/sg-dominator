@@ -88,10 +88,10 @@ function renderAutoArmy() {
   for (const cb of document.querySelectorAll('.autoarmy')) if (document.activeElement !== cb) cb.checked = on; // vypínače v záhlaví panelů
   const s = S.autoArmy;
   if (!s) return;
-  const label = { plan: 'naplánováno', sent: 'odesláno', skip: 'přeskočeno', fail: 'selhalo', done: 'dosáhl horní hranice', stall: 'dohoz nezabral', max: 'došel max počet dohozů' };
+  const label = { plan: 'naplánováno', sent: 'odesláno', skip: 'přeskočeno', fail: 'selhalo', rescued: 'je nad prahem', done: 'dosáhl horní hranice', stall: 'dohoz nezabral', max: 'došel max počet dohozů' };
   const last = s.recent[s.recent.length - 1];
   const txt = `${on ? 'Zapnuto' : 'Vypnuto'}. Odesláno ${s.sent}×, přeskočeno ${s.skipped}×, selhalo ${s.failed}×.`
-    + (s.topping?.length ? ` Dohazuje do horní hranice: ${s.topping.map((t) => `${esc(t.name)} (${t.rounds}/${t.maxRounds}, cíl ${dots(t.target)})`).join(', ')}.` : '')
+    + (s.topping?.length ? ` Dohazuje do horní hranice: ${s.topping.map((t) => `${esc(t.name)} (${t.phase === 'rescue' ? 'nad práh' : 'k hranici'} ${t.rounds}/${t.maxRounds}, cíl ${dots(t.target)})`).join(', ')}.` : '')
     + (s.pending.length ? ` Čeká: ${s.pending.map((p) => `${esc(p.name)} za ${Math.ceil(p.inMs / 1000)} s`).join(', ')}.` : '')
     + (last ? ` Naposledy: ${esc(last.name)} – ${label[last.type] ?? last.type}${last.text ? ` (${esc(last.text)})` : ''}.` : '');
   const el = $('armyAutoStatus');
