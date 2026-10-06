@@ -193,3 +193,9 @@ test('zvuk: nastavení je sdílené přes server (vypnutí v jednom okně vypne 
   assert.equal((await app.api('/api/config')).sound.on, true);
   await app.api('/api/config', 'PUT', { sound: { on: false } }); // aby další zkoušky nepípaly
 });
+
+test('Dohodit svítí při najetí jen na samotné tlačítko, ne na celý řádek', { skip }, async () => {
+  const sel = await b.eval(`(() => { const out = []; for (const sh of document.styleSheets) { try { for (const r of sh.cssRules) { if (r.selectorText && /dohodit/.test(r.selectorText) && /:hover/.test(r.selectorText)) out.push(r.selectorText); } } catch {} } return out; })()`);
+  assert.ok(sel.length >= 1, 'hover styl tlačítka chybí');
+  for (const s of sel) assert.doesNotMatch(s, /(tr|td|\.rbody|tbody)[^,]*:hover[^,]*\.dohodit/, `podsvícení celým řádkem: ${s}`);
+});

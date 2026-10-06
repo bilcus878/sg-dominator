@@ -471,7 +471,7 @@
   /* Dohodit u každého hráče, ale tiše: výrazné jen při najetí na řádek a když je hráč pod prahem */
   /* Dohodit: jasně vidět jako tlačítko (zlatě podbarvené) u každého hráče; po najetí plné zlaté, pod prahem červené a svítí */
   .rpanel .dohodit { background:rgba(224,184,76,.14); border:1px solid rgba(224,184,76,.6); color:var(--acc); font-weight:700; letter-spacing:.01em; transition:background .12s, color .12s, box-shadow .12s; }
-  .rpanel .dohodit:hover, .rpanel tr:hover .dohodit, .rpanel .dohodit:focus-visible { background:var(--acc); border-color:var(--acc); color:#1a1405; box-shadow:0 0 12px rgba(224,184,76,.35); }
+  .rpanel .dohodit:hover, .rpanel .dohodit:focus-visible { /* svítí jen při najetí na samotné tlačítko, ne na celý řádek */ background:var(--acc); border-color:var(--acc); color:#1a1405; box-shadow:0 0 12px rgba(224,184,76,.35); }
   .rpanel tr.below .dohodit { color:#fff; border-color:#ff8a8a; }
   /* staré údaje: panel ztlumený, okraj žlutý/červený, alarmy vypnuté */
   .rpanel[data-fresh=warn] { border-top-color:var(--acc) !important; } .rpanel[data-fresh=bad] { border-top-color:var(--bad) !important; }
