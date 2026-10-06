@@ -111,7 +111,10 @@ function renderAutoArmy() {
   }
   const au = cfg.army?.auto;
   const warnTop = au?.enabled && au.topUp && au.topUpTarget > 0 && au.topUpTarget <= cfg.threshold;
-  const full = warnTop ? `${txt} <b style="color:var(--bad)">⚠ Horní hranice je pod výchozím prahem, dohazování skončí hned po prvním dohozu.</b>` : txt;
+  const noSvc = !cfg.telegram?.serviceChatId;
+  const full = txt
+    + (warnTop ? ' <b style="color:var(--bad)">⚠ Horní hranice je pod výchozím prahem, cílem bude práh hráče.</b>' : '')
+    + (noSvc ? '<br><span class="muted">ℹ Zprávy o automatu (selhání, pojistka) jdou jen do servisního chatu a ten není nastavený, uvidíš je tedy jen tady v aplikaci. V hlavní skupině se o automatu nikdy nic nepíše.</span>' : '<br><span class="muted">Zprávy o automatu jdou jen do servisního chatu, do hlavní skupiny se nikdy nepíše.</span>');
   const el = $('armyAutoStatus');
   if (el.dataset.t !== full) { el.dataset.t = full; el.innerHTML = full; }
 }

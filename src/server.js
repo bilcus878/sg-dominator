@@ -66,10 +66,13 @@ const autoArmyIo = {
     return r;
   },
 };
-/** Zprávy auto-dohozu: do servisního chatu, a když není nastavený, do hlavního (selhání dohozu se nesmí ztratit). */
+/**
+ * Zprávy auto-dohozu (selhání, pojistka, dohoz po několika kolech…) jdou JEN do servisního chatu (soukromě pro uživatele).
+ * Do hlavní skupiny se o automatu nikdy nic neposílá, ať to v chatu vypadá, že dohazuje člověk. Bez nastaveného servisního chatu
+ * se neposílá nic (stav je vidět v aplikaci a v logu).
+ */
 function sendDohoz(text) {
-  if (cfg.telegram.serviceChatId) sendService(cfg, text);
-  else if (notifyOn(cfg, 'service')) sendText(cfg, text);
+  sendService(cfg, text);
 }
 setInterval(() => {
   for (const ev of autoArmy.tick(Date.now(), autoArmyIo, !!cfg.army.auto.enabled)) {

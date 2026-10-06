@@ -79,6 +79,12 @@ V Nastavení → Dohoz jde zadat *Moje jméno v rase*. Když spadne tento hráč
 a **jako první**: před ostatními, bez odstupu mezi hráči, bez čekání za cizí záchranou a bez pauzy před opětovným dohozem. Ostatním hráčům se tím
 neposouvají termíny. Ostatní pojistky (čerstvá data, ověřování, hodinová pojistka, vypnutí) platí i pro mě. U jména v tabulce svítí ⚡.
 
+## 4c. Co se píše do chatu
+
+Do hlavní skupiny se o auto-dohozu **nikdy nic neposílá**: tam jdou jen herní alerty (pád pod práh apod.) jako dřív, takže to vypadá, že dohazuje člověk.
+Zprávy automatu (dohoz po víc kolech, selhání, pojistka, nejsou data) jdou **jen do servisního chatu** (soukromě). Když není servisní chat nastavený, neposílá se
+nic a stav je vidět v aplikaci (Nastavení → Dohoz) a v logu. Hlídá to i test (`test/autodohoz-chat.test.js`).
+
 ## 5. Nastavení (Nastavení → Dohoz)
 
 1. po pádu pod práh počkat · 2. odstup mezi hráči · 3. pauza mezi dohozy téhož hráče · 4. znovu začít dohazovat téhož hráče
