@@ -99,10 +99,10 @@ export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS } = 
   const fmt = (n) => Math.round(n).toLocaleString('cs-CZ');
   const hasRescue = () => [...episodes.values()].some((e) => e.phase === 'rescue'); // někdo je ještě pod prahem a čeká na záchranu
   const isTop = (q) => !!q.episode && q.episode.phase === 'topup';
-  /** Síla hráče z čerstvých dat; null = žádná použitelná data (chybí, nulová nebo stará) – podle takových se nikdy nedohazuje. */
+  /** Síla hráče z čerstvých dat; null = žádná použitelná data (chybí, nečitelná nebo stará) – podle takových se nikdy nedohazuje. Síla 0 je platná (hráče dobyvací útok srazí až na 0 a právě tehdy se dohazuje). */
   const readPower = (name, io) => {
     const p = io.power?.(name);
-    return p == null || !(p > 0) ? null : p;
+    return p == null || !Number.isFinite(p) || p < 0 ? null : p;
   };
 
   /**

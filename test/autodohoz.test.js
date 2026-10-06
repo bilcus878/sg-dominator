@@ -724,3 +724,43 @@ test('vlastní horní hranice hráče: ukládá se, maže se a čte se z resolve
   c = sanitizeUpdate(c, { players: { Bob: { threshold: null } } });
   assert.equal('Bob' in c.players, false); // prázdný záznam se uklidí
 });
+
+
+test('síla 0 je platná: hráč sražený dobyvacím útokem na 0 se dohodí a dohazuje se z nuly až na horní hranici', () => {
+  const state = { power: 0 };
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkTopIo(state, { boost: 200 });
+  io.threshold = () => 100;
+  a.onAlert(alert('X'), TOP, 0);
+  const ev = run(a, io, 0, 60_000);
+  assert.ok(io.sent.length >= 4, `dohozů ${io.sent.length}`);
+  assert.ok(state.power >= 750);
+  assert.ok(ev.some((e) => e.type === 'done'));
+  assert.equal(ev.some((e) => e.type === 'stall' || e.type === 'fail'), false);
+});
+
+test('síla 0 se bere i při jednom dohození bez horní hranice (a ověří se podle nárůstu z nuly)', () => {
+  const state = { power: 0 };
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkTopIo(state, { boost: 150 });
+  io.threshold = () => 100;
+  a.onAlert(alert('X'), { ...ON, minSec: 0, maxSec: 0, gapMinSec: 0, gapMaxSec: 0 }, 0);
+  const ev = run(a, io, 0, 60_000);
+  assert.equal(io.sent.length, 1);
+  assert.equal(ev.filter((e) => e.notify).length, 0, 'dohoz zabral, žádná zpráva');
+  assert.equal(a.snapshot(60_000).recent.some((r) => r.type === 'verified'), true);
+});
+
+test('nečitelná síla (NaN, záporná) není platná a nedohazuje se podle ní', () => {
+  for (const bad of [NaN, -5, null, undefined]) {
+    const a = createAutoArmy({ rand: () => 0 });
+    const sent = [];
+    const io = { stillBelow: () => true, power: () => bad, threshold: () => 100, request: (n) => { sent.push(n); return { ok: true }; } };
+    a.onAlert(alert('X'), { ...TOP, minSec: 0, maxSec: 0 }, 0);
+    run(a, io, 0, 3000);
+    // první dohoz se rozhoduje přes stillBelow (true), ale ověřování účinku bez čitelné síly skončí varováním
+    const ev = run(a, io, 3000, 40_000);
+    assert.ok(sent.length <= 1);
+    assert.ok(sent.length === 0 || ev.some((e) => e.type === 'stall'), `bad=${bad}`);
+  }
+});

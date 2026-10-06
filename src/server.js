@@ -30,7 +30,7 @@ let armyWaiters = [];
 const wakeArmy = () => { for (const f of armyWaiters.splice(0)) f(); };
 const autoArmy = createAutoArmy(); // pád vlastního hráče pod práh -> po náhodné prodlevě sám požadavek Dohodit
 const DATA_FRESH_MS = 10_000; // data rasy starší než tohle (okno se zavřelo / zpomalilo) se pro dohazování nepoužijí
-/** Hráč z čerstvých dat; null = žádná použitelná data (neznámý hráč, stará data, nulová síla = nejspíš chyba čtení). */
+/** Hráč z čerstvých dat; null = žádná použitelná data (neznámý hráč, stará nebo nečitelná data). Síla 0 je platná: dobyvací útok hráče srazí až na 0 a právě tehdy se dohazuje. */
 function freshPlayer(name) {
   const raceId = playerRace.get(name);
   if (!raceId) return null;
@@ -38,7 +38,7 @@ function freshPlayer(name) {
   const snap = store.snapshot(raceId, now);
   const p = snap.players.find((x) => x.name === name);
   if (!p || now - (p.seenAt ?? snap.at ?? 0) > DATA_FRESH_MS) return null; // čerstvost se měří za konkrétního hráče (jeho stránku může posílat jiné okno než zbytek rasy)
-  return Number.isFinite(p.power) && p.power > 0 ? { raceId, p } : null;
+  return Number.isFinite(p.power) && p.power >= 0 ? { raceId, p } : null;
 }
 const autoArmyIo = {
   /** Je hráč pořád pod prahem? true/false, null = bez čerstvých dat (podle starých dat se nedohazuje). */

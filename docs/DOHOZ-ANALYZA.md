@@ -34,7 +34,7 @@ Důležité vlastnosti, které se při návrhu hlídaly:
 | Riziko | Pojistka |
 |---|---|
 | Rozjeté dohazování po vypnutí | Vypnutí (jakýkoli vypínač) okamžitě zruší naplánované i rozjeté dohozy |
-| Rozhodování podle starých dat | Data hráče starší než 10 s se nepoužijí; síla ≤ 0 = chyba čtení; bez čerstvých dat se nic neposílá (po 30 s se hráč vzdá se zprávou) |
+| Rozhodování podle starých dat | Data hráče starší než 10 s se nepoužijí; síla 0 je platná (dobyvací útok hráče srazí až na 0 a právě tehdy se dohazuje), jako chybná se bere jen nečitelná hodnota; bez čerstvých dat se nic neposílá (po 30 s se hráč vzdá se zprávou) |
 | Dohoz, který se nepovedl, a nikdo to neví | Každý dohoz se ověřuje (i bez horní hranice): chyba skriptu, nevyzvednutý požadavek, nebo síla nevzrostla = zpráva |
 | Falešný „úspěch“ z drobného kolísání síly | Na účinek se čeká až po odeslání skriptem; „vzrostla“ = o víc než 0,1 % cíle |
 | Smyčka jednotek bez konce | Počet dohozů na hráče se v nastavení **neomezuje** (dohazuje se až po horní hranici), proto: síla nevzrostla do 15 s = konec; **hodinová pojistka** (výchozí 200): po překročení se auto-dohoz sám vypne (i v nastavení) a pošle zprávu; interní tvrdý strop 500 kol na hráče |
