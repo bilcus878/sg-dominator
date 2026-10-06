@@ -109,3 +109,38 @@ for (const [id, kind, label] of [['rcClearMil', 'military', 'vojenské'], ['rcCl
     try { await api('/api/recalc/' + kind, 'DELETE'); toast('Vymazáno'); refresh(); } catch (e) { toast(e.message, true); }
   };
 }
+
+/** Profil nastavení (Nastavení → Data) */
+const fmtT = (t) => (t ? new Date(t).toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) : '–');
+let profInfo = null;
+function renderProfile(p) {
+  profInfo = p ?? S?.profile ?? profInfo;
+  const v = profInfo; if (!v || !$('profStatus')) return;
+  if (document.activeElement !== $('profName')) $('profName').value = v.name ?? '';
+  if (v.autoSave !== undefined) { if (document.activeElement !== $('profAutoSave')) $('profAutoSave').checked = v.autoSave; if (document.activeElement !== $('profAutoLoad')) $('profAutoLoad').checked = v.autoLoad; }
+  if (v.profiles) $('profList').innerHTML = v.profiles.map((x) => '<option value="' + esc(x.name) + '">').join('');
+  $('profStatus').textContent = !v.name ? 'Profil není vybraný: zadej jméno a ulož.'
+    : `Profil „${v.name}“: tento počítač je synchronizovaný k ${fmtT(v.syncedAt)}; v souboru je verze z ${fmtT(v.fileAt)}.`;
+  const w = $('profWarn'); w.hidden = !v.conflict; w.textContent = v.conflict ? 'V profilu je novější nastavení z jiného počítače. Klikni „Načíst z profilu“, nebo ho přepiš tlačítkem „Uložit do profilu teď“.' : '';
+}
+async function profPut(body) { try { renderProfile(await api('/api/profile', 'PUT', body)); } catch (e) { toast(e.message, true); } }
+$('profName').onchange = () => profPut({ name: $('profName').value.trim() });
+$('profAutoSave').onchange = () => profPut({ autoSave: $('profAutoSave').checked });
+$('profAutoLoad').onchange = () => profPut({ autoLoad: $('profAutoLoad').checked });
+$('profSave').onclick = async () => {
+  try {
+    await profPut({ name: $('profName').value.trim() });
+    let r = await api('/api/profile/save', 'POST', {});
+    if (r.conflict && confirm('V profilu je novější nastavení z jiného počítače. Přepsat ho nastavením z tohoto počítače?')) r = await api('/api/profile/save', 'POST', { force: true });
+    renderProfile(r); toast(r.ok ? 'Uloženo do profilu' : (r.conflict ? 'Profil nepřepsán' : (r.error ?? 'Nešlo uložit')), !r.ok);
+  } catch (e) { toast(e.message, true); }
+};
+$('profLoad').onclick = async () => {
+  try {
+    await profPut({ name: $('profName').value.trim() });
+    if (!confirm('Načíst nastavení z profilu? Přepíše aktuální nastavení na tomto počítači (token bota, webhook, heslo a port zůstanou).')) return;
+    const r = await api('/api/profile/load', 'POST', {});
+    cfg = r.config; renderProfile(r); fillForm(); renderChips(); toast('Načteno z profilu'); refresh();
+  } catch (e) { toast(e.message, true); }
+};
+document.querySelector('[data-tab="data"]').addEventListener('click', async () => { try { renderProfile(await api('/api/profile')); } catch { /* bez serveru nic */ } });

@@ -291,3 +291,27 @@ test('Nastavení → Data: přepočty hráčů se dají vypnout a ukázat statis
   await b.eval(`document.getElementById('openSettings').click(); document.querySelector('[data-tab=data]').click(); document.getElementById('rcEco').click(); document.getElementById('rcShowMil').click(); document.getElementById('save').click(); document.getElementById('closeSettings').click(); 1`); await sleep(700);
   assert.equal((await app.api('/api/config')).recalc.economic, true);
 });
+
+test('Profil nastavení: uložení do souboru bez tajných věcí, změna a načtení zpět; rozhraní v Data to ukáže', { skip, timeout: 40_000 }, async () => {
+  const { readFileSync, existsSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  await app.api('/api/config', 'PUT', { dropPct: 11 });
+  await app.api('/api/profile', 'PUT', { name: 'tester', autoSave: false, autoLoad: false });
+  const sv = await app.api('/api/profile/save', 'POST', {});
+  assert.equal(sv.ok, true);
+  const file = join(app.dir, 'profiles', 'tester.json');
+  assert.ok(existsSync(file));
+  const txt = readFileSync(file, 'utf8');
+  assert.ok(!txt.includes('"token"') && !txt.includes('botToken') && !txt.includes('webhookUrl') && !txt.includes('password'), 'v profilu nejsou tajné věci');
+  assert.equal(JSON.parse(txt).config.dropPct, 11);
+  await app.api('/api/config', 'PUT', { dropPct: 33 });
+  assert.equal((await app.api('/api/config')).dropPct, 33);
+  const ld = await app.api('/api/profile/load', 'POST', {});
+  assert.equal(ld.ok, true); assert.equal(ld.config.dropPct, 11); assert.equal((await app.api('/api/config')).dropPct, 11);
+  // po načtení profilu si prohlížeč převezme vzhled a obnoví stránku
+  await sleep(2500);
+  await b.eval(`document.getElementById('openSettings').click(); document.querySelector('[data-tab=data]').click(); 1`); await sleep(600);
+  assert.equal(await b.eval(`document.getElementById('profName').value`), 'tester');
+  assert.match(await b.eval(`document.getElementById('profStatus').textContent`), /tester/);
+  await b.eval(`document.getElementById('closeSettings').click(); 1`);
+});

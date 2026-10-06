@@ -31,13 +31,13 @@ export async function startApp() {
   const port = await freePort();
   writeFileSync(join(dir, 'config.json'), JSON.stringify({ token: TOKEN, port }));
   const node = existsSync(join(ROOT, 'runtime/node/node.exe')) ? join(ROOT, 'runtime/node/node.exe') : process.execPath;
-  const proc = spawn(node, ['--disable-warning=ExperimentalWarning', 'src/server.js'], { cwd: ROOT, env: { ...process.env, SG_DATA_DIR: dir, SG_PORT: String(port) }, stdio: 'ignore' });
+  const proc = spawn(node, ['--disable-warning=ExperimentalWarning', 'src/server.js'], { cwd: ROOT, env: { ...process.env, SG_DATA_DIR: dir, SG_PROFILES_DIR: join(dir, 'profiles'), SG_PORT: String(port) }, stdio: 'ignore' });
   const base = `http://127.0.0.1:${port}`;
   for (let i = 0; i < 60; i++) { try { if ((await fetch(base + '/api/state')).ok) break; } catch { /* ještě startuje */ } await sleep(150); }
   const H = { 'x-token': TOKEN, 'content-type': 'application/json' };
   const api = (path, method = 'GET', body) => fetch(base + path, { method, headers: H, body: body ? JSON.stringify(body) : undefined }).then((r) => r.json());
   const ingest = (raceId, raceName, players, extra = {}) => fetch(base + '/ingest', { method: 'POST', headers: H, body: JSON.stringify({ raceId: String(raceId), raceName, src: 'ui-test', ver: '3.12.1', players, ...extra }) });
-  return { base, api, ingest, stop: () => { proc.kill(); try { rmSync(dir, { recursive: true, force: true }); } catch { /* soubory ještě drží proces */ } } };
+  return { base, dir, api, ingest, stop: () => { proc.kill(); try { rmSync(dir, { recursive: true, force: true }); } catch { /* soubory ještě drží proces */ } } };
 }
 
 /** Hráči pro zkoušky: síla klesá, planety rostou. */

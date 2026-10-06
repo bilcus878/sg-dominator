@@ -15,3 +15,4 @@
 - Po změně userscriptu zvyš `@version` v hlavičce, ať ho Tampermonkey aktualizuje.
 - Testování v prohlížeči: přes rozšíření Claude in Chrome (uživatelův Chrome s Tampermonkey a přihlášením do hry).
 - Když je potřeba uživatel (přihlášení, potvrzení), zastav se a řekni mu.
+- Profily nastavení: Nastavení → Data → Profil. Celé nastavení (bez tokenů, webhooku, hesla a portu) se ukládá do `profiles/<jméno>.json`, který se commituje a pushuje; po pullu ho aplikace sama načte. Tajné věci do profilu nepatří a nikdy se nesmí dostat do repozitáře.

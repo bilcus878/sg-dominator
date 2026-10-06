@@ -98,6 +98,16 @@ export function loadConfig() {
       stored = readJson(bak);
     }
   }
+  const cfg = normalizeConfig(stored);
+  if (!cfg.token) {
+    cfg.token = randomBytes(16).toString('hex');
+    saveConfig(cfg);
+  }
+  return cfg;
+}
+
+/** Uložené/profilové nastavení -> úplné nastavení (chybějící pole se doplní výchozími, hodnoty se ošetří). */
+export function normalizeConfig(stored) {
   const cfg = merge(DEFAULTS, stored);
   // uložená podobjekty se s výchozími slučují jen mělce, takže chybějící nová pole se doplní tady
   cfg.recalc = { ...DEFAULTS.recalc, ...cfg.recalc };
@@ -113,10 +123,6 @@ export function loadConfig() {
     if (mine.length === 1) cfg.myRace = mine[0];
   }
   applyMyRace(cfg);
-  if (!cfg.token) {
-    cfg.token = randomBytes(16).toString('hex');
-    saveConfig(cfg);
-  }
   return cfg;
 }
 

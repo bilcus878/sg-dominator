@@ -21,7 +21,7 @@ function healthItems() {
   return items;
 }
 function renderHealth() {
-  renderSessionStatus(); renderRecalcStats();
+  renderSessionStatus(); renderRecalcStats(); if ($('pane-data')?.classList.contains('on')) renderProfile(); checkProfileUi();
   if (!S.serverTime) return;
   renderChannels();
   const items = healthItems();
@@ -34,3 +34,11 @@ document.addEventListener('click', (e) => { if (!$('hlMenu').hidden && !e.target
 setInterval(renderHealth, 500);
 
 
+
+/** Server načetl nový profil (po pullu) včetně vzhledu: tento prohlížeč ho převezme jednou. */
+let profUiAdopting = false;
+function checkProfileUi() {
+  const rev = S?.profile?.uiRev;
+  if (!rev || profUiAdopting || String(rev) === store.get('uiRev')) return;
+  profUiAdopting = true; adoptProfileUi(rev);
+}

@@ -17,10 +17,28 @@ document.addEventListener('input', (e) => {
   el.setSelectionRange(pos, pos);
 }, true);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const UI_SYNC = new Set(['panels', 'pstate', 'uicfg']); // vzhled, který se přenáší v profilu nastavení
+let uiPostTimer = null, uiApplying = false;
 const store = {
   get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
-  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} if (UI_SYNC.has(k) && !uiApplying) { clearTimeout(uiPostTimer); uiPostTimer = setTimeout(postUiSnapshot, 1500); } },
 };
+/** Pošle serveru aktuální vzhled, ať ho může uložit do profilu. */
+function postUiSnapshot() {
+  const ui = {};
+  for (const k of UI_SYNC) { try { const v = JSON.parse(localStorage.getItem(k)); if (v && typeof v === 'object') ui[k] = v; } catch { /* nic */ } }
+  fetch('/api/profile/ui', { method: 'POST', body: JSON.stringify(ui) }).catch(() => {});
+}
+/** Server načetl vzhled z profilu (po pullu): převezme se a stránka se obnoví. */
+async function adoptProfileUi(rev) {
+  try {
+    const { ui } = await (await fetch('/api/profile/ui')).json();
+    uiApplying = true;
+    if (ui) for (const k of UI_SYNC) if (ui[k] !== undefined) localStorage.setItem(k, JSON.stringify(ui[k]));
+    localStorage.setItem('uiRev', String(rev));
+  } catch { /* příště */ } finally { uiApplying = false; }
+  location.reload();
+}
 let cfg = null;          // veřejná konfigurace (prahy, kanály…)
 let S = { races: [], alerts: [], serverTime: 0, ratePerSec: 0 }; // živý stav
 

@@ -312,6 +312,18 @@
         <p class="muted" style="margin-top:0">Když hlídaná rasa (nebo mapa při zapnutém OP) přestane dodávat data, pošle se zpráva do <b>servisního chatu</b>, a další, až se data vrátí. Do hlavní skupiny nejde. Ticho z prohlížeče tak nevypadá jako klid.</p>
         <label for="wdStale">Hlásit po (s) bez dat</label><input type="number" id="wdStale" min="10">
       </div>
+      <div class="chan" style="border-color:var(--acc)">
+        <div class="chan-head"><span><b>Profil nastavení</b></span></div>
+        <p class="muted" style="margin-top:0">Každý si vytvoří svůj profil. Celé nastavení aplikace (prahy, rasy, alerty, dohoz, útok, přihlášení, přepočty a vzhled) se uloží do souboru <code>profiles/&lt;jméno&gt;.json</code> ve složce projektu, takže se s commitem a pushem přenese na druhý počítač. Tam po pullu aplikace novější profil sama načte.</p>
+        <p class="muted"><b>Do profilu nejde nic tajného:</b> token aplikace, token Telegram bota, webhook Discordu, heslo do hry ani port. Ty zůstávají na každém počítači zvlášť a zadáš je tam jednou. Profil je ale čitelný soubor v repozitáři (prahy, názvy hráčů, ID chatů).</p>
+        <label for="profName">Jméno profilu</label>
+        <input type="text" id="profName" list="profList" maxlength="32" placeholder="např. bilcus (písmena, číslice, _ a -)" autocomplete="off"><datalist id="profList"></datalist>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="profAutoSave"><span></span></span> Průběžně ukládat změny do profilu (před pushem je vždy aktuální)</label>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="profAutoLoad"><span></span></span> Po pullu automaticky načíst novější profil (při startu a každou minutu)</label>
+        <p id="profStatus" class="muted" style="margin:8px 0"></p>
+        <button class="ghost" id="profSave" type="button">Uložit do profilu teď</button> <button class="ghost" id="profLoad" type="button">Načíst z profilu</button>
+        <div id="profWarn" class="muted" style="color:var(--bad);margin-top:8px" hidden></div>
+      </div>
       <div class="chan">
         <div class="chan-head"><span>Přepočty hráčů</span></div>
         <p class="muted" style="margin-top:0">Aplikace z dat ras zjišťuje, kdy se hráči přepočítávají: <b>⟳ vojenský</b> (v celou hodinu se mu ve sloupci Dobyt vynuluje počet) a <b>💰 ekonomický</b> (odhad: hráči po přihlášení vzroste populace, aniž by se změnil počet planet). Zachycené časy se ukládají a ukazují se pod jménem.</p>

@@ -2,8 +2,10 @@
 import { readFile } from 'node:fs/promises';
 import { readFileSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { hostname } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { timingSafeEqual } from 'node:crypto';
-import { loadConfig, saveConfig, sanitizeUpdate, publicConfig, DATA_DIR, LEGACY_DATA_DIR, USING_DEFAULT_DIR } from './config.js';
+import { loadConfig, saveConfig as saveConfigRaw, normalizeConfig, sanitizeUpdate, publicConfig, DATA_DIR, LEGACY_DATA_DIR, USING_DEFAULT_DIR } from './config.js';
 import { migrateLegacyData } from './migrate.js';
 import { createState, evaluate, rebaseline } from './rules.js';
 import { formatAlert, sendText, sendService, findTelegramChats, notifyOn, sendStatus } from './notifiers.js';
@@ -20,11 +22,14 @@ import { createUnemp } from './unemp.js';
 import { createRecalc } from './recalc.js';
 import { createEcon } from './econ.js';
 import { createAutoArmy } from './autodohoz.js';
+import { validName, buildProfile, mergeProfileConfig, sameContent, readProfile, writeProfile, listProfiles, cleanUi } from './profiles.js';
 import { mergeSeenUnits, sanitizeReport, sanitizeSeenUnits, unitsFor, ATTACK_TYPES } from './attack.js';
 
 // data bydlela dřív ve složce projektu (Dropbox); při prvním spuštění se přesunou mimo ni
 if (USING_DEFAULT_DIR) migrateLegacyData(LEGACY_DATA_DIR, DATA_DIR);
 let cfg = loadConfig();
+/** Uložení nastavení; po každé změně se (když je zapnuto) aktualizuje i profil v repozitáři. */
+function saveConfig(c) { saveConfigRaw(c); scheduleProfileSave(); }
 if (process.env.SG_PORT) cfg.port = Number(process.env.SG_PORT);
 const state = createState();
 const conquest = createConquest(); // cizí rasy: kdo je k dobytí
@@ -473,7 +478,7 @@ function buildState() {
     vigilance: { count: vig.count, lastClickedAt: vig.clickedAt, pendingSince: vig.pending ? vig.seenAt : 0 },
     telescope: tele.snapshot(),
   };
-  return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState, autoArmy: { ...autoArmy.snapshot(now), rankPaused }, sound: cfg.sound, sendStatus: { ...sendStatus }, sessionLog: sessionLog.slice(0, 12), recalcStats: { military: recalc.count(), economic: econ.count() } };
+  return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState, autoArmy: { ...autoArmy.snapshot(now), rankPaused }, sound: cfg.sound, sendStatus: { ...sendStatus }, sessionLog: sessionLog.slice(0, 12), profile: { name: prof.name, uiRev: profRt.uiRev, conflict: profRt.conflict, syncedAt: prof.syncedAt, fileAt: profRt.fileAt }, recalcStats: { military: recalc.count(), economic: econ.count() } };
 }
 
 /** Hlídač výpadku: hlídané rasy a mapa (když je OP alert zapnutý) musí dodávat data. */
@@ -510,7 +515,88 @@ const buildView = () => [200, { buildings: BUILDINGS, config: cfg.build, run: bu
 let attackSeen = { at: 0, units: [] }; // jednotky z poslední navštívené stránky útoku
 let attackReport = null; // poslední hlášení o vyplnění
 
+// ---------- profily nastavení (profiles/<jméno>.json v repozitáři; přenos mezi počítači přes git) ----------
+const PROFILES_DIR = process.env.SG_PROFILES_DIR || fileURLToPath(new URL('../profiles/', import.meta.url));
+const PROFILE_STATE_PATH = join(DATA_DIR, 'profile.json');
+const prof = { name: '', autoSave: true, autoLoad: true, syncedAt: 0, ...(() => { try { return JSON.parse(readFileSync(PROFILE_STATE_PATH, 'utf8')); } catch { return {}; } })() };
+const profRt = { ui: null, uiRev: 0, conflict: false, fileAt: 0, msg: '' }; // ui = poslední vzhled z prohlížeče; uiRev = čas profilu, ze kterého se vzhled naposledy načetl
+function persistProfState() {
+  try { mkdirSync(DATA_DIR, { recursive: true }); writeFileSync(`${PROFILE_STATE_PATH}.tmp`, JSON.stringify({ name: prof.name, autoSave: prof.autoSave, autoLoad: prof.autoLoad, syncedAt: prof.syncedAt })); renameSync(`${PROFILE_STATE_PATH}.tmp`, PROFILE_STATE_PATH); }
+  catch (e) { console.error('stav profilu se neuložil:', e.message); }
+}
+function profileView() {
+  return { name: prof.name, autoSave: prof.autoSave, autoLoad: prof.autoLoad, syncedAt: prof.syncedAt, fileAt: profRt.fileAt, conflict: profRt.conflict, uiRev: profRt.uiRev, msg: profRt.msg };
+}
+/** Uloží nastavení do souboru profilu. Když je v repozitáři novější verze (po pullu), nepřepíše ji (conflict), pokud nejde o force. */
+function profileSaveNow(force = false) {
+  if (!validName(prof.name)) return { ok: false, error: 'Nejdřív zadej jméno profilu' };
+  const file = readProfile(PROFILES_DIR, prof.name);
+  profRt.fileAt = file?.savedAt ?? 0;
+  if (file && file.savedAt > prof.syncedAt && !force) { profRt.conflict = true; profRt.msg = 'V profilu je novější nastavení (z jiného počítače). Načti ho, nebo ho přepiš.'; pushState(); return { ok: false, conflict: true }; }
+  const now = Date.now();
+  const next = buildProfile(prof.name, cfg, profRt.ui ?? file?.ui ?? null, now, hostname());
+  if (file && sameContent(file, next)) { prof.syncedAt = file.savedAt; }
+  else { writeProfile(PROFILES_DIR, next); prof.syncedAt = now; profRt.fileAt = now; console.log(`[profil] uloženo do profiles/${prof.name}.json`); }
+  profRt.conflict = false; profRt.msg = '';
+  persistProfState(); pushState();
+  return { ok: true };
+}
+let profSaveTimer = null;
+function scheduleProfileSave() {
+  if (!prof.name || !prof.autoSave) return;
+  clearTimeout(profSaveTimer);
+  profSaveTimer = setTimeout(() => { try { profileSaveNow(false); } catch (e) { console.error('profil se neuložil:', e.message); } }, 2000);
+}
+/** Načte nastavení z profilu (po pullu z gitu). Tajné věci a port zůstávají tady. */
+function profileLoadNow() {
+  const file = readProfile(PROFILES_DIR, prof.name);
+  if (!file) return { ok: false, error: 'Profil nebyl nalezen' };
+  cfg = normalizeConfig(mergeProfileConfig(cfg, file.config));
+  if (process.env.SG_PORT) cfg.port = Number(process.env.SG_PORT);
+  saveConfigRaw(cfg);
+  rebaseline(state, (name) => resolveWatch(cfg, playerRace.get(name), name).threshold, (name) => resolveWatch(cfg, playerRace.get(name), name).critical);
+  if (file.ui) { profRt.ui = file.ui; profRt.uiRev = file.savedAt; }
+  prof.syncedAt = file.savedAt; profRt.fileAt = file.savedAt; profRt.conflict = false; profRt.msg = '';
+  persistProfState(); pushState();
+  console.log(`[profil] načteno z profiles/${prof.name}.json`);
+  return { ok: true };
+}
+/** Po pullu z gitu: novější profil se sám načte (když je zapnuto automatické načítání). */
+function profilePoll() {
+  if (!validName(prof.name)) return;
+  const file = readProfile(PROFILES_DIR, prof.name);
+  profRt.fileAt = file?.savedAt ?? 0;
+  if (file && file.savedAt > prof.syncedAt && prof.autoLoad) { try { profileLoadNow(); } catch (e) { console.error('profil se nenačetl:', e.message); } }
+}
+setTimeout(profilePoll, 1500);
+setInterval(profilePoll, 60_000);
+
 const routes = {
+  'GET /api/profile': async () => [200, { ...profileView(), profiles: listProfiles(PROFILES_DIR) }],
+  'PUT /api/profile': async (req) => {
+    const b = await readJson(req);
+    if ('name' in b) { if (b.name !== '' && !validName(b.name)) return [400, { error: 'Neplatné jméno profilu (písmena, číslice, _ a -, nejvýš 32 znaků)' }]; if (b.name !== prof.name) { prof.name = b.name; prof.syncedAt = 0; profRt.conflict = false; profRt.msg = ''; } }
+    if ('autoSave' in b) prof.autoSave = !!b.autoSave;
+    if ('autoLoad' in b) prof.autoLoad = !!b.autoLoad;
+    persistProfState(); pushState();
+    return [200, { ...profileView(), profiles: listProfiles(PROFILES_DIR) }];
+  },
+  'POST /api/profile/save': async (req) => {
+    const b = await readJson(req).catch(() => ({}));
+    const r = profileSaveNow(!!b.force);
+    return [r.ok || r.conflict ? 200 : 400, { ...r, ...profileView(), profiles: listProfiles(PROFILES_DIR) }];
+  },
+  'POST /api/profile/load': async () => {
+    const r = profileLoadNow();
+    return [r.ok ? 200 : 400, { ...r, ...profileView(), profiles: listProfiles(PROFILES_DIR), config: publicConfig(cfg) }];
+  },
+  'GET /api/profile/ui': async () => [200, { ui: profRt.ui, rev: profRt.uiRev }],
+  'POST /api/profile/ui': async (req) => {
+    const ui = cleanUi(await readJson(req, 300_000));
+    if (!ui) return [400, { error: 'invalid ui' }];
+    profRt.ui = ui; scheduleProfileSave();
+    return [200, { ok: true }];
+  },
   // nastavení útoku pro skript na stránce hry; ?t=P = jednotky pro daný druh útoku (bez něj dobývací)
   'GET /attack/config': async (req) => {
     if (!authOk(req)) return [401, { error: 'bad token' }];
