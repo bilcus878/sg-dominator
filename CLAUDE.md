@@ -8,6 +8,8 @@
 ## Projekt
 - Stargate dominator: lokální Node.js server (`src/server.js`, port 3940, jen 127.0.0.1) + userscripty pro Tampermonkey (`userscript/`), které běží na stargate-game.cz.
 - Bez npm závislostí, potřebuje Node.js >= 22.13 (`node:sqlite`).
+- Rozhraní: `public/index.html` (kostra) + `public/css/app.css` + `public/js/NNN-*.js` (klasické skripty načtené po řadě, sdílí globální proměnné; pořadí souborů je důležité).
+- Testy: `npm test` (jednotkové, rychlé) a `npm run test:ui` (rozhraní v headless Chrome, ~30 s; Chrome se hledá sám nebo přes `CHROME_PATH`; bez Chrome se přeskočí). Po změně rozhraní spusť obojí.
 - Spuštění: `start.cmd` (nebo `npm start`), zastavení: `stop.cmd`. Testy: `npm test`.
 - Data a nastavení (tokeny) jsou mimo repo v `%LOCALAPPDATA%\sg-dominator`. `sg-settings.json` obsahuje tajný token, nikdy ho necommituj.
 - Po změně userscriptu zvyš `@version` v hlavičce, ať ho Tampermonkey aktualizuje.

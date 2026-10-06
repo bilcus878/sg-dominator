@@ -564,6 +564,9 @@ const server = createServer(async (req, res) => {
       return;
     }
     if (req.method === 'GET' && path === '/') return await serveFile(res, pub('public/index.html'), 'text/html');
+    // statické soubory aplikace (styly a skripty rozhraní); jen z public/css a public/js
+    const asset = req.method === 'GET' && /^\/(css|js)\/[a-z0-9._-]+\.(css|js)$/.exec(path);
+    if (asset) return await serveFile(res, pub(`public${path}`), asset[2] === 'css' ? 'text/css' : 'text/javascript');
     if (req.method === 'GET' && path === '/install') {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
       return res.end(INSTALL_PAGE);
