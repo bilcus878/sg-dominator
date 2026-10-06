@@ -86,3 +86,15 @@ test('naše rasa: applyMyRace bez vybrané rasy nic nemění', () => {
   applyMyRace(c);
   assert.deepEqual([c.races[20].role, c.races[7].role], ['defend', 'defend']);
 });
+
+test('hranice k dobytí zvlášť pro rasu: vlastní hodnoty, prázdné = společné, konec nikdy pod začátkem', () => {
+  const a = sanitizeUpdate(base(), { races: { 7: { conquest: { below: 5_000_000, above: 8_000_000 } } } }, ctx);
+  assert.deepEqual(a.races[7].conquest, { below: 5_000_000, above: 8_000_000 });
+  const b = sanitizeUpdate(a, { races: { 7: { conquest: { above: 1_000_000 } } } }, ctx); // konec pod začátkem se srovná
+  assert.deepEqual(b.races[7].conquest, { below: 5_000_000, above: 5_000_000 });
+  const c = sanitizeUpdate(b, { races: { 7: { conquest: { below: '' } } } }, ctx); // smazání jedné hodnoty
+  assert.deepEqual(c.races[7].conquest, { above: 5_000_000 });
+  const d = sanitizeUpdate(c, { races: { 7: { conquest: { above: null } } } }, ctx); // smazány obě = zpět na společné
+  assert.equal(d.races[7].conquest, undefined);
+  assert.equal(sanitizeUpdate(a, { races: { 7: { conquest: null } } }, ctx).races[7].conquest, undefined);
+});

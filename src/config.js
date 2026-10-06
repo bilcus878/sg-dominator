@@ -173,6 +173,19 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
         rec.mode = r.mode;
       }
       if (!cur.myRace && ['defend', 'attack'].includes(r.role)) rec.role = r.role; // roli určuje vybraná naše rasa; ruční přepínání jen dokud není vybrána
+      if ('conquest' in r) { // vlastní hranice „k dobytí“ pro tuto cizí rasu (chybějící = společné z Nastavení)
+        if (r.conquest === null) delete rec.conquest;
+        else if (r.conquest && typeof r.conquest === 'object') {
+          const c = { ...(rec.conquest ?? {}) };
+          for (const k of ['below', 'above']) {
+            if (!(k in r.conquest)) continue;
+            if (r.conquest[k] === null || r.conquest[k] === '') delete c[k];
+            else c[k] = Math.min(1e12, num(r.conquest[k], c[k] ?? 0));
+          }
+          if (c.below != null && c.above != null && c.above < c.below) c.above = c.below;
+          if (Object.keys(c).length) rec.conquest = c; else delete rec.conquest;
+        }
+      }
       if ('threshold' in r) rec.threshold = r.threshold === null || r.threshold === '' ? null : num(r.threshold, rec.threshold);
       if ('criticalPct' in r) rec.criticalPct = r.criticalPct === null || r.criticalPct === '' ? null : Math.min(100, num(r.criticalPct, rec.criticalPct ?? 0));
       if (typeof r.name === 'string' && r.name.trim()) rec.name = r.name.trim().slice(0, 64);

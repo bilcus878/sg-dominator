@@ -171,6 +171,7 @@
   .rcfgbtn.open { color:var(--fg); background:var(--card2); }
   .rcfg { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:0 14px 10px; }
   .rcfg[hidden] { display:none; }
+  .rpanel[data-role=attack] .rcfg label:not(.qatk), .rpanel[data-role=defend] .rcfg .qatk { display:none; }
   .rcfg label { margin:0; font-size:11px; } .rcfg input { margin-top:3px; padding:6px 8px; }
   .rpanel[data-mode=off] .rbody .sw span { opacity:.45; }
 
@@ -325,7 +326,7 @@
   .rpanel .rbar input[type=search] { flex:1 1 110px; min-width:80px; max-width:200px; padding:4px 9px; font-size:13px; }
   .rname { font-size:17px; font-weight:800; letter-spacing:.01em; } .rpanel[data-role=defend] .rname { color:var(--acc); text-shadow:0 0 14px rgba(224,184,76,.35); } .rpanel[data-role=attack] .rname { color:#9cc4ff; text-shadow:0 0 14px rgba(120,170,255,.3); }
   .rage { font-size:11px; padding:0 8px; border-radius:99px; border:1px solid var(--line); color:var(--mut); font-variant-numeric:tabular-nums; min-width:46px; text-align:center; line-height:17px; } .rage.ok { color:var(--ok); border-color:#2c5a46; } .rage.warn { color:var(--acc); border-color:#6b5518; } .rage.bad { color:var(--bad); border-color:#6a3030; }
-  .rwatch { padding:0 8px; border-radius:99px; border:1px solid var(--line); line-height:17px; }
+  .rwatch { padding:0 8px; border-radius:99px; border:1px solid var(--line); line-height:17px; margin-left:7px; font-weight:400; vertical-align:middle; }
   .rbar .rcount { display:none; } .rbar .rwatch { font-size:12px; white-space:nowrap; }
   .chip { border:1px solid var(--line); border-radius:99px; background:var(--card2); padding:2px 10px; font-size:12px; color:var(--mut); white-space:nowrap; cursor:pointer; line-height:1.6; }
   label.chk.chip { display:inline-flex; gap:0; margin:0; } label.chk.chip input { display:none; }
@@ -875,7 +876,7 @@ function buildPanel(id) {
   root.innerHTML = `
     <div class="rhead">
       <span class="dot"></span>
-      <div class="rtitle"><b class="rname"></b><span class="rage" title="Jak čerstvá jsou data z hry (zelená do 3 s)"></span><span class="rwatch"></span><span class="muted rinfo" hidden></span></div>
+      <div class="rtitle"><b class="rname"></b><span class="rage" title="Jak čerstvá jsou data z hry (zelená do 3 s)"></span><span class="muted rinfo" hidden></span></div>
       <span class="rfsum"></span>
       ${isW ? '' : `<div class="rmode" role="group" aria-label="Co hlídat">
         ${modeBtn.map(([m, ic, t]) => `<button data-act="mode" data-mode="${m}" title="${modeHint[m]}"><span class="mi">${ic}</span><span class="mt">${t}</span></button>`).join('')}
@@ -896,16 +897,18 @@ function buildPanel(id) {
     ${isW ? '' : `<div class="rcfg" hidden>
       <label>Práh rasy<input type="text" inputmode="numeric" class="num rth"></label>
       <label title="Kritická hranice jako % z prahu hráče">Kritická (% prahu)<input type="number" min="0" max="100" class="rcrit"></label>
+      <label class="qatk" title="Hráč je k dobytí, když mu síla klesne pod toto číslo. Prázdné = společná hranice z Nastavení.">K dobytí pod<input type="text" inputmode="numeric" class="num rqb"></label>
+      <label class="qatk" title="Hráč přestane být k dobytí, až mu síla stoupne nad toto číslo. Prázdné = společná hranice z Nastavení.">Konec nad<input type="text" inputmode="numeric" class="num rqa"></label>
     </div>`}
     <div hidden><span class="rcount"></span><input type="checkbox" class="rbelow"><span class="rbelowtxt"></span></div>
     <div class="rbody"><table>
-      <thead><tr><th class="sortable thname" data-act="sort" data-key="name" title="Řadit podle jména"><span class="nlbl">Jméno <span class="sarrow"></span></span><input type="search" class="rfilter" placeholder="Hledat…" hidden><button type="button" class="mini srch" data-act="search" title="Hledat hráče (jméno)">🔍</button></th>${isW ? '<th>Rasa</th>' : ''}<th class="n pc sortable" data-act="sort" data-key="planets" title="Řadit podle počtu planet. Získaná planeta zeleně +1, ztracená červeně −1 (30 s od poslední změny)">Planety <span class="sarrow"></span><button type="button" class="mini ddbtn" data-act="dday" title="Ukázat u každého hráče, kolik planet získal nebo ztratil za den (údaj ze hry, jako ve hře)">±</button></th><th class="n sortable" data-act="sort" data-key="power" title="Řadit podle síly">Síla <span class="sarrow"></span></th><th class="dcol" title="Druhy útoku jako ve hře: D dobývací, P partyzánský, Z, U univerzální, N orbitální, L loupežný, S špionážní, T otrokářský. Svítí = jde zahájit">Útok</th><th class="c hcol" title="Pošle hráči rasovou armádu (stránka Jednotky → Rasová armáda musí být otevřená a vyplněná)"></th><th class="c">Hlídat</th></tr></thead>
+      <thead><tr><th class="sortable thname" data-act="sort" data-key="name" title="Řadit podle jména"><span class="nlbl">Jméno <span class="sarrow"></span></span><input type="search" class="rfilter" placeholder="Hledat…" hidden><button type="button" class="mini srch" data-act="search" title="Hledat hráče (jméno)">🔍</button><span class="rwatch"></span></th>${isW ? '<th>Rasa</th>' : ''}<th class="n pc sortable" data-act="sort" data-key="planets" title="Řadit podle počtu planet. Získaná planeta zeleně +1, ztracená červeně −1 (30 s od poslední změny)">Planety <span class="sarrow"></span><button type="button" class="mini ddbtn" data-act="dday" title="Ukázat u každého hráče, kolik planet získal nebo ztratil za den (údaj ze hry, jako ve hře)">±</button></th><th class="n sortable" data-act="sort" data-key="power" title="Řadit podle síly">Síla <span class="sarrow"></span></th><th class="dcol" title="Druhy útoku jako ve hře: D dobývací, P partyzánský, Z, U univerzální, N orbitální, L loupežný, S špionážní, T otrokářský. Svítí = jde zahájit">Útok</th><th class="c hcol" title="Pošle hráči rasovou armádu (stránka Jednotky → Rasová armáda musí být otevřená a vyplněná)"></th><th class="c">Hlídat</th></tr></thead>
       <tbody></tbody></table><div class="empty rempty"></div></div>
     <div class="rgrip e" data-dir="e" title="Táhni pro změnu šířky (dvojklik = výchozí)"></div>
     <div class="rgrip s" data-dir="s" title="Táhni pro změnu výšky (dvojklik = výchozí)"></div>
     <div class="rgrip se" data-dir="se" title="Táhni pro změnu velikosti (dvojklik = výchozí)"></div>`;
   const q = (s) => root.querySelector(s);
-  const v = { root, isW, rows: new Map(), body: q('.rbody'), fsum: q('.rfsum'), foldBtn: q('[data-act=fold]'), dot: q('.dot'), name: q('.rname'), age: q('.rage'), info: q('.rinfo'), th: q('.rth'), crit: q('.rcrit'),
+  const v = { root, isW, rows: new Map(), body: q('.rbody'), fsum: q('.rfsum'), foldBtn: q('[data-act=fold]'), dot: q('.dot'), name: q('.rname'), age: q('.rage'), info: q('.rinfo'), th: q('.rth'), crit: q('.rcrit'), qb: q('.rqb'), qa: q('.rqa'),
     watchTxt: q('.rwatch'), cfgBtn: q('.rcfgbtn'), cfgBox: q('.rcfg'), roleBtn: q('.rrole'), belowTxt: q('.rbelowtxt'),
     filter: q('.rfilter'), searchBtn: q('.srch'), nameLbl: q('.nlbl'), below: q('.rbelow'), count: q('.rcount'), tbody: q('tbody'), empty: q('.rempty'), sortHeads: [...root.querySelectorAll('th[data-act=sort]')], ddBtn: q('.ddbtn') };
   v.filter.value = ps(id).filter;
@@ -1055,10 +1058,14 @@ function updatePanel(id) {
     v.watchTxt.title = mode === 'off' ? 'Nic se nehlídá' : `Hlídá se ${w} z ${total} hráčů${attack ? `, k dobytí ${r.players.filter((p) => p.target).length}` : ''}`;
     const th = r?.threshold ?? cfg.threshold;
     const pct = r?.criticalPct ?? cfg.criticalPct;
-    v.cfgBtn.textContent = attack ? `⚙ 🎯 <${short(cfg.conquest.below)} / >${short(cfg.conquest.above)}` : `⚙ ${short(th)}${pct ? ` · 🆘${pct}%` : ''}`;
-    v.cfgBtn.title = attack ? 'Hranice k dobytí (společné pro cizí rasy) – otevře Nastavení' : 'Práh a kritická hranice této rasy';
-    v.cfgBtn.classList.toggle('open', !!st.cfgOpen && !attack);
-    v.cfgBox.hidden = !st.cfgOpen || attack;
+    const cq = r?.conquest ?? cfg.conquest;
+    v.cfgBtn.textContent = attack ? `⚙ 🎯 <${short(cq.below)} / >${short(cq.above)}${r?.conquestOwn ? ' ✎' : ''}` : `⚙ ${short(th)}${pct ? ` · 🆘${pct}%` : ''}`;
+    v.cfgBtn.title = attack ? `Hranice k dobytí pro ${r?.name ?? 'tuto rasu'}${r?.conquestOwn ? ' (vlastní)' : ' (společná z Nastavení)'}: k dobytí pod ${dots(cq.below)}, konec nad ${dots(cq.above)}. Klikni pro nastavení této rasy.` : 'Práh a kritická hranice této rasy';
+    v.cfgBtn.classList.toggle('open', !!st.cfgOpen);
+    v.cfgBox.hidden = !st.cfgOpen;
+    v.qb.placeholder = dots(cfg.conquest.below); v.qa.placeholder = dots(cfg.conquest.above);
+    if (document.activeElement !== v.qb && !pending) v.qb.value = dots(r?.conquestOwn?.below);
+    if (document.activeElement !== v.qa && !pending) v.qa.value = dots(r?.conquestOwn?.above);
     v.cfgBox.style.top = (v.root.querySelector('.rhead')?.offsetHeight ?? 44) + 'px';
     v.th.placeholder = dots(cfg.threshold);
     if (document.activeElement !== v.th && !pending) v.th.value = dots(r?.threshold);
@@ -1170,7 +1177,7 @@ function updatePanel(id) {
     row.power.title = [
       recent ? `Změna síly ${signed(recent)} před ${Math.max(1, Math.round((S.serverTime - p.powerAt) / 1000))} s` : '',
       !atk && p.critical > 0 ? `Kritická hranice ${fmt(p.critical)}` : '',
-      tgt ? `K dobytí: pod ${dots(cfg.conquest.below)}, konec nad ${dots(cfg.conquest.above)}` : '',
+      tgt ? `K dobytí: pod ${dots((pr.conquest ?? cfg.conquest).below)}, konec nad ${dots((pr.conquest ?? cfg.conquest).above)}` : '',
     ].filter(Boolean).join('\n');
     row.tr.classList.toggle('off', !p.watched);
     const own = p.ownThreshold != null;
@@ -1316,7 +1323,6 @@ $('board').addEventListener('click', (e) => {
     if (j >= 0 && j < panels.length) { [panels[i], panels[j]] = [panels[j], panels[i]]; saveUi(); renderBoard(); }
   } else if (act === 'mode') setMode(id, btn.dataset.mode);
   else if (act === 'dohodit') dohodit(btn);
-  else if (act === 'cfg' && raceOf(id)?.role === 'attack') { $('openSettings').click(); }
   else if (act === 'cfg') { const st = ps(id); st.cfgOpen = !st.cfgOpen; saveUi(); updatePanel(id); }
   else if (act === 'dday') { const st = ps(id); st.dday = !st.dday; saveUi(); updatePanel(id); }
   else if (act === 'sort') {
@@ -1409,6 +1415,13 @@ $('board').addEventListener('change', (e) => {
     const r = raceOf(id); if (!r) return;
     const v = t.value === '' ? null : Number(t.value);
     r.criticalPct = v; savePartial({ races: { [id]: { criticalPct: v } } });
+    return;
+  }
+  if (t.classList.contains('rqb') || t.classList.contains('rqa')) { // vlastní hranice k dobytí této rasy
+    const r = raceOf(id); if (!r) return;
+    const k = t.classList.contains('rqb') ? 'below' : 'above', v = undots(t.value);
+    r.conquestOwn = { ...(r.conquestOwn ?? {}), [k]: v }; if (v == null) delete r.conquestOwn[k]; if (!Object.keys(r.conquestOwn).length) r.conquestOwn = null;
+    savePartial({ races: { [id]: { conquest: { [k]: v } } } });
     return;
   }
   if (t.classList.contains('rth')) {

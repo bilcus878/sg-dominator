@@ -105,6 +105,12 @@ function parsePlayers(body) {
 }
 
 const raceRole = (id) => cfg.races[id]?.role ?? 'defend';
+/** Hranice „k dobytí“ pro rasu: její vlastní, jinak společné z Nastavení; konec nikdy pod začátkem. */
+function conquestFor(id) {
+  const c = { ...CONQUEST_DEFAULTS, ...cfg.conquest, ...(cfg.races[id]?.conquest ?? {}) };
+  if (c.above < c.below) c.above = c.below;
+  return c;
+}
 
 /** Co o sobě hlásí skript Síla hráčů: verze a ukázka buňky D, když v ní nenašel hrac_id. Do logu jen při změně. */
 const scriptInfo = new Map(); // raceId -> { ver, dDebug }
@@ -166,7 +172,7 @@ async function handleIngest(req) {
   // cizí rasa: hlídá se „k dobytí“, ne pokles pod práh (stav pravidel se ale vede dál, ať přepnutí nespamuje)
   const alerts = evaluate(state, attack ? resolved.map((p) => ({ ...p, watched: false })) : resolved, cfg, now);
   if (attack) {
-    for (const ev of conquest.evaluate(raceId, resolved, { ...CONQUEST_DEFAULTS, ...cfg.conquest }, now)) {
+    for (const ev of conquest.evaluate(raceId, resolved, conquestFor(raceId), now)) {
       const p = players.find((x) => x.name === ev.name);
       alerts.push({ name: ev.name, power: ev.power, prev: null, reason: ev.type, planets: p?.planets ?? null, since: ev.since });
     }
@@ -292,6 +298,7 @@ function buildState() {
       role: rec.role ?? 'defend',
       threshold: rec.threshold,
       criticalPct: rec.criticalPct ?? null,
+      conquest: conquestFor(id), conquestOwn: rec.conquest ?? null,
       at: snap.at,
       sources: snap.sources,
       rate: (raceIngest.get(id) ?? []).filter((t) => t > now - 5_000).length / 5, // příjmů za vteřinu (posledních 5 s)
