@@ -645,7 +645,7 @@ const routes = {
     const token = (typeof body.botToken === 'string' && body.botToken.trim()) || cfg.telegram.botToken;
     if (!token) return [400, { error: 'Nejdřív vlož token bota' }];
     try {
-      return [200, { chats: await findTelegramChats(token) }];
+      return [200, await findTelegramChats(token, [cfg.telegram.chatId, cfg.telegram.serviceChatId])];
     } catch (e) {
       return [400, { error: e.message }];
     }

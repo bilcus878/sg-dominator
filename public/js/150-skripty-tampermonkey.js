@@ -68,12 +68,12 @@ $('save').onclick = async () => {
 async function findChats(target) {
   const box = $('chatList'); box.textContent = 'Hledám…';
   try {
-    const { chats } = await api('/api/telegram/chats', 'POST', { botToken: $('tToken').value });
-    box.innerHTML = chats.length ? '' : '<span class="muted">Nic nenalezeno. Napiš do skupiny <b>/start</b> nebo zmiň bota (@jmeno_bota ahoj) a zkus to znovu.</span>';
+    const { chats, bot } = await api('/api/telegram/chats', 'POST', { botToken: $('tToken').value });
+    box.innerHTML = chats.length ? '' : `<span class="muted">Bot ${bot ? '<b>@' + esc(bot) + '</b> ' : ''}zatím žádnou novou zprávu neviděl (Telegram je drží jen asi den). Přidej ho do skupiny a napiš tam <b>/start${bot ? '@' + esc(bot) : ''}</b>, nebo zmiň bota (@${esc(bot || 'jmeno_bota')} ahoj), a zkus to znovu.</span>`;
     for (const c of chats) {
       // každý nalezený chat jde nastavit jako hlavní skupina, nebo jako servisní chat
       const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:6px;align-items:center;margin:0 0 6px';
-      const t = document.createElement('span'); t.textContent = `${c.title || c.type} (${c.id})`; t.style.flex = '1';
+      const t = document.createElement('span'); t.textContent = `${c.title || c.type} (${c.id})${c.known ? ' – už nastavený' : ''}`; t.style.flex = '1';
       const pick = (field, label) => { const b = document.createElement('button'); b.className = 'ghost'; b.textContent = label;
         b.onclick = () => { $(field).value = c.id; box.innerHTML = `<span class="muted">Vybráno ✓ (${label.replace('→ ', '')}) – teď ulož.</span>`; $('dirtyNote').textContent = 'neuložené změny'; };
         return b; };

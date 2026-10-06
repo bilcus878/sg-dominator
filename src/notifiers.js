@@ -94,14 +94,23 @@ export async function sendService(cfg, text, log = console) {
 }
 
 /** Vrátí skupiny/chaty, do kterých bot nedávno dostal zprávu (pro snadné zjištění chat ID). */
-export async function findTelegramChats(botToken) {
-  const res = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates`, { signal: AbortSignal.timeout(8000) });
-  const data = await res.json().catch(() => ({}));
-  if (!data.ok) throw new Error(data.description || 'Telegram odmítl token');
+export async function findTelegramChats(botToken, knownIds = []) {
+  const tg = async (method, params = '') => {
+    const res = await fetch(`https://api.telegram.org/bot${botToken}/${method}${params}`, { signal: AbortSignal.timeout(8000) });
+    return res.json().catch(() => ({}));
+  };
+  const me = await tg('getMe');
+  if (!me.ok) throw new Error(me.description || 'Telegram odmítl token');
+  const data = await tg('getUpdates');
+  if (!data.ok) throw new Error(data.description || 'Telegram nevrátil zprávy');
   const chats = new Map();
-  for (const u of data.result) {
-    const c = (u.message ?? u.channel_post ?? u.my_chat_member ?? u.edited_message)?.chat;
-    if (c) chats.set(String(c.id), { id: String(c.id), title: c.title ?? [c.first_name, c.last_name].filter(Boolean).join(' '), type: c.type });
+  const add = (c, extra = {}) => { if (c) chats.set(String(c.id), { id: String(c.id), title: c.title ?? [c.first_name, c.last_name].filter(Boolean).join(' '), type: c.type, ...extra }); };
+  for (const u of data.result) add((u.message ?? u.channel_post ?? u.my_chat_member ?? u.edited_message ?? u.callback_query?.message)?.chat);
+  // už nastavené chaty (hlavní, servisní) se nabídnou vždy, i když v nich bot nic nového neviděl; Telegram o nich řekne název
+  for (const id of knownIds.filter(Boolean)) {
+    if (chats.has(String(id))) continue;
+    const r = await tg('getChat', `?chat_id=${encodeURIComponent(id)}`);
+    if (r.ok) add(r.result, { known: true });
   }
-  return [...chats.values()];
+  return { chats: [...chats.values()], bot: me.result?.username ?? '' };
 }

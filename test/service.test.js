@@ -61,3 +61,20 @@ test('stav odeslání: neúspěšné odeslání na Telegram (401) se zapamatuje 
     assert.equal(sendStatus.telegram.ok, true);
   } finally { globalThis.fetch = orig; }
 });
+
+test('hledání skupin: nabídne chaty ze zpráv i už nastavené chaty (přes getChat) a jméno bota', async () => {
+  const { findTelegramChats } = await import('../src/notifiers.js');
+  const real = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const u = String(url);
+    const body = u.includes('/getMe') ? { ok: true, result: { username: 'muj_bot' } }
+      : u.includes('/getUpdates') ? { ok: true, result: [{ message: { chat: { id: -100, title: 'Skupina A', type: 'supergroup' } } }] }
+      : u.includes('/getChat') ? { ok: true, result: { id: -200, title: 'Servis', type: 'group' } } : { ok: false };
+    return { json: async () => body };
+  };
+  try {
+    const r = await findTelegramChats('t', ['-100', '-200', '']);
+    assert.equal(r.bot, 'muj_bot');
+    assert.deepEqual(r.chats.map((c) => [c.id, c.title, !!c.known]), [['-100', 'Skupina A', false], ['-200', 'Servis', true]]);
+  } finally { globalThis.fetch = real; }
+});
