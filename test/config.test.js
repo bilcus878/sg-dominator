@@ -98,3 +98,15 @@ test('hranice k dobytí zvlášť pro rasu: vlastní hodnoty, prázdné = spole�
   assert.equal(d.races[7].conquest, undefined);
   assert.equal(sanitizeUpdate(a, { races: { 7: { conquest: null } } }, ctx).races[7].conquest, undefined);
 });
+
+
+test('sound: sdílené nastavení zvuku se ořezává, slučuje po částech a výchozí je nenastaveno (null)', () => {
+  assert.equal(DEFAULTS.sound, null);
+  let c = sanitizeUpdate(structuredClone(DEFAULTS), { sound: { on: false, vol: 250, types: { service: true, nesmysl: true, op: 0 } } });
+  assert.deepEqual(c.sound, { on: false, vol: 100, types: { service: true, op: false } }); // neznámé druhy pryč, hlasitost ořezána
+  c = sanitizeUpdate(c, { sound: { vol: 1 } }); // částečná změna nemaže zbytek
+  assert.deepEqual(c.sound, { on: false, vol: 5, types: { service: true, op: false } });
+  c = sanitizeUpdate(c, { sound: { on: true, types: { threshold: true } } });
+  assert.deepEqual([c.sound.on, c.sound.vol, c.sound.types], [true, 5, { service: true, op: false, threshold: true }]);
+  assert.equal(sanitizeUpdate(c, { sound: { vol: 'abc' } }).sound.vol, 5); // nesmysl se ignoruje
+});

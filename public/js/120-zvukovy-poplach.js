@@ -1,7 +1,22 @@
 /* ---------- zvukový poplach (jen v tomto prohlížeči) ---------- */
 const SND_DEF = { on: true, vol: 80, types: { threshold: true, critical: true, drop: true, recovered: true, target: true, released: false, op: true, service: false } };
 const snd = (() => { const c = loadJson('sndcfg', {}); return { on: c.on ?? SND_DEF.on, vol: c.vol ?? SND_DEF.vol, types: { ...SND_DEF.types, ...(c.types ?? {}) } }; })();
-const saveSnd = () => store.set('sndcfg', JSON.stringify(snd));
+const sndPayload = () => ({ on: snd.on, vol: snd.vol, types: { ...snd.types } });
+/** Uloží nastavení zvuku: v prohlížeči a na server, ať platí pro VŠECHNA otevřená okna Dominatoru (jiná adresa, okno či prohlížeč jinak mají vlastní vypínače a pípají samy). */
+const saveSnd = () => {
+  store.set('sndcfg', JSON.stringify(snd));
+  if (typeof cfg !== 'undefined' && cfg) { cfg.sound = sndPayload(); savePartial({ sound: sndPayload() }, true); }
+};
+let sndMigrated = false;
+/** Nastavení zvuku ze serveru má přednost (okna se sjednotí). Server ho zatím nemá: své uložené nastavení tohoto okna na něj jednou pošleme. */
+function adoptSound(remote) {
+  if (remote) {
+    if (JSON.stringify(remote) === JSON.stringify(sndPayload())) return;
+    snd.on = !!remote.on; snd.vol = remote.vol; snd.types = { ...SND_DEF.types, ...remote.types };
+    store.set('sndcfg', JSON.stringify(snd));
+    renderSnd();
+  } else if (!sndMigrated && typeof cfg !== 'undefined' && cfg && store.get('sndcfg') !== null) { sndMigrated = true; saveSnd(); }
+}
 const SND_PRIO = { critical: 6, threshold: 5, drop: 4, op: 4, target: 3, recovered: 2, released: 1, service: 1 };
 const SND_TEXT = { threshold: 'pod prahem', critical: 'KRITICKÉ – pod kritickou hranicí', drop: 'prudký propad síly', recovered: 'zpět nad prahem', target: 'k dobytí', released: 'už není k dobytí', op: 'OP na mapě', service: 'systémová zpráva' };
 let actx = null, alarm = null, alarmTimer = 0;
@@ -75,6 +90,7 @@ function checkAlarms() {
   const best = fresh.map((a) => ({ a, kind: sndKind(a.reason) })).filter((x) => snd.types[x.kind] && SND_PRIO[x.kind]).sort((x, y) => SND_PRIO[y.kind] - SND_PRIO[x.kind])[0];
   if (!best) return;
   if (alarm && alarm.prio >= SND_PRIO[best.kind]) return; // už hraje stejně důležitý nebo důležitější poplach
+  toast(`🔊 Zvuk v tomto okně: ${SND_TEXT[best.kind] ?? best.a.reason} (${best.a.name})`); // ať je poznat, které okno zrovna pípá
   playAlarm(best.kind, `${best.a.name}: ${SND_TEXT[best.kind] ?? best.a.reason}`);
 }
 function renderSnd() {
@@ -121,6 +137,7 @@ ntMenu.addEventListener('change', (e) => {
 $('notifyMaster').onchange = () => { cfg.notify = $('notifyMaster').checked; ntMenu.classList.toggle('chatoff', !cfg.notify); renderBell(); savePartial({ notify: $('notifyMaster').checked }); };
 
 function render() {
+  adoptSound(S.sound);
   renderData(); renderBoard(); tickAges(); renderAlerts(); renderOp(); renderAutoArmy(); checkAlarms();
 }
 // živý stav: server ho posílá sám hned po příjmu dat (SSE); dotazování po vteřině jen jako záloha, když proud nejde

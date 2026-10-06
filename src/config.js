@@ -39,6 +39,7 @@ export const DEFAULTS = {
   notifyRecovery: false, // hlásit i návrat nad práh
   myRace: '', // id naší rasy; všechny ostatní rasy jsou cizí (k dobytí). Prázdné = zatím nevybráno
   notify: true, // hlavní vypínač: vypnuto = bot neposílá nic do Telegramu ani Discordu
+  sound: null, // zvukový poplach v prohlížeči – SDÍLENÉ mezi všemi otevřenými okny Dominatoru: { on, vol, types: { druh: bool } }; null = zatím nenastaveno (okna použijí výchozí nebo to své uložené)
   notifyTypes: {}, // vypnuté druhy upozornění: { threshold: false, … } (chybí = zapnuto); druhy v NOTIFY_KINDS
   // rasy: { [id]: { name, mode: 'off'|'all'|'selected', role: 'defend'|'attack', threshold: číslo|null, criticalPct: číslo|null } }
   // role: defend = naše rasa (hlídá se pokles pod práh), attack = cizí rasa (hlídá se „k dobytí“ podle conquest)
@@ -150,6 +151,13 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
     const v = String(body.myRace ?? '').trim();
     next.myRace = v === '' || next.races[v] ? v : cur.myRace ?? '';
     applyMyRace(next);
+  }
+  if (body.sound && typeof body.sound === 'object') { // nastavení zvuku platí pro všechna okna Dominatoru najednou (každé okno si ho jinak mělo samo)
+    const cs = cur.sound ?? { on: true, vol: 80, types: {} };
+    const types = { ...cs.types };
+    for (const k of NOTIFY_KINDS) if (body.sound.types && k in body.sound.types) types[k] = !!body.sound.types[k];
+    const vol = Number(body.sound.vol);
+    next.sound = { on: 'on' in body.sound ? !!body.sound.on : cs.on, vol: Number.isFinite(vol) ? Math.min(100, Math.max(5, Math.round(vol))) : cs.vol, types };
   }
   if (body.notifyTypes && typeof body.notifyTypes === 'object') {
     next.notifyTypes = { ...cur.notifyTypes };

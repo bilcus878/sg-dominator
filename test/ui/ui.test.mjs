@@ -179,3 +179,17 @@ test('nastavení hráče: jedno tlačítko ⚙ otevře okno s dolním prahem i h
   await b.eval(`document.getElementById('psSave').click(); 1`); await sleep(900);
   assert.equal(name in (await app.api('/api/config')).players, false, 'vlastní hodnoty smazány');
 });
+
+
+test('zvuk: nastavení je sdílené přes server (vypnutí v jednom okně vypne všechna, změna na serveru se projeví v okně)', { skip, timeout: 40_000 }, async () => {
+  // vypnutí v nabídce Alerty se uloží na server
+  await b.eval(`(() => { const cb = document.getElementById('sndOn'); cb.checked = false; cb.dispatchEvent(new Event('change', { bubbles: true })); })(); 1`);
+  await sleep(1200);
+  assert.equal((await app.api('/api/config')).sound.on, false);
+  // změna z jiného okna / z konfigurace se do tohoto okna přenese (a nepřepíše se zpět)
+  await app.api('/api/config', 'PUT', { sound: { on: true, types: { service: true } } });
+  assert.ok(await b.waitFor(`document.getElementById('sndOn').checked === true`, 5000), 'okno nepřevzalo nastavení ze serveru');
+  assert.equal(await b.eval(`JSON.parse(localStorage.getItem('sndcfg')).types.service`), true);
+  assert.equal((await app.api('/api/config')).sound.on, true);
+  await app.api('/api/config', 'PUT', { sound: { on: false } }); // aby další zkoušky nepípaly
+});
