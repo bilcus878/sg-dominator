@@ -17,6 +17,7 @@ import { createTelescope } from './telescope.js';
 import { createConquest, CONQUEST_DEFAULTS } from './conquest.js';
 import { createArmy } from './army.js';
 import { createUnemp } from './unemp.js';
+import { createRecalc } from './recalc.js';
 import { createAutoArmy } from './autodohoz.js';
 import { mergeSeenUnits, sanitizeReport, sanitizeSeenUnits, unitsFor, ATTACK_TYPES } from './attack.js';
 
@@ -114,6 +115,14 @@ const watchdog = createWatchdog();
 const raceLastAt = new Map(); // raceId -> čas posledních dat (nezávisle na pročišťování store)
 const playerRace = new Map(); // jméno -> raceId (pro přepočet prahů po změně konfigurace)
 // historie planet pro stavění (spokojenost, co už bylo postaveno) – mimo konfiguraci, může být velká
+// přepočty hráčů (vynulování „Dobyt“): hodina přepočtu se pamatuje i po restartu
+const RECALC_PATH = join(DATA_DIR, 'recalc.json');
+const recalc = createRecalc((() => { try { return JSON.parse(readFileSync(RECALC_PATH, 'utf8')); } catch { return {}; } })(), {
+  onChange: (rec) => {
+    try { mkdirSync(DATA_DIR, { recursive: true }); writeFileSync(`${RECALC_PATH}.tmp`, JSON.stringify(rec)); renameSync(`${RECALC_PATH}.tmp`, RECALC_PATH); }
+    catch (e) { console.error('přepočty se neuložily:', e.message); }
+  },
+});
 const LEDGER_PATH = join(DATA_DIR, 'build-planets.json');
 const ledger = (() => {
   try { return { planets: JSON.parse(readFileSync(LEDGER_PATH, 'utf8')).planets ?? {} }; } catch { return { planets: {} }; }
@@ -167,6 +176,7 @@ function parsePlayers(body) {
     const q = { name: p.name.trim(), power: Math.round(power) };
     // počet planet a jeho změna ze hry jsou nepovinné (starší userscript je neposílá)
     if (Number.isInteger(p.planets) && p.planets >= 0 && p.planets < 1e6) q.planets = p.planets;
+    if (Number.isInteger(p.dobyt) && p.dobyt >= 0 && p.dobyt < 1e5) q.dobyt = p.dobyt; // sloupec Dobyt (vynulování = přepočet)
     if (Number.isInteger(p.planetsDelta) && Math.abs(p.planetsDelta) < 1e6) q.planetsDelta = p.planetsDelta;
     if (['vudce', 'zastupce', 'ministr', 'obcan'].includes(p.rank)) q.rank = p.rank; // hodnost (barva jména ve hře)
     if (typeof p.online === 'boolean') q.online = p.online; // zelená tečka ve hře
@@ -247,6 +257,7 @@ async function handleIngest(req) {
   const now = Date.now();
   registerRace(raceId, raceName);
   store.ingest({ raceId, page, src, players }, now);
+  for (const f of recalc.ingest(raceId, players, now)) console.log(`[přepočet] ${f.name}: ${String(f.hour).padStart(2, '0')}:00`);
   raceLastAt.set(raceId, now);
   ingestTimes.push(now);
   { const a = raceIngest.get(raceId) ?? []; a.push(now); while (a.length && a[0] < now - 10_000) a.shift(); raceIngest.set(raceId, a); }
@@ -400,7 +411,7 @@ function buildState() {
       rate: (raceIngest.get(id) ?? []).filter((t) => t > now - 5_000).length / 5, // příjmů za vteřinu (posledních 5 s)
       players: snap.players.map((p) => ({
         name: p.name, power: p.power, planets: p.planets ?? null, planetsDelta: p.planetsDelta ?? null, planetsChange: p.planetsChange ?? 0, planetsAt: p.planetsAt ?? 0,
-        powerDelta: p.powerDelta, powerAt: p.powerAt, attackable: p.attackable ?? null, online: p.online ?? null, rank: p.rank ?? null, hracId: p.hracId ?? null, utokId: p.utokId ?? null, attacks: p.attacks ?? null, ...conquest.status(id, p.name), ...resolveWatch(cfg, id, p.name),
+        powerDelta: p.powerDelta, powerAt: p.powerAt, attackable: p.attackable ?? null, online: p.online ?? null, rank: p.rank ?? null, ...recalc.of(id, p.name), hracId: p.hracId ?? null, utokId: p.utokId ?? null, attacks: p.attacks ?? null, ...conquest.status(id, p.name), ...resolveWatch(cfg, id, p.name),
       })),
     };
   });

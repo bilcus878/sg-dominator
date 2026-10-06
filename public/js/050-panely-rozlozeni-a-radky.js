@@ -101,7 +101,7 @@ function makeRow(v, r, p) {
     <td class="c hcol"><button class="ghost dohodit" data-act="dohodit" title="Pošle hráči rasovou armádu">Dohodit</button></td>
     <td class="c"><label class="sw"><input type="checkbox"><span></span></label></td>`;
   const nameTd = tr.children[0];
-  nameTd.innerHTML = '<span class="on"></span><span class="nm"></span><span class="tg"></span><span class="thl"><button type="button" class="pset" aria-haspopup="dialog"><i class="pgear">⚙</i><b class="pa" hidden></b><b class="pb" hidden></b></button></span>';
+  nameTd.innerHTML = '<span class="on"></span><span class="nm"></span><span class="rcl"></span><span class="tg"></span><span class="thl"><button type="button" class="pset" aria-haspopup="dialog"><i class="pgear">⚙</i><b class="pa" hidden></b><b class="pb" hidden></b></button></span>';
   nameTd.querySelector('.nm').textContent = p.name;
   nameTd.addEventListener('click', (e) => { if (!e.target.closest('.thl')) copyName(p.name); });
   if (v.isW) tr.children[1].textContent = r.name;
@@ -110,7 +110,7 @@ function makeRow(v, r, p) {
   sw.dataset.kind = 'watch';
   const cell = (td) => ({ td, v: td.querySelector('.pv'), d: td.querySelector('.pd'), dd: td.querySelector('.pdd') });
   const hb = tr.querySelector('.dohodit'); hb.dataset.name = p.name;
-  return { tr, hb, nm: nameTd.querySelector('.nm'), on: nameTd.querySelector('.on'), tag: nameTd.querySelector('.tg'), thl: nameTd.querySelector('.thl'), pset, psa: pset.querySelector('.pa'), psb: pset.querySelector('.pb'), atks: tr.querySelector('.atks'), planets: cell(tr.children[v.isW ? 2 : 1]), pw: cell(tr.children[v.isW ? 3 : 2]), power: tr.children[v.isW ? 3 : 2], sw };
+  return { tr, hb, nm: nameTd.querySelector('.nm'), rcl: nameTd.querySelector('.rcl'), on: nameTd.querySelector('.on'), tag: nameTd.querySelector('.tg'), thl: nameTd.querySelector('.thl'), pset, psa: pset.querySelector('.pa'), psb: pset.querySelector('.pb'), atks: tr.querySelector('.atks'), planets: cell(tr.children[v.isW ? 2 : 1]), pw: cell(tr.children[v.isW ? 3 : 2]), power: tr.children[v.isW ? 3 : 2], sw };
 }
 
 /** Dohodit: pošle hráči rasovou armádu přes skript na stránce Jednotky → Rasová armáda a počká na výsledek. */
@@ -350,6 +350,12 @@ function updatePanel(id) {
     // „k dobytí“ se v tabulce neznačí (je to vidět na rozsvíceném D); zprávu o něm posílá server
     row.power.classList.remove('target');
     if (row.tag.textContent) row.tag.textContent = '';
+    // přepočet hráče (vynulování „Dobyt“, vždy v celou hodinu): „⟳ 14:00“, v nápovědě datum posledního
+    const rcTxt = p.recalcHour == null ? '' : `⟳ ${String(p.recalcHour).padStart(2, '0')}:00`;
+    if (row.rcl.textContent !== rcTxt) {
+      row.rcl.textContent = rcTxt;
+      row.rcl.title = rcTxt ? `Přepočet (vynulování Dobyt) – naposledy ${new Date(p.recalcAt).toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}` : '';
+    }
     row.power.title = [
       recent ? `Změna síly ${signed(recent)} před ${Math.max(1, Math.round((S.serverTime - p.powerAt) / 1000))} s` : '',
       !atk && p.critical > 0 ? `Kritická hranice ${fmt(p.critical)}` : '',
