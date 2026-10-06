@@ -314,6 +314,12 @@
   .rmode button.on[data-mode=off] { background:#262a33; border-color:#4a5163; }
   .rmode button.on[data-mode=selected] { background:#2b2410; border-color:var(--acc); }
   .rmode button.on[data-mode=all] { background:#102a1f; border-color:var(--ok); }
+  .rhead { flex-wrap:nowrap; } .rhead .rtitle { flex:1 1 auto; min-width:0; } .rwatch { font-size:11px; color:var(--mut); white-space:nowrap; } .rwatch b { color:var(--fg); }
+  .rhead .chip { flex:0 0 auto; }
+  .rmwrap { position:relative; } .rmenu { position:absolute; right:0; top:calc(100% + 4px); z-index:9; min-width:190px; background:var(--card); border:1px solid var(--line); border-radius:9px; padding:4px; box-shadow:0 12px 30px rgba(0,0,0,.55); }
+  .rmenu button { display:block; width:100%; text-align:left; background:transparent; color:var(--fg); font-weight:500; font-size:13px; padding:7px 10px; border-radius:6px; } .rmenu button:hover { background:var(--card2); filter:none; }
+  .thname { white-space:nowrap; } .thname .rfilter { width:120px; max-width:60%; padding:2px 7px; font-size:12px; vertical-align:middle; }
+  .mini.srch { padding:0 5px; font-size:11px; line-height:16px; margin-left:5px; opacity:.7; } .mini.srch.on, .mini.srch:hover { opacity:1; background:var(--card2); }
   .rbarwrap { position:relative; }
   .rbar { display:flex; align-items:center; gap:6px 8px; padding:0 12px 8px; margin:0; flex-wrap:wrap; }
   .rpanel .rbar input[type=search] { flex:1 1 110px; min-width:80px; max-width:200px; padding:4px 9px; font-size:13px; }
@@ -324,8 +330,19 @@
   .chip:hover { color:var(--fg); border-color:#3a4358; } .icon.chip { padding:2px 10px; }
   .rcfg { position:absolute; right:12px; top:calc(100% - 4px); z-index:7; width:min(310px, calc(100% - 24px)); background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; box-shadow:0 12px 30px rgba(0,0,0,.55); }
   .rbody { max-height:max(220px, calc(100vh - 150px)); }
-  @container rp (max-width: 580px) { .rmode button:not(.on) .mt { display:none; } .rinfo { display:none; } }
-  @container rp (max-width: 420px) { .rbar .rwatch { display:none; } }
+  @container rp (max-width: 700px) { .rmode button:not(.on) .mt { display:none; } .rinfo { display:none; } }
+  @container rp (max-width: 600px) { .rmode button .mt { display:none; } .rmode button { padding:3px 8px; } .rrole .rt { display:none; } .rhead { gap:7px; } }
+  @container rp (max-width: 560px) { .rwatch { display:none; } }
+
+  /* ===== zvukový poplach ===== */
+  .sndwrap .ntmenu { width:340px; } .sndwrap #sndBtn.on { color:var(--fg); } .sndwrap #sndBtn .mute { display:none; } .sndwrap #sndBtn.off .mute { display:block; } .sndwrap #sndBtn.off .w1, .sndwrap #sndBtn.off .w2 { display:none; }
+  .sndwrap #sndBtn.locked .bdot { background:var(--acc); } .sndwrap #sndBtn.off .bdot { background:var(--bad); }
+  .sndvol { display:flex; align-items:center; gap:8px; padding:6px 12px 8px; color:var(--mut); } .sndvol input[type=range] { flex:1; padding:0; accent-color:var(--acc); } .sndvol b { width:38px; text-align:right; color:var(--fg); font-size:12px; font-weight:600; }
+  .sndtest { display:flex; gap:6px; flex-wrap:wrap; padding:10px 10px 4px; margin-top:6px; border-top:1px solid var(--line); } .sndtest button { padding:4px 10px; font-size:12px; }
+  .alarmbar { position:fixed; top:64px; left:50%; transform:translateX(-50%); z-index:60; display:flex; align-items:center; gap:14px; padding:10px 16px; background:#3a0c0c; color:#fff; border:2px solid #ff5a5a; border-radius:12px; box-shadow:0 0 0 0 rgba(255,60,60,.7), 0 14px 40px rgba(0,0,0,.6); animation:alarmPulse 1s ease-out infinite; max-width:92vw; }
+  .alarmbar b { font-size:15px; } .alarmbar .aicon { font-size:22px; } .alarmbar button { background:#ff5a5a; color:#fff; padding:7px 14px; }
+  .alarmbar.ok { background:#0c3a26; border-color:var(--ok); animation:none; } .alarmbar.ok button { background:var(--ok); color:#06241a; }
+  @keyframes alarmPulse { 0% { box-shadow:0 0 0 0 rgba(255,60,60,.8), 0 14px 40px rgba(0,0,0,.6); } 70% { box-shadow:0 0 0 18px rgba(255,60,60,0), 0 14px 40px rgba(0,0,0,.6); } 100% { box-shadow:0 0 0 0 rgba(255,60,60,0), 0 14px 40px rgba(0,0,0,.6); } }
 
   /* ===== hlavička v2: jeden štíhlý řádek ===== */
   header { background:linear-gradient(180deg,rgba(23,28,38,.97),rgba(12,15,21,.95)); box-shadow:0 1px 0 rgba(224,184,76,.07), 0 10px 28px rgba(0,0,0,.4); }
@@ -357,9 +374,10 @@
   .ntchan { display:flex; gap:6px; flex-wrap:wrap; padding:10px 10px 4px; margin-top:6px; border-top:1px solid var(--line); }
   .addwrap .menu { left:0; right:auto; }
   main { padding-top:14px; }
-  @media (max-width:1060px) { .dstat { order:9; flex-basis:100%; margin:0; flex-wrap:wrap; } .dstat::before { margin-right:4px; } }
-  @media (max-width:860px) { .brand b { display:none; } }
-  @media (max-width:700px) { header .bar { gap:8px; padding:8px 10px; } .hbtn .lbl { display:none; } .navbtn { padding:5px 9px; } }
+  header .bar { flex-wrap:nowrap; } .ctl { flex:0 0 auto; } .nav, .addwrap, .brand { flex:0 0 auto; }
+  .dstat { flex:1 1 auto; min-width:0; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; } .dstat::-webkit-scrollbar { display:none; } .dsrc { flex:0 0 auto; }
+  @media (max-width:1000px) { .dstat::before { display:none; } .brand b { display:none; } }
+  @media (max-width:640px) { header .bar { gap:6px; padding:8px 8px; } .hbtn .lbl { display:none; } .navbtn { padding:5px 8px; } .logo { display:none; } .optgl { padding:0 9px 0 6px; } }
 </style>
 </head>
 <body>
@@ -378,6 +396,26 @@
   <div class="chips" id="opDots"></div>
   <span class="spacer"></span>
   <div class="ctl">
+    <div class="ntwrap sndwrap">
+      <button type="button" class="hbtn bell" id="sndBtn" title="Zvukový poplach na tomto počítači" aria-haspopup="true">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path class="w1" d="M15.5 8.5a5 5 0 0 1 0 7"/><path class="w2" d="M19 5a10 10 0 0 1 0 14"/><path class="mute" d="m22 9-6 6M16 9l6 6"/></svg><i class="bdot"></i>
+      </button>
+      <div class="ntmenu sndmenu" id="sndMenu" hidden>
+        <label class="ntmaster"><span><b>Zvukový poplach</b><small>Hraje na tomto počítači, dokud je Dominator otevřený v prohlížeči. Do Telegramu zprávy chodí zvlášť (zvonek).</small></span><span class="sw"><input type="checkbox" id="sndOn"><span></span></span></label>
+        <div class="ntnote" id="sndLock" style="display:block">Prohlížeč zvuk povolí až po prvním kliknutí na stránku. Klikni kamkoli.</div>
+        <div class="sndvol"><span>🔈</span><input type="range" id="sndVol" min="5" max="100" step="5"><span>🔊</span><b id="sndVolTxt"></b></div>
+        <h4>Kdy spustit poplach</h4>
+        <label class="ntrow"><span>⚠️ Pokles pod práh<small>siréna</small></span><span class="sw"><input type="checkbox" data-snd="threshold"><span></span></span></label>
+        <label class="ntrow"><span>🆘 Kritická hranice<small>hlasitá siréna, hraje nejdéle</small></span><span class="sw"><input type="checkbox" data-snd="critical"><span></span></span></label>
+        <label class="ntrow"><span>📉 Prudký propad síly</span><span class="sw"><input type="checkbox" data-snd="drop"><span></span></span></label>
+        <label class="ntrow"><span>✅ Návrat nad práh<small>krátké zvonění</small></span><span class="sw"><input type="checkbox" data-snd="recovered"><span></span></span></label>
+        <label class="ntrow"><span>🟠 OP na mapě<small>rychlé pípání</small></span><span class="sw"><input type="checkbox" data-snd="op"><span></span></span></label>
+        <label class="ntrow"><span>🎯 Hráč k dobytí</span><span class="sw"><input type="checkbox" data-snd="target"><span></span></span></label>
+        <label class="ntrow"><span>↩️ Už není k dobytí</span><span class="sw"><input type="checkbox" data-snd="released"><span></span></span></label>
+        <label class="ntrow"><span>🛠 Systémové (výpadek dat…)</span><span class="sw"><input type="checkbox" data-snd="service"><span></span></span></label>
+        <div class="sndtest"><button type="button" class="ghost" data-test="threshold">Vyzkoušet poplach</button><button type="button" class="ghost" data-test="critical">Kritický</button><button type="button" class="ghost" data-test="op">OP</button><button type="button" class="ghost" data-test="recovered">Návrat</button></div>
+      </div>
+    </div>
     <div class="ntwrap">
       <button type="button" class="hbtn bell" id="notifyCaret" title="Upozornění do chatu: hlavní vypínač a výběr, co se posílá" aria-haspopup="true">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><i class="bdot"></i>
@@ -647,6 +685,7 @@
   </div>
   <div class="d-foot"><button id="save">Uložit</button><button class="ghost" id="cancel">Zrušit</button><span class="muted" id="dirtyNote"></span></div>
 </aside>
+<div id="alarmBar" class="alarmbar" hidden><span class="aicon">🚨</span><b id="alarmTxt"></b><button type="button" id="alarmStop">🔕 Ztlumit</button></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -745,7 +784,7 @@ function renderData() {
     items.push(dataItem(r.name, r.at, { tip: `${r.name}: ${r.sources} ${r.sources === 1 ? 'okno' : 'oken'} se stránkou hráčů, ${(r.rate ?? 0).toFixed(1).replace('.', ',')} příjmů/s. Stáří = od posledních přijatých dat. Zelená do 3 s; když je červená, stránka této rasy ve hře není otevřená a viditelná (ne na pozadí).` }));
   }
   const op = S.op;
-  if (op) {
+  if (op && (op.enabled || op.dots.length)) {
     const n = op.dots.length;
     items.push(dataItem('OP', op.at, { off: !op.enabled, wait: 'čeká na mapu', hit: n > 0 && op.enabled, link: true, extra: n ? `${n} ${n === 1 ? 'tečka' : n < 5 ? 'tečky' : 'teček'}` : '', tip: op.enabled ? 'Mapa (mapa.php): data o OP. Klikni pro nastavení OP.' : 'OP je vypnuto (přepínač OP nahoře). Klikni pro nastavení.' }));
   }
@@ -817,34 +856,31 @@ function buildPanel(id) {
   root.innerHTML = `
     <div class="rhead">
       <span class="dot"></span>
-      <div class="rtitle"><b class="rname"></b><span class="muted rinfo"></span></div>
+      <div class="rtitle"><b class="rname"></b><span class="muted rinfo"></span><span class="rwatch"></span></div>
       <span class="rfsum"></span>
       ${isW ? '' : `<div class="rmode" role="group" aria-label="Co hlídat">
         ${modeBtn.map(([m, ic, t]) => `<button data-act="mode" data-mode="${m}" title="${modeHint[m]}"><span class="mi">${ic}</span><span class="mt">${t}</span></button>`).join('')}
-      </div>`}
+      </div>
+      <button class="icon rrole chip" data-act="role" title="Naše rasa = hlídá se pokles pod práh (obrana). Cizí rasa = hlídá se, kdo je k dobytí. Klikni pro přepnutí."></button>
+      <button class="icon rcfgbtn chip" data-act="cfg" title="Práh a kritická hranice této rasy"></button>`}
       <div class="rtools">
         <button class="icon" data-act="fold" title="Sbalit / rozbalit panel">▾</button>
-        <button class="icon" data-act="left" title="Posunout doleva">◀</button>
-        <button class="icon" data-act="right" title="Posunout doprava">▶</button>
-        <button class="icon" data-act="close" title="Odebrat panel">✕</button>
+        <div class="rmwrap"><button class="icon" data-act="menu" title="Další: posunout, odebrat">⋮</button>
+          <div class="rmenu" hidden>
+            <button data-act="left">◀ Posunout doleva</button>
+            <button data-act="right">▶ Posunout doprava</button>
+            <button data-act="close">✕ Odebrat panel</button>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="rbarwrap">
-      <div class="toolbar rbar">
-        <input type="search" class="rfilter" placeholder="Hledat hráče…">
-        <label class="chk chip"><input type="checkbox" class="rbelow"><span class="rbelowtxt">jen pod prahem</span></label>
-        <span class="muted rcount"></span>
-        <span class="spacer"></span>
-        <span class="rwatch"></span>
-        ${isW ? '' : `<button class="icon rrole chip" data-act="role" title="Naše rasa = hlídá se pokles pod práh (obrana). Cizí rasa = hlídá se, kdo je k dobytí."></button><button class="icon rcfgbtn chip" data-act="cfg" title="Práh a kritická hranice této rasy"></button>`}
-      </div>
-      ${isW ? '' : `<div class="rcfg" hidden>
-        <label>Práh rasy<input type="text" inputmode="numeric" class="num rth"></label>
-        <label title="Kritická hranice jako % z prahu hráče">Kritická (% prahu)<input type="number" min="0" max="100" class="rcrit"></label>
-      </div>`}
-    </div>
+    ${isW ? '' : `<div class="rcfg" hidden>
+      <label>Práh rasy<input type="text" inputmode="numeric" class="num rth"></label>
+      <label title="Kritická hranice jako % z prahu hráče">Kritická (% prahu)<input type="number" min="0" max="100" class="rcrit"></label>
+    </div>`}
+    <div hidden><span class="rcount"></span><input type="checkbox" class="rbelow"><span class="rbelowtxt"></span></div>
     <div class="rbody"><table>
-      <thead><tr><th class="sortable" data-act="sort" data-key="name" title="Řadit podle jména">Jméno <span class="sarrow"></span></th>${isW ? '<th>Rasa</th>' : ''}<th class="n pc sortable" data-act="sort" data-key="planets" title="Řadit podle počtu planet. Získaná planeta zeleně +1, ztracená červeně −1 (30 s od poslední změny)">Planety <span class="sarrow"></span><button type="button" class="mini ddbtn" data-act="dday" title="Ukázat u každého hráče, kolik planet získal nebo ztratil za den (údaj ze hry, jako ve hře)">±</button></th><th class="n sortable" data-act="sort" data-key="power" title="Řadit podle síly">Síla <span class="sarrow"></span></th><th class="dcol" title="Druhy útoku jako ve hře: D dobývací, P partyzánský, Z, U univerzální, N orbitální, L loupežný, S špionážní, T otrokářský. Svítí = jde zahájit">Útok</th><th class="c hcol" title="Pošle hráči rasovou armádu (stránka Jednotky → Rasová armáda musí být otevřená a vyplněná)"></th><th class="c">Hlídat</th></tr></thead>
+      <thead><tr><th class="sortable thname" data-act="sort" data-key="name" title="Řadit podle jména"><span class="nlbl">Jméno <span class="sarrow"></span></span><input type="search" class="rfilter" placeholder="Hledat…" hidden><button type="button" class="mini srch" data-act="search" title="Hledat hráče (jméno)">🔍</button></th>${isW ? '<th>Rasa</th>' : ''}<th class="n pc sortable" data-act="sort" data-key="planets" title="Řadit podle počtu planet. Získaná planeta zeleně +1, ztracená červeně −1 (30 s od poslední změny)">Planety <span class="sarrow"></span><button type="button" class="mini ddbtn" data-act="dday" title="Ukázat u každého hráče, kolik planet získal nebo ztratil za den (údaj ze hry, jako ve hře)">±</button></th><th class="n sortable" data-act="sort" data-key="power" title="Řadit podle síly">Síla <span class="sarrow"></span></th><th class="dcol" title="Druhy útoku jako ve hře: D dobývací, P partyzánský, Z, U univerzální, N orbitální, L loupežný, S špionážní, T otrokářský. Svítí = jde zahájit">Útok</th><th class="c hcol" title="Pošle hráči rasovou armádu (stránka Jednotky → Rasová armáda musí být otevřená a vyplněná)"></th><th class="c">Hlídat</th></tr></thead>
       <tbody></tbody></table><div class="empty rempty"></div></div>
     <div class="rgrip e" data-dir="e" title="Táhni pro změnu šířky (dvojklik = výchozí)"></div>
     <div class="rgrip s" data-dir="s" title="Táhni pro změnu výšky (dvojklik = výchozí)"></div>
@@ -852,7 +888,7 @@ function buildPanel(id) {
   const q = (s) => root.querySelector(s);
   const v = { root, isW, rows: new Map(), body: q('.rbody'), fsum: q('.rfsum'), foldBtn: q('[data-act=fold]'), dot: q('.dot'), name: q('.rname'), info: q('.rinfo'), th: q('.rth'), crit: q('.rcrit'),
     watchTxt: q('.rwatch'), cfgBtn: q('.rcfgbtn'), cfgBox: q('.rcfg'), roleBtn: q('.rrole'), belowTxt: q('.rbelowtxt'),
-    filter: q('.rfilter'), below: q('.rbelow'), count: q('.rcount'), tbody: q('tbody'), empty: q('.rempty'), sortHeads: [...root.querySelectorAll('th[data-act=sort]')], ddBtn: q('.ddbtn') };
+    filter: q('.rfilter'), searchBtn: q('.srch'), nameLbl: q('.nlbl'), below: q('.rbelow'), count: q('.rcount'), tbody: q('tbody'), empty: q('.rempty'), sortHeads: [...root.querySelectorAll('th[data-act=sort]')], ddBtn: q('.ddbtn') };
   v.filter.value = ps(id).filter;
   v.below.checked = ps(id).below;
   return v;
@@ -988,25 +1024,31 @@ function updatePanel(id) {
     v.root.querySelectorAll('[data-act=mode]').forEach((b) => b.classList.toggle('on', b.dataset.mode === mode));
     const attack = r?.role === 'attack';
     v.root.dataset.role = attack ? 'attack' : 'defend';
-    v.roleBtn.textContent = attack ? '🎯 Cizí' : '🛡 Naše';
+    v.roleBtn.innerHTML = attack ? '<span>🎯</span><span class="rt"> Cizí</span>' : '<span>🛡</span><span class="rt"> Naše</span>';
+    v.roleBtn.title = (attack ? 'Cizí rasa: hlídá se, kdo je k dobytí.' : 'Naše rasa: hlídá se pokles pod práh.') + ' Klikni pro přepnutí.';
     v.belowTxt.textContent = attack ? 'jen k dobytí' : 'jen pod prahem';
 
     const total = r ? r.players.length : 0;
     const w = r ? r.players.filter((p) => p.watched).length : 0;
-    v.watchTxt.innerHTML = mode === 'off' ? 'Nic se nehlídá'
-      : mode === 'selected' && !w ? 'Zapni hráče přepínačem vpravo'
-      : `Hlídá <b>${w}</b>/${total}${attack ? ` · 🎯 <b>${r.players.filter((p) => p.target).length}</b>` : ''}`;
+    v.watchTxt.innerHTML = mode === 'off' ? '· nic se nehlídá'
+      : mode === 'selected' && !w ? '· zapni hráče vpravo'
+      : `· hlídá <b>${w}</b>/${total}${attack ? ` · 🎯 <b>${r.players.filter((p) => p.target).length}</b>` : ''}`;
     const th = r?.threshold ?? cfg.threshold;
     const pct = r?.criticalPct ?? cfg.criticalPct;
     v.cfgBtn.textContent = attack ? `⚙ 🎯 <${short(cfg.conquest.below)} / >${short(cfg.conquest.above)}` : `⚙ ${short(th)}${pct ? ` · 🆘${pct}%` : ''}`;
     v.cfgBtn.title = attack ? 'Hranice k dobytí (společné pro cizí rasy) – otevře Nastavení' : 'Práh a kritická hranice této rasy';
     v.cfgBtn.classList.toggle('open', !!st.cfgOpen && !attack);
     v.cfgBox.hidden = !st.cfgOpen || attack;
-    v.cfgBox.style.top = (v.cfgBox.parentElement.querySelector('.rbar')?.offsetHeight ?? 40) + 'px';
+    v.cfgBox.style.top = (v.root.querySelector('.rhead')?.offsetHeight ?? 44) + 'px';
     v.th.placeholder = dots(cfg.threshold);
     if (document.activeElement !== v.th && !pending) v.th.value = dots(r?.threshold);
     v.crit.placeholder = String(cfg.criticalPct);
     if (document.activeElement !== v.crit && !pending) v.crit.value = r?.criticalPct ?? '';
+  }
+  { // hledání ve sloupci Jméno: pole se ukáže po kliknutí na lupu nebo dokud je v něm text
+    const open = !!st.searchOpen || !!st.filter;
+    if (v.filter.hidden === open) { v.filter.hidden = !open; v.nameLbl.hidden = open; }
+    v.searchBtn.classList.toggle('on', open);
   }
   const sortKey = st.sortKey ?? 'power';
   for (const th of v.sortHeads) {
@@ -1027,7 +1069,7 @@ function updatePanel(id) {
 
   // filtr a řazení
   const q = st.filter.trim().toLowerCase();
-  let out = items.filter(({ r: pr, p }) => (!q || p.name.toLowerCase().includes(q)) && (!st.below || (pr.role === 'attack' ? p.target : p.power < p.threshold)));
+  let out = items.filter(({ r: pr, p }) => (!q || p.name.toLowerCase().includes(q)));
   if (st.sort !== 'game') {
     const dir = st.sort === 'desc' ? -1 : 1;
     out = [...out].sort((a, b) => dir * (sortKey === 'name' ? a.p.name.localeCompare(b.p.name, 'cs') : sortKey === 'planets' ? (a.p.planets ?? -1) - (b.p.planets ?? -1) : a.p.power - b.p.power));
@@ -1227,7 +1269,11 @@ function setMode(raceId, mode) {
   savePartial({ races: { [raceId]: { mode } } });
 }
 
+const v_ = (id) => view.get(id);
+const closeRmenus = () => document.querySelectorAll('.rmenu').forEach((m) => { m.hidden = true; });
+document.addEventListener('click', (e) => { if (!e.target.closest('.rmwrap')) closeRmenus(); });
 $('board').addEventListener('click', (e) => {
+  if (e.target.closest('.rfilter')) return; // klik do hledacího pole neřadí
   const chip = e.target.closest('a.atk');
   if (chip) { // odkaz na útok se otevře sám (nová karta); bez ID hráče nemá kam vést
     if (!chip.getAttribute('href')) { e.preventDefault(); toast('U hráče chybí ID z odkazu útoku. Aktualizuj skript „Síla hráčů“ v Tampermonkey a obnov stránku rasy ve hře.', true); }
@@ -1238,6 +1284,13 @@ $('board').addEventListener('click', (e) => {
   const act = btn.dataset.act;
   if (act === 'fold') { const P = lp(id); P.folded = !P.folded; saveLayouts(); renderBoard(); }
   else if (act === 'close') { panels = panels.filter((x) => x !== id); saveUi(); renderBoard(); }
+  else if (act === 'menu') { const m = btn.parentElement.querySelector('.rmenu'); const open = m.hidden; closeRmenus(); m.hidden = !open; }
+  else if (act === 'search') {
+    const st = ps(id), open = !(st.searchOpen || st.filter);
+    st.searchOpen = open; if (!open) st.filter = '';
+    v_(id).filter.value = st.filter; saveUi(); updatePanel(id);
+    if (open) v_(id).filter.focus();
+  }
   else if (act === 'left' || act === 'right') {
     const i = panels.indexOf(id), j = act === 'left' ? i - 1 : i + 1;
     if (j >= 0 && j < panels.length) { [panels[i], panels[j]] = [panels[j], panels[i]]; saveUi(); renderBoard(); }
@@ -1322,6 +1375,10 @@ $('board').addEventListener('click', (e) => {
   if (txt) { e.stopPropagation(); editThreshold(txt.closest('.thl'), true); }
 });
 $('board').addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && e.target.classList?.contains('rfilter')) { // Esc: smazat hledání a zavřít pole
+    const id = e.target.closest('.rpanel').dataset.p, st = ps(id);
+    st.filter = ''; st.searchOpen = false; e.target.value = ''; saveUi(); updatePanel(id); return;
+  }
   const inp = e.target.closest?.('input.thin'); if (!inp) return;
   if (e.key === 'Enter') inp.blur();
   else if (e.key === 'Escape') { inp.value = inp.dataset.prev ?? ''; inp.blur(); }
@@ -1443,10 +1500,114 @@ function renderOp() {
   $('opDots').innerHTML = op.dots.map((d) => `<span class="opdot sm">🟠 ${esc(d.id)}${/^\d+$/.test(d.label) || !d.label ? '' : ' · ' + esc(d.label)}</span>`).join('');
 }
 $('opMaster').onchange = () => savePartial({ op: { enabled: $('opMaster').checked } });
+/* ---------- zvukový poplach (jen v tomto prohlížeči) ---------- */
+const SND_DEF = { on: true, vol: 80, types: { threshold: true, critical: true, drop: true, recovered: true, target: true, released: false, op: true, service: false } };
+const snd = (() => { const c = loadJson('sndcfg', {}); return { on: c.on ?? SND_DEF.on, vol: c.vol ?? SND_DEF.vol, types: { ...SND_DEF.types, ...(c.types ?? {}) } }; })();
+const saveSnd = () => store.set('sndcfg', JSON.stringify(snd));
+const SND_PRIO = { critical: 6, threshold: 5, drop: 4, op: 4, target: 3, recovered: 2, released: 1, service: 1 };
+const SND_TEXT = { threshold: 'pod prahem', critical: 'KRITICKÉ – pod kritickou hranicí', drop: 'prudký propad síly', recovered: 'zpět nad prahem', target: 'k dobytí', released: 'už není k dobytí', op: 'OP na mapě', service: 'systémová zpráva' };
+let actx = null, alarm = null, alarmTimer = 0;
+const sndKind = (reason) => (reason === 'down' || reason === 'up' ? 'service' : reason);
+function ensureCtx() {
+  try { actx ??= new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch { /* bez zvuku */ }
+  renderSnd();
+  return actx;
+}
+document.addEventListener('pointerdown', ensureCtx, { capture: true });
+document.addEventListener('keydown', ensureCtx, { capture: true });
+function stopAlarm() {
+  clearTimeout(alarmTimer);
+  if (alarm) { try { alarm.master.gain.cancelScheduledValues(0); alarm.master.gain.setTargetAtTime(0, actx.currentTime, 0.03); for (const n of alarm.nodes) n.stop(actx.currentTime + 0.2); } catch { /* už dohrál */ } alarm = null; }
+  $('alarmBar').hidden = true;
+}
+/** Zahraje poplach daného druhu: siréna (práh, kritické, propad), pípání (OP), zvonění (návrat), pingy (k dobytí…). Vrací false, když prohlížeč zvuk zatím nepovolil. */
+function playAlarm(kind, text) {
+  const c = ensureCtx();
+  if (!c || c.state !== 'running') return false;
+  stopAlarm();
+  const master = c.createGain(); master.gain.value = (snd.vol / 100) ** 1.6; master.connect(c.destination);
+  const nodes = [], t0 = c.currentTime + 0.05;
+  const osc = (type, f, start, dur, g = 1, attack = 0.01) => {
+    const o = c.createOscillator(), e = c.createGain();
+    o.type = type; o.frequency.value = f; o.connect(e); e.connect(master);
+    e.gain.setValueAtTime(0, t0 + start); e.gain.linearRampToValueAtTime(g, t0 + start + attack); e.gain.setValueAtTime(g, t0 + start + dur - 0.04); e.gain.linearRampToValueAtTime(0, t0 + start + dur);
+    o.start(t0 + start); o.stop(t0 + start + dur + 0.05); nodes.push(o);
+    return o;
+  };
+  let len;
+  if (kind === 'critical' || kind === 'threshold' || kind === 'drop') {
+    // siréna: frekvence kmitá nahoru a dolů, kritická je tvrdší, vyšší a hraje déle
+    len = kind === 'critical' ? 14 : kind === 'drop' ? 6 : 9;
+    const o = c.createOscillator(), e = c.createGain();
+    o.type = kind === 'critical' ? 'sawtooth' : 'square'; o.connect(e); e.connect(master);
+    const lo = kind === 'critical' ? 700 : 520, hi = kind === 'critical' ? 1500 : 980, half = kind === 'critical' ? 0.45 : 0.7;
+    o.frequency.setValueAtTime(lo, t0);
+    for (let t = 0, up = true; t < len; t += half, up = !up) o.frequency.linearRampToValueAtTime(up ? hi : lo, t0 + t + half);
+    e.gain.setValueAtTime(0, t0); e.gain.linearRampToValueAtTime(0.5, t0 + 0.05); e.gain.setValueAtTime(0.5, t0 + len - 0.1); e.gain.linearRampToValueAtTime(0, t0 + len);
+    o.start(t0); o.stop(t0 + len + 0.05); nodes.push(o);
+  } else if (kind === 'op') {
+    len = 8;
+    for (let t = 0; t < len; t += 1.05) for (let k = 0; k < 3; k++) osc('square', 1180, t + k * 0.2, 0.12, 0.45);
+  } else if (kind === 'recovered') {
+    len = 1.6; osc('sine', 659, 0, 0.45, 0.7); osc('sine', 880, 0.22, 0.5, 0.7); osc('sine', 1318, 0.45, 0.9, 0.55);
+  } else if (kind === 'target') {
+    len = 1.8; for (let k = 0; k < 3; k++) osc('triangle', 880 + k * 220, k * 0.3, 0.25, 0.6);
+  } else {
+    len = 0.8; osc('sine', kind === 'released' ? 520 : 440, 0, 0.5, 0.5);
+  }
+  alarm = { master, nodes, prio: SND_PRIO[kind] ?? 0 };
+  const loud = SND_PRIO[kind] >= 4;
+  if (text && loud) { $('alarmTxt').textContent = text; $('alarmBar').className = 'alarmbar'; $('alarmBar').hidden = false; }
+  else if (text && kind === 'recovered') { $('alarmTxt').textContent = text; $('alarmBar').className = 'alarmbar ok'; $('alarmBar').hidden = false; }
+  alarmTimer = setTimeout(stopAlarm, len * 1000 + 150);
+  return true;
+}
+$('alarmStop').onclick = stopAlarm;
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && alarm) stopAlarm(); });
+
+let lastAlertTs = null;
+/** Nové alerty ze serveru (od posledního stavu): zahraje se ten nejdůležitější z nich. */
+function checkAlarms() {
+  const list = S.alerts ?? [];
+  const maxTs = list.reduce((m, a) => Math.max(m, a.ts), 0);
+  if (lastAlertTs === null) { lastAlertTs = maxTs; return; } // při otevření se staré alerty nehrají
+  const fresh = list.filter((a) => a.ts > lastAlertTs);
+  lastAlertTs = Math.max(lastAlertTs, maxTs);
+  if (!fresh.length || !snd.on) return;
+  const best = fresh.map((a) => ({ a, kind: sndKind(a.reason) })).filter((x) => snd.types[x.kind] && SND_PRIO[x.kind]).sort((x, y) => SND_PRIO[y.kind] - SND_PRIO[x.kind])[0];
+  if (!best) return;
+  if (alarm && alarm.prio >= SND_PRIO[best.kind]) return; // už hraje stejně důležitý nebo důležitější poplach
+  playAlarm(best.kind, `${best.a.name}: ${SND_TEXT[best.kind] ?? best.a.reason}`);
+}
+function renderSnd() {
+  const locked = !actx || actx.state !== 'running';
+  $('sndBtn').classList.toggle('on', snd.on); $('sndBtn').classList.toggle('off', !snd.on); $('sndBtn').classList.toggle('locked', snd.on && locked);
+  $('sndBtn').title = !snd.on ? 'Zvukový poplach VYPNUTÝ' : locked ? 'Zvukový poplach zapnutý, ale prohlížeč čeká na první kliknutí na stránku' : 'Zvukový poplach zapnutý';
+  $('sndLock').hidden = !locked;
+  if (document.activeElement !== $('sndOn')) $('sndOn').checked = snd.on;
+  if (document.activeElement !== $('sndVol')) $('sndVol').value = snd.vol;
+  $('sndVolTxt').textContent = snd.vol + ' %';
+  for (const cb of $('sndMenu').querySelectorAll('input[data-snd]')) if (document.activeElement !== cb) cb.checked = !!snd.types[cb.dataset.snd];
+  $('sndMenu').classList.toggle('off', !snd.on);
+}
+const sndMenu = $('sndMenu');
+$('sndBtn').onclick = (e) => { e.stopPropagation(); ensureCtx(); sndMenu.hidden = !sndMenu.hidden; $('sndBtn').classList.toggle('open', !sndMenu.hidden); if (!sndMenu.hidden) toggleNt(false); };
+document.addEventListener('click', (e) => { if (!sndMenu.hidden && !e.target.closest('.sndwrap')) { sndMenu.hidden = true; $('sndBtn').classList.remove('open'); } });
+sndMenu.addEventListener('change', (e) => {
+  if (e.target.id === 'sndOn') snd.on = e.target.checked;
+  else if (e.target.id === 'sndVol') snd.vol = Number(e.target.value);
+  else if (e.target.dataset.snd) snd.types[e.target.dataset.snd] = e.target.checked;
+  saveSnd(); renderSnd();
+});
+$('sndVol').addEventListener('input', () => { snd.vol = Number($('sndVol').value); $('sndVolTxt').textContent = snd.vol + ' %'; if (alarm) alarm.master.gain.value = (snd.vol / 100) ** 1.6; });
+$('sndVol').addEventListener('change', () => { saveSnd(); playAlarm('recovered'); });
+sndMenu.addEventListener('click', (e) => { const t = e.target.closest('[data-test]'); if (t) playAlarm(t.dataset.test, `Zkouška: ${SND_TEXT[t.dataset.test]}`); });
+renderSnd();
+
 const ntMenu = $('ntMenu');
-const toggleNt = (open) => { ntMenu.hidden = !(open ?? ntMenu.hidden); $('notifyCaret').classList.toggle('open', !ntMenu.hidden); };
+const toggleNt = (open) => { ntMenu.hidden = !(open ?? ntMenu.hidden); $('notifyCaret').classList.toggle('open', !ntMenu.hidden); if (!ntMenu.hidden && !sndMenu.hidden) { sndMenu.hidden = true; $('sndBtn').classList.remove('open'); } };
 $('notifyCaret').onclick = (e) => { e.stopPropagation(); toggleNt(); };
-document.addEventListener('click', (e) => { if (!ntMenu.hidden && !e.target.closest('.ntwrap')) toggleNt(false); });
+document.addEventListener('click', (e) => { if (!ntMenu.hidden && !e.target.closest('.ntwrap:not(.sndwrap)')) toggleNt(false); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !ntMenu.hidden) toggleNt(false); });
 ntMenu.addEventListener('change', (e) => {
   const k = e.target.dataset?.nt; if (!k) return;
@@ -1456,7 +1617,7 @@ ntMenu.addEventListener('change', (e) => {
 $('notifyMaster').onchange = () => { $('notifyCaret').classList.toggle('on', $('notifyMaster').checked); ntMenu.classList.toggle('off', !$('notifyMaster').checked); savePartial({ notify: $('notifyMaster').checked }); };
 
 function render() {
-  renderData(); renderBoard(); renderAlerts(); renderOp();
+  renderData(); renderBoard(); renderAlerts(); renderOp(); checkAlarms();
 }
 // živý stav: server ho posílá sám hned po příjmu dat (SSE); dotazování po vteřině jen jako záloha, když proud nejde
 let lastPush = 0, renderQueued = false;
