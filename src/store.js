@@ -1,6 +1,8 @@
 /**
  * Poslední známý stav ras v paměti. Zdrojem jsou okna prohlížeče (userscript);
- * stránku (raceId + page) může posílat i víc oken najednou, poslední data vyhrávají.
+ * stránku (raceId + page) může posílat i víc oken najednou. Když se jejich data liší (jedno okno je staré, neobnovené),
+ * platí okno, ve kterém se data naposledy změnila (živá obnova); okno, které posílá pořád totéž, se ignoruje.
+ * Jinak by síla skákala tam a zpět podle toho, které okno poslalo jako poslední.
  */
 const PAGE_TTL_MS = 10 * 60_000;
 const SOURCE_ACTIVE_MS = 5_000;
@@ -14,7 +16,17 @@ export function createStore() {
   function ingest({ raceId, page = 1, src = 'unknown', players }, now = Date.now()) {
     const key = `${raceId}:${page}`;
     let e = pages.get(key);
-    if (!e) pages.set(key, (e = { raceId, page, at: now, players: [], sources: new Map() }));
+    if (!e) pages.set(key, (e = { raceId, page, at: now, players: [], sources: new Map(), srcInfo: new Map(), leader: null }));
+    e.sources.set(src, now);
+    // které okno platí: to s nejčerstvější změnou dat (nové okno = čerstvě načtená stránka = změna teď)
+    const sig = players.map((p) => `${p.name}:${p.power}:${p.planets ?? ''}`).join('|');
+    const info = e.srcInfo.get(src);
+    if (!info || info.sig !== sig) e.srcInfo.set(src, { sig, changedAt: now });
+    for (const [s, ts] of e.sources) if (now - ts > SOURCE_ACTIVE_MS) { e.sources.delete(s); e.srcInfo.delete(s); }
+    let leader = e.sources.has(e.leader) ? e.leader : src;
+    for (const [s, inf] of e.srcInfo) if (inf.changedAt > (e.srcInfo.get(leader)?.changedAt ?? -Infinity)) leader = s;
+    e.leader = leader;
+    if (src !== leader) return false; // jiné okno má čerstvější (měnící se) data: tohle se ignoruje
     e.at = now;
     e.players = players;
     for (const p of players) {
@@ -31,8 +43,8 @@ export function createStore() {
         plChanges.set(ck, { planets: p.planets, delta: base + (p.planets - pc.planets), at: now });
       }
     }
-    e.sources.set(src, now);
     for (const [k, v] of pages) if (now - v.at > PAGE_TTL_MS) pages.delete(k);
+    return true;
   }
 
   /** Souhrn za rasu: sloučené hráči ze všech stránek, čas posledních dat a počet aktivních oken. */

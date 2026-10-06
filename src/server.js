@@ -266,7 +266,8 @@ async function handleIngest(req) {
 
   const now = Date.now();
   registerRace(raceId, raceName);
-  store.ingest({ raceId, page, src, players }, now);
+  // víc oken stejné stránky s různými daty: platí to, kde se data mění; data ze starého okna se ignorují (nic se z nich nehlásí)
+  if (!store.ingest({ raceId, page, src, players }, now)) return [200, { ok: true, ignored: true }];
   for (const f of recalc.ingest(raceId, players, now)) console.log(`[přepočet] ${f.name}: ${String(f.hour).padStart(2, '0')}:00`);
   for (const f of econ.ingest(raceId, players, now)) console.log(`[ekonomický přepočet?] ${f.name}: ${new Date(f.at).toLocaleTimeString('cs-CZ')}${f.online ? ' online' : ''}`);
   raceLastAt.set(raceId, now);

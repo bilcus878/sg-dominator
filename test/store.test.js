@@ -50,3 +50,25 @@ test('snapshot: hráč na víc stránkách – vyhrají nejčerstvější data a
   st.ingest({ raceId: '1', page: 1, players: [{ name: 'A', power: 90 }, { name: 'B', power: 50 }] }, 7000);
   assert.equal(st.snapshot('1', 7100).players.find((p) => p.name === 'A').power, 90);
 });
+
+test('store: dvě okna stejné rasy s různými daty – platí okno, kde se data mění; staré (pořád stejné) se ignoruje', () => {
+  const st = createStore();
+  const P = (power) => [{ name: 'Martos', power }];
+  assert.equal(st.ingest({ raceId: '4', src: 'stare', players: P(3_283_580) }, 1000), true);
+  assert.equal(st.ingest({ raceId: '4', src: 'zive', players: P(3_283_580) }, 1500), true, 'nové okno = čerstvá stránka');
+  assert.equal(st.ingest({ raceId: '4', src: 'zive', players: P(176_923) }, 2000), true); // útok: v živém okně se změnilo
+  assert.equal(st.ingest({ raceId: '4', src: 'stare', players: P(3_283_580) }, 2500), false, 'staré okno se ignoruje');
+  assert.equal(st.snapshot('4', 2600).players[0].power, 176_923);
+  for (let t = 3000; t < 8000; t += 1000) { st.ingest({ raceId: '4', src: 'stare', players: P(3_283_580) }, t); st.ingest({ raceId: '4', src: 'zive', players: P(176_923) }, t + 500); }
+  assert.equal(st.snapshot('4', 8000).players[0].power, 176_923, 'síla neskáče tam a zpět');
+  assert.equal(st.snapshot('4', 8000).sources, 2);
+});
+
+test('store: když živé okno zmizí, převezme to druhé', () => {
+  const st = createStore();
+  st.ingest({ raceId: '4', src: 'a', players: [{ name: 'X', power: 1 }] }, 0);
+  st.ingest({ raceId: '4', src: 'b', players: [{ name: 'X', power: 2 }] }, 100);
+  assert.equal(st.ingest({ raceId: '4', src: 'a', players: [{ name: 'X', power: 1 }] }, 1000), false);
+  assert.equal(st.ingest({ raceId: '4', src: 'a', players: [{ name: 'X', power: 1 }] }, 7000), true, 'okno b se 5 s neozvalo');
+  assert.equal(st.snapshot('4', 7000).players[0].power, 1);
+});
