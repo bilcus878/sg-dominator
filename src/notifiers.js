@@ -114,5 +114,13 @@ export async function findTelegramChats(botToken, knownIds = []) {
     const r = await tg('getChat', `?chat_id=${encodeURIComponent(id)}`);
     if (r.ok) add(r.result, { known: true });
   }
-  return { chats: [...chats.values()], bot: me.result?.username ?? '' };
+  // diagnostika, ať je vidět, proč bot nic nevidí: webhook blokuje getUpdates, čekající zprávy, režim soukromí a členství v nastavených chatech
+  const wh = await tg('getWebhookInfo');
+  const members = [];
+  for (const id of knownIds.filter(Boolean)) {
+    const m = await tg('getChatMember', `?chat_id=${encodeURIComponent(id)}&user_id=${me.result?.id}`);
+    members.push({ id: String(id), status: m.ok ? m.result.status : `nelze zjistit (${m.description ?? '?'})` });
+  }
+  const diag = { updates: data.result.length, pending: wh.result?.pending_update_count ?? null, webhook: wh.result?.url || '', readsAll: me.result?.can_read_all_group_messages ?? null, members };
+  return { chats: [...chats.values()], bot: me.result?.username ?? '', diag };
 }

@@ -64,11 +64,19 @@ $('save').onclick = async () => {
     fillForm(); renderChips(); toast('Uloženo'); closeDrawer(); refresh();
   } catch (e) { toast('Uložení selhalo: ' + e.message, true); }
 };
+/** Stručný rozbor, proč bot (ne)vidí zprávy. */
+function telegramDiag(d, bot) {
+  const out = [`Telegram vrátil ${d.updates} zpráv${d.pending != null ? `, čeká jich ${d.pending}` : ''}.`];
+  if (d.webhook) out.push('POZOR: bot má nastavený webhook, kvůli němu Telegram zprávy přes toto hledání nevydává.');
+  if (d.readsAll === false) out.push('Bot má zapnutý režim soukromí: ve skupině vidí jen příkazy (/start@' + (bot || 'bot') + ') a zmínky.');
+  for (const m of d.members ?? []) out.push(`Bot v chatu ${m.id}: ${m.status}`);
+  return out.join(' ');
+}
 /** Najde skupiny, do kterých bot nedávno dostal zprávu. target: 'tChat' | 'tService' = nabídne jen toto pole; bez něj obě. */
 async function findChats(target) {
   const box = $('chatList'); box.textContent = 'Hledám…';
   try {
-    const { chats, bot } = await api('/api/telegram/chats', 'POST', { botToken: $('tToken').value });
+    const { chats, bot, diag } = await api('/api/telegram/chats', 'POST', { botToken: $('tToken').value });
     box.innerHTML = chats.length ? '' : `<span class="muted">Bot ${bot ? '<b>@' + esc(bot) + '</b> ' : ''}zatím žádnou novou zprávu neviděl (Telegram je drží jen asi den). Přidej ho do skupiny a napiš tam <b>/start${bot ? '@' + esc(bot) : ''}</b>, nebo zmiň bota (@${esc(bot || 'jmeno_bota')} ahoj), a zkus to znovu.</span>`;
     for (const c of chats) {
       // každý nalezený chat jde nastavit jako hlavní skupina, nebo jako servisní chat
@@ -81,6 +89,7 @@ async function findChats(target) {
       else row.append(t, pick('tChat', '→ hlavní'), pick('tService', '→ servisní'));
       box.appendChild(row);
     }
+    if (diag) { const d = document.createElement('div'); d.className = 'muted'; d.style.cssText = 'font-size:12px;margin-top:6px'; d.textContent = telegramDiag(diag, bot); box.appendChild(d); }
   } catch (e) { box.innerHTML = `<span style="color:var(--bad)">${esc(e.message)}</span>`; }
 }
 $('findChats').onclick = () => findChats('tChat');
