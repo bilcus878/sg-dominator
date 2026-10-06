@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator
 // @namespace    sg-dominator
-// @version      3.12.1
+// @version      3.12.2
 // @description  Čte tabulku hráčů a posílá sílu na lokální notifikační server (bez zásahu do stránky)
 // @match        https://stargate-game.cz/vesmir.php*
 // @match        https://www.stargate-game.cz/vesmir.php*
@@ -129,7 +129,7 @@
   let dirty = false; // změna přišla, zatímco předchozí odeslání ještě běželo: pošle se hned po jeho dokončení (dřív by čekala až na další změnu / 1 s)
   // diagnostika: výsledek posledního odeslání je vidět na stránce (data-sgd-*) a při chybě v konzoli, ať jde poznat, proč data nedorazila
   const mark = (k, v) => { try { if (document.documentElement.dataset[k] !== v) document.documentElement.dataset[k] = v; } catch { /* nic */ } };
-  mark('sgdScript', '3.12.1');
+  mark('sgdScript', '3.12.2');
   const finish = (label, res) => {
     mark('sgdLast', `${label} ${new Date().toLocaleTimeString('cs-CZ')}`);
     if (label !== 'ok') { mark('sgdErr', `${label}: ${JSON.stringify(res ?? {}).slice(0, 200)}`); console.warn('[Dominator] odeslání dat na server selhalo:', label, res); }
@@ -142,7 +142,7 @@
     const players = readPlayers();
     if (!players.length) return;
     for (const p of players) if (!Number.isFinite(p.planetsDelta) && deltaMap.has(p.name)) p.planetsDelta = deltaMap.get(p.name);
-    const body = JSON.stringify({ raceId, raceName: findRaceName(), page, src, ver: '3.12.1', dDebug, players });
+    const body = JSON.stringify({ raceId, raceName: findRaceName(), page, src, ver: '3.12.2', dDebug, players });
     const now = Date.now();
     const changed = body !== lastBody;
     if (inFlight) { if (changed) dirty = true; return; }
@@ -166,6 +166,14 @@
   refreshDeltas();
   setInterval(refreshDeltas, 60_000);
   tick();
-  new MutationObserver(tick).observe(document.body, { childList: true, subtree: true, characterData: true });
+  // živá obnova mění stránku mnohokrát za vteřinu (i hodiny „Čas: …“); čtení tabulky při každé změně kartu zahltilo,
+  // až nestíhala odesílat (výpadky dat) a zamrzala. Změny se proto sloučí: tabulka se přečte nejvýš 4× za vteřinu.
+  let tickQueued = false;
+  const queueTick = () => {
+    if (tickQueued) return;
+    tickQueued = true;
+    setTimeout(() => { tickQueued = false; tick(); }, 250);
+  };
+  new MutationObserver(queueTick).observe(document.body, { childList: true, subtree: true, characterData: true });
   setInterval(tick, 1000);
 })();

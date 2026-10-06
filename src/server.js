@@ -551,6 +551,20 @@ function pushState() {
 }
 setInterval(pushNow, 1000);
 
+/**
+ * Diagnostika výpadků dat ze skriptu Síla hráčů: do logu jde mezera mezi požadavky delší než 5 s,
+ * každá odmítnutá odpověď (ne 200) a pomalé zpracování. Pozná se tak, jestli data nechodí z prohlížeče, nebo je odmítá server.
+ */
+let ingestLastAt = 0;
+function ingestSeen(now = Date.now()) {
+  if (ingestLastAt && now - ingestLastAt > 5000) console.log(`[ingest] mezera ${Math.round((now - ingestLastAt) / 1000)} s bez požadavku ze skriptu`);
+  ingestLastAt = now;
+}
+function noteIngest(status, data, ms) {
+  if (status !== 200) console.log(`[ingest] odmítnuto ${status}: ${String(data?.error ?? '').slice(0, 120)}`);
+  else if (ms > 500) console.log(`[ingest] pomalé zpracování ${ms} ms`);
+}
+
 const server = createServer(async (req, res) => {
   const path = new URL(req.url, 'http://x').pathname;
   try {
@@ -586,15 +600,19 @@ const server = createServer(async (req, res) => {
       return res.end(body);
     }
     const handler = routes[`${req.method} ${path}`];
+    if (path === '/ingest') ingestSeen(); // diagnostika výpadků: kdy od skriptu přišel požadavek
     if (!handler) {
       res.writeHead(404).end();
       return;
     }
+    const t0 = Date.now();
     const [status, data] = await handler(req);
+    if (path === '/ingest') noteIngest(status, data, Date.now() - t0);
     res.writeHead(status, { 'content-type': 'application/json' });
     res.end(JSON.stringify(data));
   } catch (e) {
     const status = e.status ?? 500;
+    if (path === '/ingest') noteIngest(status, { error: e.message }, 0);
     if (status === 500) console.error(e);
     res.writeHead(status, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ error: e.message }));
