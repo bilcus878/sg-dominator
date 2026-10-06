@@ -41,6 +41,9 @@ const STALL_MS = 15_000; // pojistka: síla po dohození do téhle doby nevzrost
 const GAIN_FRACTION = 0.001; // „síla vzrostla“ = o víc než 0,1 % cíle (filtr drobného přirozeného kolísání)
 const HOUR_MS = 3_600_000;
 const QUIET_MS = 60 * 60_000; // „klid“: tak dlouho nikdo z naší rasy nespadl pod práh -> další pád je začátek nového útoku
+const EARLY_DEDUPE_MS = 20_000; // po rychlé větvi (viz onAlert, alert.early) se potvrzený alert téhož hráče z pravidel nebere jako nový pád
+const PIPELINE_MS = 300; // požadavek se skutečně „klikne“ až ~0,2–0,45 s po zadání (skript ho vyzvedne, vyplní a klikne): u rychlé větve se odečte, ať prodleva platí do kliknutí
+const MIN_BELOW_READINGS = 2; // před prvním dohozem musí být hráč pod prahem aspoň ve dvou čteních dat (ochrana před jednorázovým výkyvem)
 const MAX_ROUNDS = 500; // jen tvrdý strop proti chybě v kódu; v nastavení se počet dohozů na hráče neomezuje
 
 /** Starší nastavení (pevná pauza cooldownSec, kola s prodlevou jako první dohoz) -> nová rozmezí. */
@@ -96,6 +99,7 @@ export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS, sta
   const recent = []; // poslední události pro UI
   const total = { sent: 0, skipped: 0, failed: 0 };
   let pageAlertAt = -Infinity;
+  const earlyAt = new Map(); // jméno -> kdy rychlá větev naplánovala dohoz (potvrzený alert z pravidel o chvíli později se pak ignoruje)
   let lastFallAt = startedAt; // poslední pád hráče naší rasy pod práh; před prvním pádem čas spuštění (historii před ním neznáme)
 
   const randRange = (a, b) => a + rand() * (b - a);
@@ -134,12 +138,15 @@ export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS, sta
     if (!auto?.enabled) return { scheduled: false, why: 'off' };
     if (!BELOW_REASONS.has(alert.reason)) return { scheduled: false, why: 'reason' };
     if (alert.repeat) return { scheduled: false, why: 'repeat' }; // připomínka „stále pod prahem“ není nový pád
+    if (!alert.early && now - (earlyAt.get(alert.name) ?? -Infinity) < EARLY_DEDUPE_MS) return { scheduled: false, why: 'early' }; // pád už zachytila rychlá větev
     if (queue.some((q) => q.name === alert.name) || episodes.has(alert.name)) return { scheduled: false, why: 'queued' };
     const self = isSelf(auto, alert.name); // přednostní dohoz: rychlejší a jako první, bez odstupu a bez pauzy před opětovným dohozem
     // první pád po klidu (60 min nikdo nespadl) = začátek nového útoku: bot „nebyl připravený“ a dohodí s trochou zpoždění navíc
     const afterQuiet = now - lastFallAt >= QUIET_MS;
     lastFallAt = now;
+    if (alert.early) earlyAt.set(alert.name, now);
     let dueAt = self ? now + Math.round(randRange(auto.selfMinSec ?? 0.3, auto.selfMaxSec ?? 1) * 1000) : dueFor(now, auto);
+    if (alert.early) dueAt = Math.max(now, dueAt - PIPELINE_MS); // rychlá větev: prodleva se počítá od prvního čtení pod prahem až po kliknutí
     const extra = afterQuiet && !self ? Math.round(randRange(auto.quietMinSec ?? 5, auto.quietMaxSec ?? 15) * 1000) : 0;
     if (extra) { dueAt += extra; lastDueAt = Math.max(lastDueAt, dueAt); }
     // pauza po předchozím dohození: nový pád se NEZAHODÍ, jen se dohoz odloží na konec pauzy (až bude potřeba, ověří se, že je hráč pořád pod prahem)
@@ -283,6 +290,11 @@ export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS, sta
         if (!below) {
           drop(); total.skipped++; episodes.delete(item.name); note(now, 'skip', item.name, 'už je nad prahem');
           events.push({ type: 'skip', name: item.name });
+          continue;
+        }
+        const streak = io.belowStreak?.(item.name); // kolik čtení dat po sobě je hráč pod prahem (null = neznámo)
+        if (streak != null && streak < MIN_BELOW_READINGS) { // jedno čtení nestačí: počká se na druhé (jednorázový výkyv dat dohoz nespustí)
+          if (now - item.firstDueAt > GIVE_UP_MS) noData(); else item.dueAt = now + 120;
           continue;
         }
       }

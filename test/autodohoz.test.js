@@ -1000,3 +1000,36 @@ test('konfigurace: zpoždění po klidu se ořezává (0–600 s) a max nikdy po
   assert.equal(sanitizeAutoArmy({}, { quietMaxSec: 9999 }).quietMaxSec, 600);
   assert.deepEqual([AUTO_ARMY_DEFAULTS.quietMinSec, AUTO_ARMY_DEFAULTS.quietMaxSec], [5, 15]);
 });
+
+test('rychlá větev: pád se naplánuje hned při prvním čtení a prodleva se počítá do kliknutí (odečte se ~0,3 s)', () => {
+  const a = createAutoArmy({ rand: () => 0 }); // vždy dolní mez rozmezí
+  const r = a.onAlert(alert('X', 'threshold', { threshold: 100, early: true }), { ...ON, minSec: 1.5, maxSec: 2, quietMinSec: 0, quietMaxSec: 0 }, 1000);
+  assert.equal(r.scheduled, true);
+  assert.equal(r.dueAt, 1000 + 1500 - 300);
+});
+
+test('rychlá větev: potvrzený alert z pravidel o chvíli později se neplánuje podruhé (jinak by se dohazovalo dvakrát)', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const auto = { ...ON, minSec: 1.5, maxSec: 2, quietMinSec: 0, quietMaxSec: 0 };
+  assert.equal(a.onAlert(alert('X', 'threshold', { threshold: 100, early: true }), auto, 0).scheduled, true);
+  assert.deepEqual(a.onAlert(alert('X', 'threshold', { threshold: 100 }), auto, 1500), { scheduled: false, why: 'early' });
+});
+
+test('před prvním dohozem musí být hráč pod prahem ve dvou čteních: jedno čtení (výkyv dat) dohoz neodešle, druhé ho pustí', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const auto = { ...ON, minSec: 1, maxSec: 1, quietMinSec: 0, quietMaxSec: 0 };
+  a.onAlert(alert('X', 'threshold', { threshold: 100, early: true }), auto, 0);
+  let streak = 1;
+  const io = mkIo({ below: () => true }); io.belowStreak = () => streak;
+  a.tick(1200, io); assert.deepEqual(io.sent, [], 'po jednom čtení se neposílá');
+  streak = 2;
+  a.tick(1400, io); assert.deepEqual(io.sent, ['X'], 'po druhém čtení se pošle');
+});
+
+test('rychlá větev: když hráč mezitím vyskočil nad práh (výkyv dat), dohoz se přeskočí', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  a.onAlert(alert('X', 'threshold', { threshold: 100, early: true }), { ...ON, minSec: 1, maxSec: 1, quietMinSec: 0, quietMaxSec: 0 }, 0);
+  const io = mkIo({ below: () => false }); io.belowStreak = () => 0;
+  const ev = a.tick(1000, io);
+  assert.deepEqual(io.sent, []); assert.ok(ev.some((e) => e.type === 'skip'));
+});

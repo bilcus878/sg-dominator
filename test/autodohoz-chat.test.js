@@ -15,7 +15,7 @@ test('sendDohoz posílá jen do servisního chatu, ne do hlavní skupiny ani na 
 });
 
 test('události auto-dohozu se do chatu posílají jen přes sendDohoz (ne přes sendText)', () => {
-  const m = server.match(/autoArmy\.tick\([\s\S]*?\n\}, 300\);/);
+  const m = server.match(/autoArmy\.tick\([\s\S]*?\n\}, \d+\);/);
   assert.ok(m, 'smyčka auto-dohozu nenalezena');
   assert.doesNotMatch(m[0], /sendText\(/);
   assert.match(m[0], /sendDohoz\(/);

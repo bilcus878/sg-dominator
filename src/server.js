@@ -43,7 +43,31 @@ function freshPlayer(name) {
   if (!p || now - (p.seenAt ?? snap.at ?? 0) > DATA_FRESH_MS) return null; // čerstvost se měří za konkrétního hráče (jeho stránku může posílat jiné okno než zbytek rasy)
   return Number.isFinite(p.power) && p.power >= 0 ? { raceId, p } : null;
 }
+/**
+ * Sleduje, kolik čtení dat po sobě je hráč naší rasy pod prahem, a zachytí PÁD (nad -> pod) hned při prvním čtení: auto-dohoz se naplánuje
+ * hned (prodleva se počítá od prvního čtení, ne až od potvrzeného alertu o 1–2 s později). Před odesláním se stejně vyžadují dvě čtení pod prahem
+ * (belowStreak) a čerstvé ověření stillBelow, takže jednorázový výkyv dat dohoz nespustí.
+ */
+const belowState = new Map(); // jméno -> { below, streak, countedAt }
+function trackBelow(list, raceId, now) {
+  for (const p of list) {
+    if (!p.watched || !(p.threshold > 0) || !Number.isFinite(p.power)) { belowState.delete(p.name); continue; }
+    const below = p.power < p.threshold;
+    const st = belowState.get(p.name);
+    if (!st) { belowState.set(p.name, { below, streak: below ? 1 : 0, countedAt: now }); continue; } // první čtení: nevíme, jestli jde o pád
+    if (!below) { st.below = false; st.streak = 0; st.countedAt = now; continue; }
+    if (!st.below) { // přechod nad -> pod prahem = pád
+      st.below = true; st.streak = 1; st.countedAt = now;
+      const auto = cfg.army.auto;
+      if (auto.enabled) {
+        const own = cfg.players[p.name]?.topTarget;
+        autoArmy.onAlert({ name: p.name, power: p.power, prev: null, reason: 'threshold', threshold: p.threshold, critical: p.critical, repeat: false, early: true, race: cfg.races[raceId]?.name }, own != null ? { ...auto, topUpTarget: own } : auto, now);
+      }
+    } else if (now - st.countedAt >= 400) { st.streak += 1; st.countedAt = now; } // další čtení (dvě okna v téže vteřině se nepočítají dvakrát)
+  }
+}
 const autoArmyIo = {
+  belowStreak(name) { return belowState.get(name)?.streak ?? null; },
   /** Je hráč pořád pod prahem? true/false, null = bez čerstvých dat (podle starých dat se nedohazuje). */
   stillBelow(name) {
     const f = freshPlayer(name);
@@ -106,7 +130,7 @@ setInterval(() => {
     }
     if (ev.notify && ev.text) sendDohoz(ev.text);
   }
-}, 300);
+}, 100);
 const armyWait = (ms) => new Promise((ok) => { const t = setTimeout(ok, Math.max(0, ms)); armyWaiters.push(() => { clearTimeout(t); ok(); }); });
 const store = createStore();
 const op = createOpTracker();
@@ -284,6 +308,7 @@ async function handleIngest(req) {
     return { ...p, watched, threshold, critical };
   });
   // cizí rasa: hlídá se „k dobytí“, ne pokles pod práh (stav pravidel se ale vede dál, ať přepnutí nespamuje)
+  if (!attack) trackBelow(resolved, raceId, now); // rychlá větev auto-dohozu: pád se zachytí hned při prvním čtení
   const alerts = evaluate(state, attack ? resolved.map((p) => ({ ...p, watched: false })) : resolved, cfg, now);
   if (attack) {
     for (const ev of conquest.evaluate(raceId, resolved, conquestFor(raceId), now)) {
