@@ -128,8 +128,7 @@ setInterval(() => {
       saveConfig(cfg);
       pushState();
     }
-    if (ev.type === 'done') { if (ev.text && notifyOn(cfg, 'dohoz')) sendDohoz(ev.text); } // hotový dohoz: zpráva podle přepínače „Auto-dohoz proběhl“ (i po jediném dohozu)
-    else if (ev.notify && ev.text) sendDohoz(ev.text);
+    if ((ev.notify || ev.type === 'done') && ev.text) sendDohoz(ev.text); // hotový dohoz se hlásí vždy (i po jediném); vypíná se spolu se systémovými zprávami
   }
 }, 100);
 const armyWait = (ms) => new Promise((ok) => { const t = setTimeout(ok, Math.max(0, ms)); armyWaiters.push(() => { clearTimeout(t); ok(); }); });
