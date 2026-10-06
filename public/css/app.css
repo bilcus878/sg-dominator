@@ -495,7 +495,7 @@
   /* responzivita: úzký panel zkracuje tabulku jen tolik, kolik je potřeba (fáze s1…s5 nastavuje JS podle skutečné šířky; viz fitPanel):
      s1 přírůstky planet, s2 odznak prahu, s3 menší Dohodit a mezery, s4 sloupec Útok a počet hlídaných, s5 sloupec Planety */
   .rpanel[data-fit~="s1"] .ddslot, .rpanel[data-fit~="s1"] .pdd { display:none; }
-  .rpanel[data-fit~="s2"] .thl { display:none; }
+  .rpanel[data-fit~="s2"] .rcl, .rpanel[data-fit~="s2"] .ecl { display:none; }
   .rpanel[data-fit~="s3"] .dohodit { padding:3px 7px; font-size:12px; } .rpanel[data-fit~="s3"] .rbody td.n, .rpanel[data-fit~="s3"] .rbody th.n { padding-right:10px; }
   .rpanel[data-fit~="s4"] .dcol, .rpanel[data-fit~="s4"] th.dcol, .rpanel[data-fit~="s4"] .rwatch { display:none; } .rpanel[data-fit~="s4"] .rbody td, .rpanel[data-fit~="s4"] .rbody th { padding-left:5px; padding-right:5px; }
   .rpanel[data-fit~="s5"] .pcw, .rpanel[data-fit~="s5"] th.pc, .rpanel[data-fit~="s5"] td.pc { display:none; }
@@ -508,3 +508,11 @@
   button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline:none; }
   .rpanel .icon { min-width:28px; min-height:28px; }
   .rbody thead th[aria-sort=ascending] .sarrow, .rbody thead th[aria-sort=descending] .sarrow { color:var(--acc); }
+
+  /* ===== jméno ve dvou řádcích: nahoře jméno (menší), pod ním přepočty (⟳, 💰) a ⚙ nastavení hráče; řádky jsou vyšší ===== */
+  td.pname .nl1 { display:flex; align-items:center; white-space:nowrap; }
+  td.pname .nl2 { display:flex; align-items:center; gap:9px; margin-top:3px; padding-left:13px; min-height:18px; white-space:nowrap; font-size:11px; color:var(--mut); }
+  td.pname .nl2 .rcl, td.pname .nl2 .ecl { margin:0; } td.pname .nl2 .thl { margin:0; }
+  .rpanel td.pname .nm { font-size:calc(var(--tfs) * .9); }
+  .rpanel .rbody tbody tr { height:calc(var(--tfs) * 3.5); }
+  .rpanel .pset { padding:0 6px; font-size:12px; }
