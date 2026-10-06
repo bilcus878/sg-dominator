@@ -73,6 +73,12 @@ políčka `jed1…`, sloupec „V armádě“ sedí s tím, co skript očekává
 6. **Změna nastavení uprostřed dohazování** se projeví až u dalšího dohazování (kromě vypnutí, které platí hned).
 7. **Hra může poznat automatizovaný klik** (nelze vyloučit). Proto jsou náhodné prodlevy a klik se souřadnicemi jako od myši.
 
+## 4b. Přednostní dohoz pro uživatele samotného
+
+V Nastavení → Dohoz jde zadat *Moje jméno v rase*. Když spadne tento hráč, dohazuje se mu rychleji (vlastní krátká prodleva a pauza mezi koly)
+a **jako první**: před ostatními, bez odstupu mezi hráči, bez čekání za cizí záchranou a bez pauzy před opětovným dohozem. Ostatním hráčům se tím
+neposouvají termíny. Ostatní pojistky (čerstvá data, ověřování, hodinová pojistka, vypnutí) platí i pro mě. U jména v tabulce svítí ⚡.
+
 ## 5. Nastavení (Nastavení → Dohoz)
 
 1. po pádu pod práh počkat · 2. odstup mezi hráči · 3. pauza mezi dohozy téhož hráče · 4. znovu začít dohazovat téhož hráče

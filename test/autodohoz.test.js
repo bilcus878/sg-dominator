@@ -764,3 +764,126 @@ test('nečitelná síla (NaN, záporná) není platná a nedohazuje se podle ní
     assert.ok(sent.length === 0 || ev.some((e) => e.type === 'stall'), `bad=${bad}`);
   }
 });
+
+// ---------- přednostní dohoz pro uživatele samotného ----------
+const ME = { ...ON, selfName: 'Já', selfMinSec: 0.2, selfMaxSec: 0.5, selfRoundMinSec: 0.3, selfRoundMaxSec: 0.6, gapMinSec: 3, gapMaxSec: 3, minSec: 4, maxSec: 4 };
+
+test('přednostní dohoz: u mě se čeká jen mou krátkou dobu, u ostatních běžnou; jméno bez ohledu na velikost písmen', () => {
+  const mine = new Set();
+  for (let i = 0; i < 100; i++) {
+    const a = createAutoArmy();
+    const r = a.onAlert(alert('  já '), ME, 0);
+    assert.ok(r.dueAt >= 200 && r.dueAt <= 500, `u mě ${r.dueAt}`);
+    mine.add(r.dueAt);
+  }
+  assert.ok(mine.size > 20, 'náhodná prodleva');
+  const a = createAutoArmy();
+  assert.equal(a.onAlert(alert('Eva'), ME, 0).dueAt, 4000); // ostatní: běžná prodleva 4 s
+  assert.equal(createAutoArmy().onAlert(alert('Eva'), { ...ME, selfName: '' }, 0).dueAt >= 3000, true); // bez jména se nic nemění
+  assert.equal(createAutoArmy().onAlert(alert('Já'), { ...ME, selfName: '' }, 0).dueAt >= 3000, true);
+});
+
+test('přednostní dohoz: jdu první, i když ostatní spadli dřív; ostatním nic neposouvám', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkIo();
+  const cfg = { ...ME, minSec: 1, maxSec: 1, gapMinSec: 1, gapMaxSec: 1 };
+  a.onAlert(alert('Eva'), cfg, 0); // splatné ve 2 s (1 s prodleva + 1 s odstup od nuly)
+  a.onAlert(alert('Bob'), cfg, 0); // +1 s odstup = 3 s
+  a.onAlert(alert('Já'), cfg, 100); // splatné za 0,2 s
+  const ev = run(a, io, 0, 30_000, 100);
+  assert.deepEqual(io.sent.slice(0, 3), ['Já', 'Eva', 'Bob']);
+  assert.equal(ev.filter((e) => e.type === 'sent').length, 3);
+  // moje plánování neposunulo termín Boba (odstup se počítá jen mezi ostatními)
+  const b = createAutoArmy({ rand: () => 0 });
+  const t1 = b.onAlert(alert('Eva'), cfg, 0).dueAt;
+  b.onAlert(alert('Já'), cfg, 0);
+  assert.equal(b.onAlert(alert('Bob'), cfg, 0).dueAt - t1, 1000);
+});
+
+test('přednostní dohoz: když jsou splatní oba najednou, odešlu se nejdřív můj', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkIo();
+  const cfg = { ...ME, minSec: 0, maxSec: 0, gapMinSec: 0, gapMaxSec: 0, selfMinSec: 0, selfMaxSec: 0 };
+  a.onAlert(alert('Eva'), cfg, 0);
+  a.onAlert(alert('Já'), cfg, 0);
+  a.tick(10, io);
+  a.tick(500, io);
+  assert.deepEqual(io.sent, ['Já', 'Eva']);
+});
+
+test('přednostní dohoz: kola k horní hranici mám rychlá a nečekám za cizí záchranou; ostatní běžně', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkMulti({ Já: 50, Bob: 60 }, { Já: 150, Bob: 150 });
+  const log = [];
+  const orig = io.request;
+  io.request = (n) => { log.push([n, Date.now()]); return orig(n); };
+  const cfg = { ...ME, topUp: true, topUpTarget: 800, minSec: 3, maxSec: 3, roundMinSec: 3, roundMaxSec: 3, gapMinSec: 0, gapMaxSec: 0 };
+  a.onAlert(alert('Já'), cfg, 0);
+  a.onAlert(alert('Bob'), cfg, 0);
+  const sentAt = {};
+  const orig2 = io.request;
+  io.request = (n) => { (sentAt[n] ??= []).push(now); return orig2(n); };
+  let now = 0;
+  for (now = 0; now <= 40_000; now += 50) a.tick(now, io);
+  assert.ok(io.powers['Já'] >= 800 && io.powers.Bob >= 800);
+  const mineGaps = sentAt['Já'].slice(1).map((t, i) => t - sentAt['Já'][i]);
+  const bobGaps = sentAt.Bob.slice(1).map((t, i) => t - sentAt.Bob[i]);
+  assert.ok(Math.max(...mineGaps) <= 900, `mé pauzy ${mineGaps}`); // 0,3–0,6 s (+ krok ticku)
+  assert.ok(Math.min(...bobGaps) >= 3000, `cizí pauzy ${bobGaps}`); // běžných 3 s
+  assert.ok(sentAt['Já'].length >= 5 && sentAt['Já'].at(-1) < sentAt.Bob.at(-1), 'jsem hotový dřív než Bob');
+});
+
+test('přednostní dohoz: nepodléhám pauze po dohození (po dalším pádu hned znovu)', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const state = { power: 50 };
+  const io = mkTopIo(state, { boost: 200 });
+  io.threshold = () => 100;
+  const cfg = { ...ME, cooldownMinSec: 120, cooldownMaxSec: 120 };
+  a.onAlert(alert('Já'), cfg, 0);
+  run(a, io, 0, 2000, 50);
+  assert.equal(io.sent.length, 1);
+  state.power = 40; // znovu mě někdo srazil
+  const r = a.onAlert(alert('Já'), cfg, 3000);
+  assert.equal(r.scheduled, true);
+  assert.equal(r.deferred, false, 'bez čekání na konec pauzy');
+  assert.ok(r.dueAt - 3000 <= 500);
+  run(a, io, 3000, 5000, 50);
+  assert.equal(io.sent.length, 2);
+  // u ostatních se pauza dál dodržuje
+  const c = createAutoArmy({ rand: () => 0 });
+  const io2 = mkTopIo({ power: 50 }, { boost: 200 });
+  c.onAlert(alert('Eva'), cfg, 0);
+  run(c, io2, 0, 8000, 50);
+  assert.equal(c.onAlert(alert('Eva'), cfg, 9000).deferred, true);
+});
+
+test('přednostní dohoz: zaneprázdněný dohoz zkouším znovu rychle (150–350 ms)', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  let busy = true;
+  const sent = [];
+  const io = { stillBelow: () => true, power: () => 50, threshold: () => 100, request: (n) => (busy ? { ok: false, error: 'Ještě se dohazuje Bob, chvíli počkej.' } : (sent.push(n), { ok: true })) };
+  a.onAlert(alert('Já'), ME, 0);
+  a.tick(1000, io); // zaneprázdněno -> nový termín za 150 ms
+  busy = false;
+  a.tick(1200, io);
+  assert.deepEqual(sent, ['Já']);
+});
+
+test('přednostní dohoz: nastavení jména a rozmezí se čistí', () => {
+  const n = sanitizeAutoArmy(AUTO_ARMY_DEFAULTS, { selfName: '  Jacobjer  ', selfMinSec: '2', selfMaxSec: '1', selfRoundMinSec: 9999, selfRoundMaxSec: 'abc' });
+  assert.equal(n.selfName, 'Jacobjer');
+  assert.deepEqual([n.selfMinSec, n.selfMaxSec], [2, 2]);
+  assert.deepEqual([n.selfRoundMinSec, n.selfRoundMaxSec], [60, 60]);
+  assert.equal(AUTO_ARMY_DEFAULTS.selfName, '');
+  assert.equal(sanitizeAutoArmy(n, { selfName: 'x'.repeat(200) }).selfName.length, 64);
+  assert.equal(sanitizeAutoArmy(n, { selfName: 5 }).selfName, 'Jacobjer'); // nesmysl se ignoruje
+  assert.equal(sanitizeAutoArmy(n, { selfName: '' }).selfName, ''); // prázdné = vypnuto
+});
+
+test('snapshot: epizoda přednostního hráče je označená', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  a.onAlert(alert('Já'), { ...ME, topUp: true, topUpTarget: 800 }, 0);
+  a.onAlert(alert('Eva'), { ...ME, topUp: true, topUpTarget: 800 }, 0);
+  const t = Object.fromEntries(a.snapshot(0).topping.map((x) => [x.name, x.self]));
+  assert.deepEqual(t, { 'Já': true, Eva: false });
+});

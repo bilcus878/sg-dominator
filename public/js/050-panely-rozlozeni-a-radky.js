@@ -356,6 +356,7 @@ function updatePanel(id) {
       tgt ? `K dobytí: pod ${dots((pr.conquest ?? cfg.conquest).below)}, konec nad ${dots((pr.conquest ?? cfg.conquest).above)}` : '',
     ].filter(Boolean).join('\n');
     row.tr.classList.toggle('off', !p.watched);
+    { const me = (cfg.army?.auto?.selfName ?? '').trim().toLowerCase(); row.nm.classList.toggle('me', !!me && p.name.toLowerCase() === me); } // ⚡ = můj přednostní dohoz
     { // tlačítko nastavení hráče: ⚙; vlastní dolní práh žlutě (↓), vlastní horní hranice dohozu zeleně (↑); vše popsané v bublině
       const ownLow = p.ownThreshold != null, ownTop = p.ownTop != null;
       const gTop = cfg.army?.auto?.topUpTarget ?? 0, defLow = pr.threshold ?? cfg.threshold;

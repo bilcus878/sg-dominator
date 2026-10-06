@@ -268,6 +268,19 @@
         </div>
         <p class="muted" style="margin:6px 0 0">Průběh: pád pod práh → <b>1</b> → Dohodit → (víc hráčů: <b>2</b>) → (další kola: <b>3</b>) → hotovo → (nový pád: nejdřív po <b>4</b>).</p>
 
+        <div class="asec">⚡ Přednostní dohoz pro mě</div>
+        <p class="muted" style="margin:0 0 8px">Člověk má sebe vždycky připraveného, že armádu odešle okamžitě. Zadej své <b>jméno v rase</b> (přesně jak je v tabulce hráčů) a když spadneš <b>ty sám</b>, bot dohodí rychleji a <b>jako první</b> (před ostatními, bez odstupu mezi hráči, bez čekání za jejich záchranou a bez pauzy před opětovným dohozem). Prodlevy výše platí pro ostatní hráče.</p>
+        <label for="armySelfName">Moje jméno v rase</label>
+        <input type="text" id="armySelfName" list="armyNames" autocomplete="off" placeholder="prázdné = bez přednostního dohozu" maxlength="64">
+        <datalist id="armyNames"></datalist>
+        <p class="muted" id="armySelfStatus" style="margin:6px 0 10px"></p>
+        <div class="trows">
+          <div class="trow"><div class="tl"><b>A · Po mém pádu pod práh počkat</b><small>Než bot poprvé dohodí mně (místo prodlevy 1).</small></div>
+            <div class="tr"><input type="number" id="armySelfMin" min="0" max="60" step="0.1" aria-label="od"><span>–</span><input type="number" id="armySelfMax" min="0" max="60" step="0.1" aria-label="do"><i>s</i></div></div>
+          <div class="trow"><div class="tl"><b>B · Pauza mezi mými dohozy</b><small>Mezi koly dohazování mně k horní hranici (místo pauzy 3).</small></div>
+            <div class="tr"><input type="number" id="armySelfRoundMin" min="0" max="60" step="0.1" aria-label="od"><span>–</span><input type="number" id="armySelfRoundMax" min="0" max="60" step="0.1" aria-label="do"><i>s</i></div></div>
+        </div>
+
         <div class="asec">🎯 Kolikrát dohazovat</div>
         <div class="seg" id="armyModeSeg" role="group" aria-label="Režim dohazování"><button type="button" data-m="once">Jednou za pád pod práh</button><button type="button" data-m="top">Až do horní hranice</button></div>
         <input type="checkbox" id="armyTopUp" hidden>

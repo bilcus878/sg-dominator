@@ -34,16 +34,18 @@ function renderArmy(a) {
   body.innerHTML = '';
   for (const u of a?.units ?? []) body.appendChild(atkRow(u));
   $('armyNone').hidden = (a?.units ?? []).length > 0;
-  const au = a?.auto ?? { enabled: false, minSec: 2, maxSec: 4, gapMinSec: 0.9, gapMaxSec: 2.5, roundMinSec: 2, roundMaxSec: 4, cooldownMinSec: 60, cooldownMaxSec: 120, maxPerHour: 200 };
+  const au = a?.auto ?? { enabled: false, minSec: 2, maxSec: 4, gapMinSec: 0.9, gapMaxSec: 2.5, roundMinSec: 2, roundMaxSec: 4, cooldownMinSec: 60, cooldownMaxSec: 120, maxPerHour: 200, selfName: '', selfMinSec: 0.3, selfMaxSec: 1, selfRoundMinSec: 0.4, selfRoundMaxSec: 1.2 };
   $('armyAutoOn').checked = !!au.enabled; $('armyMin').value = au.minSec; $('armyMax').value = au.maxSec;
   $('armyGapMin').value = au.gapMinSec ?? 0.9; $('armyGapMax').value = au.gapMaxSec ?? 2.5;
   $('armyRoundMin').value = au.roundMinSec ?? 2; $('armyRoundMax').value = au.roundMaxSec ?? 4;
   $('armyCoolMin').value = au.cooldownMinSec ?? 60; $('armyCoolMax').value = au.cooldownMaxSec ?? 120; $('armyMaxHour').value = au.maxPerHour ?? 200;
+  $('armySelfName').value = au.selfName ?? ''; $('armySelfMin').value = au.selfMinSec ?? 0.3; $('armySelfMax').value = au.selfMaxSec ?? 1;
+  $('armySelfRoundMin').value = au.selfRoundMinSec ?? 0.4; $('armySelfRoundMax').value = au.selfRoundMaxSec ?? 1.2;
   $('armyTopTarget').value = au.topUpTarget ? dots(au.topUpTarget) : '';
   setArmyMode(!!au.topUp);
 }
 const readArmy = () => ({ units: [...$('armyUnits').rows].map((tr) => ({ name: tr.querySelector('.aname').value.trim(), count: undots(tr.querySelector('.acount').value) ?? 0, max: tr.querySelector('.amax').checked })).filter((u) => u.name),
-  auto: { enabled: $('armyAutoOn').checked, minSec: $('armyMin').value, maxSec: $('armyMax').value, gapMinSec: $('armyGapMin').value, gapMaxSec: $('armyGapMax').value, roundMinSec: $('armyRoundMin').value, roundMaxSec: $('armyRoundMax').value, cooldownMinSec: $('armyCoolMin').value, cooldownMaxSec: $('armyCoolMax').value, maxPerHour: $('armyMaxHour').value, topUp: $('armyTopUp').checked, topUpTarget: undots($('armyTopTarget').value) ?? 0 } });
+  auto: { enabled: $('armyAutoOn').checked, minSec: $('armyMin').value, maxSec: $('armyMax').value, gapMinSec: $('armyGapMin').value, gapMaxSec: $('armyGapMax').value, roundMinSec: $('armyRoundMin').value, roundMaxSec: $('armyRoundMax').value, cooldownMinSec: $('armyCoolMin').value, cooldownMaxSec: $('armyCoolMax').value, maxPerHour: $('armyMaxHour').value, selfName: $('armySelfName').value.trim(), selfMinSec: $('armySelfMin').value, selfMaxSec: $('armySelfMax').value, selfRoundMinSec: $('armySelfRoundMin').value, selfRoundMaxSec: $('armySelfRoundMax').value, topUp: $('armyTopUp').checked, topUpTarget: undots($('armyTopTarget').value) ?? 0 } });
 $('armyAdd').onclick = () => { $('armyUnits').appendChild(atkRow({ name: '', count: 0, max: false })); $('armyNone').hidden = true; markDirty(); };
 $('armyUnits').addEventListener('click', (e) => { const b = e.target.closest('.adel'); if (b) { b.closest('tr').remove(); markDirty(); } });
 function readAtk() {
@@ -97,6 +99,16 @@ function renderAutoArmy() {
     + (s.topping?.length ? ` Dohazuje do horní hranice: ${s.topping.map((t) => `${esc(t.name)} (${t.phase === 'rescue' ? 'nad práh' : 'k hranici'} ${t.rounds}/${t.maxRounds}, cíl ${dots(t.target)})`).join(', ')}.` : '')
     + (s.pending.length ? ` Čeká: ${s.pending.map((p) => `${esc(p.name)} za ${Math.ceil(p.inMs / 1000)} s`).join(', ')}.` : '')
     + (last ? ` Naposledy: ${esc(last.name)} – ${label[last.type] ?? last.type}${last.text ? ` (${esc(last.text)})` : ''}.` : '');
+  { // moje jméno v rase: našlo se v načtených datech? (nabídka jmen pro dopisování + stav)
+    const names = S.races.filter((x) => x.role !== 'attack').flatMap((x) => x.players.map((p) => p.name));
+    const dl = $('armyNames'), key = names.join('|');
+    if (dl.dataset.k !== key) { dl.dataset.k = key; dl.innerHTML = [...new Set(names)].sort((a, b) => a.localeCompare(b, 'cs')).map((n) => `<option value="${esc(n)}">`).join(''); }
+    const typed = $('armySelfName').value.trim().toLowerCase(), saved = (cfg.army?.auto?.selfName ?? '').trim().toLowerCase();
+    const want = typed || saved;
+    const hit = want && S.races.flatMap((x) => x.players.map((p) => ({ x, p }))).find(({ p }) => p.name.toLowerCase() === want);
+    const st = !want ? 'Bez jména se přednostní dohoz nepoužije.' : hit ? `✓ Nalezen: ${esc(hit.p.name)} (${esc(hit.x.name)}), síla ${dots(hit.p.power)}.` : '⚠ Hráč s tímto jménem zatím není v načtených datech (zkontroluj přesný zápis; po otevření stránky hráčů rasy se objeví).';
+    const el2 = $('armySelfStatus'); if (el2.dataset.t !== st) { el2.dataset.t = st; el2.innerHTML = st; }
+  }
   const au = cfg.army?.auto;
   const warnTop = au?.enabled && au.topUp && au.topUpTarget > 0 && au.topUpTarget <= cfg.threshold;
   const full = warnTop ? `${txt} <b style="color:var(--bad)">⚠ Horní hranice je pod výchozím prahem, dohazování skončí hned po prvním dohozu.</b>` : txt;
