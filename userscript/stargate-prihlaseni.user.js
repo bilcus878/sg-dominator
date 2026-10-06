@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – přihlášení
 // @namespace    sg-dominator
-// @version      1.6.0
+// @version      1.7.0
 // @description  Když hru po ~3 hodinách odhlásí, otevře se nový panel s přihlašovací stránkou, klikne na Přihlaš (údaje doplní Chrome, skript hesla nezná), panel se zavře a karty s daty se obnoví. V době denní údržby (výchozí 3:00–3:31) počká. Vše se nastavuje v aplikaci (Nastavení → Přihlášení).
 // @match        https://stargate-game.cz/*
 // @match        https://www.stargate-game.cz/*
@@ -16,7 +16,7 @@
   'use strict';
   const SERVER = '__SERVER__';
   const TOKEN = '__TOKEN__';
-  const VERSION = '1.6.0'; // stejné jako @version
+  const VERSION = '1.7.0'; // stejné jako @version
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -196,6 +196,17 @@
       giveUp(st);
       return;
     }
+    // Chrome vykreslí uložené heslo hned, ale stránce (i tomuto skriptu) ho vydá až po skutečném kliknutí nebo stisku klávesy uživatele.
+    // Dokud je pole z pohledu stránky prázdné, klik na Přihlaš by odeslal prázdné heslo (přihlášení by tiše selhalo a formulář zůstal).
+    if (!pw.value) {
+      const nudge = 'Chrome drží uložené heslo, dokud na přihlašovací stránku neklikneš. Klikni kamkoli do panelu, přihlášení pak dokončím samo.';
+      report('needs-user', nudge);
+      banner(nudge);
+      const limit = Date.now() + cfg.tabWaitMin * 60_000 - 60_000;
+      while (!pw.value && Date.now() < limit) await sleep(300);
+      $('sgd-login-banner')?.remove();
+      if (!pw.value) { report('failed', 'Do panelu se nekliklo, heslo zůstalo skryté. Přihlas se prosím ručně.'); giveUp(st); return; }
+    }
     await sleep(rndSec(cfg, 'formMinSec', 'formMaxSec'));
     if (!document.querySelector('input[name="hra"]:checked')) ($('sg') ?? document.querySelector('input[name="hra"]'))?.click(); // výchozí je SG-1
     for (;;) {
@@ -207,7 +218,7 @@
       if (st.attempts === 1 && form?.isConnected && isLoginPage()) { try { form.submit(); } catch { /* nic */ } await sleep(10_000); }
       if (st.attempts >= cfg.maxAttempts) break;
       const back = st.attempts === 1 ? rndSec(cfg, 'retryFirstMinSec', 'retryFirstMaxSec') : rndSec(cfg, 'retryNextMinSec', 'retryNextMaxSec');
-      report('retry', `Přihlášení se nepovedlo (pokus ${st.attempts}/${cfg.maxAttempts}), zkusím znovu za ${Math.round(back / 60000)} min.`);
+      report('retry', `Přihlášení se nepovedlo (pokus ${st.attempts}/${cfg.maxAttempts}, heslo ${pw.value ? 'vyplněné' : 'prázdné'}), zkusím znovu za ${Math.round(back / 60000)} min.`);
       const end = Date.now() + back;
       while (Date.now() < end) await sleep(5_000);
       if (!isLoginPage()) return;
