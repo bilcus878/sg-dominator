@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – přihlášení
 // @namespace    sg-dominator
-// @version      1.2.0
+// @version      1.3.0
 // @description  Když hru po ~3 hodinách odhlásí (Vypršela platnost přihlášení), jedna karta se sama přihlásí zpátky (údaje doplní Chrome, skript hesla nezná), ostatní karty se obnoví. V době denní údržby (3:00–3:31) počká.
 // @match        https://stargate-game.cz/*
 // @match        https://www.stargate-game.cz/*
@@ -15,7 +15,7 @@
   'use strict';
   const SERVER = '__SERVER__';
   const TOKEN = '__TOKEN__';
-  const VERSION = '1.2.0'; // stejné jako @version
+  const VERSION = '1.3.0'; // stejné jako @version
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -135,7 +135,7 @@
       wait += rnd(8_000, 70_000);
       report('maintenance', `Odhlášeno (${reason}), probíhá údržba serveru: přihlásím se asi za ${Math.round(wait / 60000)} min.`);
     } else {
-      wait = rnd(4_000, 9_000);
+      wait = rnd(1_500, 3_000); // celé odhlášení → začátek přihlašování má trvat do ~10 s
       report('expired', `Odhlášeno ze hry (${reason}), přihlašuji se znovu.`);
     }
     const end = Date.now() + wait;
@@ -217,17 +217,17 @@
 
   // ---------- stránka hráčů rasy: tabulka zmizela (po odhlášení zbyde jen prázdná stránka) ----------
   async function racePageLoop() {
-    await sleep(rnd(25_000, 40_000));
+    await sleep(rnd(1_000, 2_500));
     let missing = 0;
     for (;;) {
       if (!getState() && !isLoginPage() && !lockedByOther()) {
         missing = hasPlayerRows(document) ? 0 : missing + 1;
-        if (missing >= 3) { // ~30 s bez tabulky (stránka se sama obnovuje, krátký výpadek se tím přejde)
+        if (missing >= 2) { // tabulka chybí 2× po sobě (~3 s); dotaz na stránku pak potvrdí, že to není jen okamžik obnovy
           if (!(await fetchedHasPlayers())) { startRelogin('na stránce hráčů rasy chybí tabulka (odhlášeno)'); return; }
           missing = 0;
         }
       }
-      await sleep(rnd(8_000, 14_000));
+      await sleep(rnd(1_200, 1_800));
     }
   }
 
@@ -255,7 +255,7 @@
       else if (st.phase === 'go' || st.phase === 'submit') { await afterLogin(st); return; }
     }
     if (isLoginPage()) return;
-    if (pageExpired()) { await sleep(rnd(2_000, 6_000)); startRelogin('vypršelo přihlášení'); return; }
+    if (pageExpired()) { await sleep(rnd(500, 1_500)); startRelogin('vypršelo přihlášení'); return; }
     watchLoop();
     if (onRacePage) racePageLoop();
   })();
