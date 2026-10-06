@@ -6,7 +6,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { loadConfig, saveConfig, sanitizeUpdate, publicConfig, DATA_DIR, LEGACY_DATA_DIR, USING_DEFAULT_DIR } from './config.js';
 import { migrateLegacyData } from './migrate.js';
 import { createState, evaluate, rebaseline } from './rules.js';
-import { formatAlert, sendText, sendService, findTelegramChats, notifyOn } from './notifiers.js';
+import { formatAlert, sendText, sendService, findTelegramChats, notifyOn, sendStatus } from './notifiers.js';
 import { openDb } from './db.js';
 import { createStore } from './store.js';
 import { createOpTracker } from './op.js';
@@ -459,7 +459,7 @@ function buildState() {
     vigilance: { count: vig.count, lastClickedAt: vig.clickedAt, pendingSince: vig.pending ? vig.seenAt : 0 },
     telescope: tele.snapshot(),
   };
-  return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState, autoArmy: { ...autoArmy.snapshot(now), rankPaused }, sound: cfg.sound };
+  return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState, autoArmy: { ...autoArmy.snapshot(now), rankPaused }, sound: cfg.sound, sendStatus: { ...sendStatus } };
 }
 
 /** Hlídač výpadku: hlídané rasy a mapa (když je OP alert zapnutý) musí dodávat data. */

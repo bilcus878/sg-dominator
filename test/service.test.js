@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { sendService, sendText, notifyOn } from '../src/notifiers.js';
+import { sendService, sendText, notifyOn, sendStatus } from '../src/notifiers.js';
 
 const cfg = (tg) => ({ telegram: { enabled: true, botToken: 'T', chatId: '-1', serviceChatId: '', ...tg }, discord: { enabled: false } });
 
@@ -44,5 +44,20 @@ test('druhy upozornění: notifyOn respektuje hlavní vypínač i vypnutý druh;
   try {
     assert.deepEqual(await sendService({ ...cfg({ serviceChatId: '-2' }), notifyTypes: { service: false } }, 'x'), { sent: 0, total: 0 });
     assert.equal(calls, 0);
+  } finally { globalThis.fetch = orig; }
+});
+
+test('stav odeslání: neúspěšné odeslání na Telegram (401) se zapamatuje a následné úspěšné ho zruší', async () => {
+  const orig = globalThis.fetch;
+  const log = { error() {} };
+  const on = { ...cfg({ chatId: '-1' }), discord: { enabled: false } };
+  try {
+    globalThis.fetch = async () => ({ ok: false, status: 401, text: async () => '{"ok":false,"error_code":401,"description":"Unauthorized"}' });
+    await sendText(on, 'x', log);
+    assert.equal(sendStatus.telegram.ok, false);
+    assert.match(sendStatus.telegram.error, /401/);
+    globalThis.fetch = async () => ({ ok: true, text: async () => '' });
+    await sendText(on, 'x', log);
+    assert.equal(sendStatus.telegram.ok, true);
   } finally { globalThis.fetch = orig; }
 });

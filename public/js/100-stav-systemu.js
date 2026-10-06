@@ -12,11 +12,17 @@ function healthItems() {
   }
   const op = S.op;
   if (op?.enabled) { const a = op.at ? dAge(op.at) : null; items.push({ cls: a == null ? 'bad' : a < 3000 ? 'ok' : a < 10_000 ? 'warn' : 'bad', t: 'OP: mapa', v: a == null ? 'čeká na mapu' : dSec(a) }); }
-  if (cfg && cfg.notify !== false) { const ok = cfg.telegram?.enabled && cfg.telegram?.configured; items.push({ cls: ok ? 'ok' : 'warn', t: 'Telegram', v: ok ? 'nastaveno' : 'nenastaveno, zprávy se neposílají' }); }
+  if (cfg && cfg.notify !== false) {
+    const ok = cfg.telegram?.enabled && cfg.telegram?.configured, tg = S.sendStatus?.telegram, sv = S.sendStatus?.['telegram-servis'];
+    if (ok && tg && !tg.ok) items.push({ cls: 'bad', t: 'Telegram', v: `zprávy nechodí: ${tg.error.replace(/\{.*$/, '').trim() || 'chyba odeslání'} (zkontroluj token a chat v Nastavení → Kanály)` });
+    else if (ok && sv && !sv.ok) items.push({ cls: 'warn', t: 'Telegram (servisní chat)', v: `nechodí: ${sv.error.slice(0, 40)}` });
+    else items.push({ cls: ok ? 'ok' : 'warn', t: 'Telegram', v: ok ? (tg ? `odesláno před ${dSec(Date.now() - tg.at)}` : 'nastaveno') : 'nenastaveno, zprávy se neposílají' });
+  }
   return items;
 }
 function renderHealth() {
   if (!S.serverTime) return;
+  renderChannels();
   const items = healthItems();
   const worst = items.some((i) => i.cls === 'bad') ? 'bad' : items.some((i) => i.cls === 'warn') ? 'warn' : 'ok';
   const led = $('hlLed'); if (led.dataset.c !== worst) { led.dataset.c = worst; led.className = 'led ' + worst; $('hlBtn').title = { ok: 'Vše v pořádku', warn: 'Něco je zpožděné nebo nenastavené', bad: 'Problém: klikni pro podrobnosti' }[worst]; }

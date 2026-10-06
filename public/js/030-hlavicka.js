@@ -5,10 +5,20 @@ function renderChips() {
   ntMenu.classList.toggle('chatoff', !notify);
   renderBell();
   for (const cb of ntMenu.querySelectorAll('input[data-nt]')) if (document.activeElement !== cb) cb.checked = cfg.notifyTypes?.[cb.dataset.nt] !== false;
-  const chip = (t, on) => `<span class="pill ${on && notify ? 'ok' : ''}">${t}</span>`;
-  $('ntChan').innerHTML = chip('Telegram ' + (cfg.telegram.enabled && cfg.telegram.configured ? '✓' : '✗'), cfg.telegram.enabled && cfg.telegram.configured)
-    + chip('Discord ' + (cfg.discord.enabled && cfg.discord.configured ? '✓' : '✗'), cfg.discord.enabled && cfg.discord.configured)
+  renderChannels();
+}
+/** Kanály dole v nabídce Alerty: nastaveno ✓, a když poslední odeslání selhalo (třeba neplatný token), červeně s důvodem. */
+function renderChannels() {
+  if (!cfg) return;
+  const notify = cfg.notify !== false, st = S.sendStatus ?? {};
+  const chip = (name, on, key) => {
+    const s = st[key], bad = on && s && !s.ok;
+    return `<span class="pill ${bad ? 'bad' : on && notify ? 'ok' : ''}" title="${bad ? esc(`Poslední odeslání selhalo: ${s.error}`) : ''}">${name} ${bad ? '⚠ zprávy nechodí' : on ? '✓' : '✗'}</span>`;
+  };
+  const html = chip('Telegram', cfg.telegram.enabled && cfg.telegram.configured, 'telegram')
+    + chip('Discord', cfg.discord.enabled && cfg.discord.configured, 'discord')
     + `<span class="pill">Výchozí práh ${fmt(cfg.threshold)}</span>`;
+  if ($('ntChan').dataset.h !== html) { $('ntChan').dataset.h = html; $('ntChan').innerHTML = html; }
 }
 
 const ageOf = (r) => (r.at ? S.serverTime - r.at : null);

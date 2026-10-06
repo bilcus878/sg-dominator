@@ -47,6 +47,10 @@ async function post(url, body) {
   if (!res.ok) throw new Error(`${res.status} ${await res.text().catch(() => '')}`.slice(0, 200));
 }
 
+/** Výsledek posledního odeslání po kanálech (discord, telegram, telegram-servis): { ok, at, error? }. Aplikace z něj ukáže, že zprávy nechodí (třeba neplatný token). */
+export const sendStatus = {};
+const noteSend = (channel, ok, error = '') => { sendStatus[channel] = ok ? { ok: true, at: Date.now() } : { ok: false, at: Date.now(), error: String(error).slice(0, 160) }; };
+
 export async function sendText(cfg, text, log = console) {
   if (cfg.notify === false) return { sent: 0, total: 0 }; // hlavní vypínač upozornění
   const jobs = [];
@@ -64,6 +68,7 @@ export async function sendText(cfg, text, log = console) {
   }
   const results = await Promise.allSettled(jobs.map(([, p]) => p));
   results.forEach((r, i) => {
+    noteSend(jobs[i][0], r.status === 'fulfilled', r.reason?.message);
     if (r.status === 'rejected') log.error(`[${jobs[i][0]}] odeslání selhalo: ${r.reason.message}`);
   });
   return { sent: results.filter((r) => r.status === 'fulfilled').length, total: jobs.length };
@@ -79,8 +84,10 @@ export async function sendService(cfg, text, log = console) {
   if (!cfg.telegram.enabled || !cfg.telegram.botToken || !chatId) return { sent: 0, total: 0 };
   try {
     await post(`https://api.telegram.org/bot${cfg.telegram.botToken}/sendMessage`, { chat_id: chatId, text: `🛠 ${text}` });
+    noteSend('telegram-servis', true);
     return { sent: 1, total: 1 };
   } catch (e) {
+    noteSend('telegram-servis', false, e.message);
     log.error(`[telegram servis] odeslání selhalo: ${e.message}`);
     return { sent: 0, total: 1 };
   }
