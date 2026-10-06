@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – přihlášení
 // @namespace    sg-dominator
-// @version      1.4.0
+// @version      1.5.0
 // @description  Když hru po ~3 hodinách odhlásí, otevře se nový panel s přihlašovací stránkou, klikne na Přihlaš (údaje doplní Chrome, skript hesla nezná), panel se zavře a karty s daty se obnoví. V době denní údržby (3:00–3:31) počká.
 // @match        https://stargate-game.cz/*
 // @match        https://www.stargate-game.cz/*
@@ -16,7 +16,7 @@
   'use strict';
   const SERVER = '__SERVER__';
   const TOKEN = '__TOKEN__';
-  const VERSION = '1.4.0'; // stejné jako @version
+  const VERSION = '1.5.0'; // stejné jako @version
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -59,6 +59,18 @@
       data: JSON.stringify({ ver: VERSION, event, text }),
       timeout: 8000,
       onload: () => {}, onerror: () => {}, ontimeout: () => {},
+    });
+  }
+
+  /** Prodlevy z Nastavení → Skripty (od–do v sekundách); bez serveru platí výchozí. */
+  function loadDelays() {
+    return new Promise((resolve) => {
+      const d = { reactMinSec: 1.5, reactMaxSec: 3, maintMinSec: 8, maintMaxSec: 70 };
+      GM_xmlhttpRequest({
+        method: 'GET', url: `${SERVER}/session/config`, headers: { 'x-token': TOKEN }, timeout: 4000,
+        onload: (r) => { try { const j = JSON.parse(r.responseText); for (const k of Object.keys(d)) if (Number.isFinite(j[k])) d[k] = j[k]; } catch { /* výchozí */ } resolve(d); },
+        onerror: () => resolve(d), ontimeout: () => resolve(d),
+      });
     });
   }
 
@@ -131,12 +143,13 @@
     if (getState() || !acquireLock()) return; // už běží (tady nebo v jiné kartě)
     startHeartbeat();
     setState({ phase: 'wait', ret: location.href, attempts: 0, startedAt: Date.now() });
+    const dl = await loadDelays();
     let wait = maintenanceWaitMs();
     if (wait > 0) {
-      wait += rnd(8_000, 70_000);
+      wait += rnd(dl.maintMinSec * 1000, dl.maintMaxSec * 1000);
       report('maintenance', `Odhlášeno (${reason}), probíhá údržba serveru: přihlásím se asi za ${Math.round(wait / 60000)} min.`);
     } else {
-      wait = rnd(1_500, 3_000); // celé odhlášení → začátek přihlašování má trvat do ~10 s
+      wait = rnd(dl.reactMinSec * 1000, dl.reactMaxSec * 1000); // celé odhlášení → začátek přihlašování má trvat do ~10 s
       report('expired', `Odhlášeno ze hry (${reason}), přihlašuji se znovu.`);
     }
     const end = Date.now() + wait;

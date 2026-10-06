@@ -28,3 +28,12 @@ test('hláška o vypršení se pozná v UTF-8 i ve Windows-1250, běžné strán
   assert.ok(!EXPIRED_RE.test('Hráči rasy Bedrosian, Síla armády 779 327 705'));
   assert.ok(!EXPIRED_RE.test('Login: Heslo: Přihlas'));
 });
+
+import { sanitizeUpdate } from '../src/config.js';
+test('prodlevy přihlášení: meze a konec nikdy pod začátkem', () => {
+  const base = { session: { reactMinSec: 1.5, reactMaxSec: 3, maintMinSec: 8, maintMaxSec: 70 } };
+  const a = sanitizeUpdate(base, { session: { maintMinSec: 20, maintMaxSec: 5 } }).session;
+  assert.equal(a.maintMinSec, 20); assert.equal(a.maintMaxSec, 20);
+  const b = sanitizeUpdate(base, { session: { reactMinSec: 0, reactMaxSec: 999 } }).session;
+  assert.equal(b.reactMinSec, 0.5); assert.equal(b.reactMaxSec, 30);
+});

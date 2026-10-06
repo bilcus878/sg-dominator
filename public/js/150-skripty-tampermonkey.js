@@ -6,6 +6,7 @@
     ['Síla hráčů', '/userscript.user.js', 'posílá sílu hráčů do hlídání'],
     ['Rasová armáda', '/armada.user.js', 'tlačítko Dohodit u našich hráčů'],
     ['Útok (D)', '/utok.user.js', 'vyplní dobývací útok po kliknutí na D'],
+    ['Přihlášení', '/prihlaseni.user.js', 'po odhlášení ze hry se samo přihlásí a obnoví karty'],
   ];
   let loaded = false;
   async function loadScripts() {
@@ -55,6 +56,7 @@ $('save').onclick = async () => {
       attack: readAtk(),
       myRace: $('myRace').value,
       army: readArmy(),
+      session: { reactMinSec: $('sesReactMin').value, reactMaxSec: $('sesReactMax').value, maintMinSec: $('sesMaintMin').value, maintMaxSec: $('sesMaintMax').value },
       discord: { enabled: $('dEnabled').checked, webhookUrl: $('dUrl').value },
       telegram: { enabled: $('tEnabled').checked, botToken: $('tToken').value, chatId: $('tChat').value, serviceChatId: $('tService').value },
     });

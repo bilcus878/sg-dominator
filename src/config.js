@@ -46,6 +46,8 @@ export const DEFAULTS = {
   races: {},
   // výjimky pro hráče: { [jméno]: { watch?: true|false, threshold?: číslo } }
   players: {},
+  // skript Přihlášení: prodlevy (s) – po odhlášení do kliknutí a po konci denní údržby (3:31:20) do přihlášení
+  session: { reactMinSec: 1.5, reactMaxSec: 3, maintMinSec: 8, maintMaxSec: 70 },
   op: { enabled: false, repeatSec: 10, vigilance: { ...VIGILANCE_DEFAULTS }, telescope: { ...TELESCOPE_DEFAULTS } }, // alert na tečky OP na mapě; repeatSec = připomínka, dokud svítí (0 = jen jednou); vigilance = automatické potvrzení tlačítka bdělosti po minSec až maxSec
   conquest: { ...CONQUEST_DEFAULTS }, // cizí rasy: k dobytí pod `below`, konec až nad `above`
   watchdog: { enabled: true, staleSec: 30 }, // hlášení, že hlídaná rasa / mapa přestala dodávat data
@@ -78,6 +80,7 @@ export function loadConfig() {
   }
   const cfg = merge(DEFAULTS, stored);
   // uložená podobjekty se s výchozími slučují jen mělce, takže chybějící nová pole se doplní tady
+  cfg.session = { ...DEFAULTS.session, ...cfg.session };
   cfg.op.vigilance = { ...VIGILANCE_DEFAULTS, ...cfg.op.vigilance };
   cfg.op.telescope = { ...TELESCOPE_DEFAULTS, ...cfg.op.telescope };
   cfg.attack = sanitizeAttack(ATTACK_DEFAULTS, cfg.attack);
@@ -216,6 +219,16 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
       }
       if (Object.keys(rec).length) next.players[name] = rec; else delete next.players[name];
     }
+  }
+  if (body.session && typeof body.session === 'object') {
+    const ns = { ...DEFAULTS.session, ...cur.session };
+    const rng = (a, b, lo, hi) => { // dvojice od–do v mezích; konec nikdy pod začátkem
+      for (const k of [a, b]) if (k in body.session) ns[k] = Math.min(hi, Math.max(lo, num(body.session[k], ns[k])));
+      if (ns[b] < ns[a]) ns[b] = ns[a];
+    };
+    rng('reactMinSec', 'reactMaxSec', 0.5, 30);
+    rng('maintMinSec', 'maintMaxSec', 0, 900);
+    next.session = ns;
   }
   if (body.op && typeof body.op === 'object') {
     next.op = { ...cur.op };

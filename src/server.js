@@ -519,6 +519,7 @@ const routes = {
   'POST /telescope': handleTelescope,
   'POST /build/report': handleBuildReport,
   'POST /session': handleSession,
+  'GET /session/config': async (req) => (authOk(req) ? [200, cfg.session] : [401, { error: 'bad token' }]),
   'GET /api/build': async () => buildView(),
   'PUT /api/build': async (req) => {
     cfg = sanitizeUpdate(cfg, { build: await readJson(req) });

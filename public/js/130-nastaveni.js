@@ -21,6 +21,7 @@ function fillForm() {
   $('notifyRecovery').checked = cfg.notifyRecovery; $('repeatWhileBelow').checked = cfg.repeatWhileBelow;
   $('opRepeatSec').value = cfg.op.repeatSec; $('opEnabled2').checked = cfg.op.enabled;
   const vg = cfg.op.vigilance ?? { enabled: true, minSec: 5, maxSec: 10 };
+  { const ss = cfg.session ?? {}; $('sesReactMin').value = ss.reactMinSec ?? 1.5; $('sesReactMax').value = ss.reactMaxSec ?? 3; $('sesMaintMin').value = ss.maintMinSec ?? 8; $('sesMaintMax').value = ss.maintMaxSec ?? 70; }
   $('opVigEnabled').checked = vg.enabled; $('opVigMin').value = vg.minSec; $('opVigMax').value = vg.maxSec;
   $('opVigSkip').checked = vg.skipEnabled ?? true; $('opSkipMin').value = vg.skipMin ?? 5; $('opSkipMax').value = vg.skipMax ?? 10;
   $('opDownMin').value = vg.downMin ?? 3; $('opDownMax').value = vg.downMax ?? 15;

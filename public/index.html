@@ -321,6 +321,14 @@
         <div class="chan-head"><span><b>Instalační stránka</b> <span class="muted" style="font-weight:400">– všechny skripty na jednom místě, stažení souboru i zkopírování kódu</span></span></div>
         <a href="/install" target="_blank" rel="noopener"><button type="button">Otevřít http://127.0.0.1:3940/install</button></a>
       </div>
+      <div class="chan">
+        <div class="chan-head"><span><b>Přihlášení po odhlášení ze hry</b> <span class="muted" style="font-weight:400">– skript Přihlášení; prodlevy jsou vždy náhodné v rozmezí od–do</span></span></div>
+        <p class="muted" style="margin-top:0">Po odhlášení (a po konci denní údržby 3:00–3:31) skript počká náhodnou chvíli, aby to nevypadalo robotsky.</p>
+        <div class="two"><div><label for="sesReactMin">Po odhlášení: nejdřív po (s)</label><input type="number" id="sesReactMin" min="0.5" max="30" step="0.1"></div>
+          <div><label for="sesReactMax">nejpozději po (s)</label><input type="number" id="sesReactMax" min="0.5" max="30" step="0.1"></div></div>
+        <div class="two"><div><label for="sesMaintMin">Po konci údržby (3:31:20): nejdřív po (s)</label><input type="number" id="sesMaintMin" min="0" max="900" step="1"></div>
+          <div><label for="sesMaintMax">nejpozději po (s)</label><input type="number" id="sesMaintMax" min="0" max="900" step="1"></div></div>
+      </div>
       <div id="scriptList"></div>
       <details open><summary>Když se po kliknutí na „Instalovat odkazem“ nic nestane</summary><p>
         Nejjistější je <b>Stáhnout soubor</b> a v Tampermonkey Přehled → Nástroje → <b>Importovat ze souboru</b>. Nebo použij <b>Zkopírovat kód</b>: ikona Tampermonkey → Přehled → klikni na název skriptu → <code>Ctrl+A</code>, <code>Ctrl+V</code>, <code>Ctrl+S</code> → obnov stránku hry (<code>F5</code>).
