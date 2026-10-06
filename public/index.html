@@ -267,8 +267,12 @@
           <small>Jeden dohoz často nestačí (jednotky dají třeba 150 mil., hráč potřebuje 700 mil.). Bot sleduje sílu hráče živě: jakmile po dohození vzroste a je pořád pod horní hranicí, po náhodné prodlevě (výše) dohodí znovu. Když padne <b>víc hráčů naráz</b>, bot nejdřív dostane <b>každého nad práh</b> (jednoho po druhém) a teprve potom je střídavě dohazuje dál k horní hranici. Zastaví se, jakmile hráč hranici překoná, když po dohození síla <b>nevzroste</b> (dohoz nezabírá) nebo po nejvyšším počtu dohozů. Končí zprávou na Telegram.</small></div>
         <div class="two"><div><label for="armyTopTarget">Horní hranice (síla)</label><input type="text" inputmode="numeric" class="num" id="armyTopTarget" placeholder="např. 750 000 000"></div>
           <div><label for="armyTopRounds">Nejvíc dohozů na hráče</label><input type="number" id="armyTopRounds" min="1" max="50"></div></div>
-        <div class="field" style="margin-top:12px"><label for="armyCooldown">Pauza mezi dohozy téhož hráče (s)</label><input type="number" id="armyCooldown" min="0" max="3600">
-          <small>Dřív než za tuhle dobu se stejný hráč znovu nedohazuje.</small></div>
+        <div class="two" style="margin-top:12px"><div><label for="armyRoundMin">Pauza mezi dohozy téhož hráče nejmíň (s)</label><input type="number" id="armyRoundMin" min="0" max="120" step="0.5"></div>
+          <div><label for="armyRoundMax">… nejvíc (s)</label><input type="number" id="armyRoundMax" min="0" max="120" step="0.5"></div></div>
+        <p class="muted" style="margin:6px 0 0">Mezi dohozy jednoho hráče (kola k horní hranici) se čeká <b>náhodný čas</b> v tomhle rozmezí, pokaždé jiný.</p>
+        <div class="two" style="margin-top:12px"><div><label for="armyCoolMin">Znovu začít dohazovat téhož hráče nejdřív za (s)</label><input type="number" id="armyCoolMin" min="0" max="3600"></div>
+          <div><label for="armyCoolMax">… nejpozději za (s)</label><input type="number" id="armyCoolMax" min="0" max="3600"></div></div>
+        <p class="muted" style="margin:6px 0 0">Když stejný hráč znovu spadne pod práh, dřív než za <b>náhodnou dobu</b> v tomhle rozmezí po posledním dohození se nezačne dohazovat znovu.</p>
         <p class="muted" id="armyAutoStatus" style="margin-bottom:0"></p>
       </div>
     </div>

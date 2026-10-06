@@ -34,14 +34,15 @@ function renderArmy(a) {
   body.innerHTML = '';
   for (const u of a?.units ?? []) body.appendChild(atkRow(u));
   $('armyNone').hidden = (a?.units ?? []).length > 0;
-  const au = a?.auto ?? { enabled: false, minSec: 2, maxSec: 4, gapMinSec: 0.9, gapMaxSec: 2.5, repeat: false, cooldownSec: 60 };
+  const au = a?.auto ?? { enabled: false, minSec: 2, maxSec: 4, gapMinSec: 0.9, gapMaxSec: 2.5, repeat: false, roundMinSec: 2, roundMaxSec: 4, cooldownMinSec: 60, cooldownMaxSec: 120 };
   $('armyAutoOn').checked = !!au.enabled; $('armyMin').value = au.minSec; $('armyMax').value = au.maxSec;
   $('armyGapMin').value = au.gapMinSec ?? 0.9; $('armyGapMax').value = au.gapMaxSec ?? 2.5;
-  $('armyRepeat').checked = !!au.repeat; $('armyCooldown').value = au.cooldownSec;
+  $('armyRepeat').checked = !!au.repeat; $('armyRoundMin').value = au.roundMinSec ?? 2; $('armyRoundMax').value = au.roundMaxSec ?? 4;
+  $('armyCoolMin').value = au.cooldownMinSec ?? 60; $('armyCoolMax').value = au.cooldownMaxSec ?? 120;
   $('armyTopUp').checked = !!au.topUp; $('armyTopTarget').value = au.topUpTarget ? dots(au.topUpTarget) : ''; $('armyTopRounds').value = au.topUpMaxRounds ?? 10;
 }
 const readArmy = () => ({ units: [...$('armyUnits').rows].map((tr) => ({ name: tr.querySelector('.aname').value.trim(), count: undots(tr.querySelector('.acount').value) ?? 0, max: tr.querySelector('.amax').checked })).filter((u) => u.name),
-  auto: { enabled: $('armyAutoOn').checked, minSec: $('armyMin').value, maxSec: $('armyMax').value, gapMinSec: $('armyGapMin').value, gapMaxSec: $('armyGapMax').value, repeat: $('armyRepeat').checked, cooldownSec: $('armyCooldown').value, topUp: $('armyTopUp').checked, topUpTarget: undots($('armyTopTarget').value) ?? 0, topUpMaxRounds: $('armyTopRounds').value } });
+  auto: { enabled: $('armyAutoOn').checked, minSec: $('armyMin').value, maxSec: $('armyMax').value, gapMinSec: $('armyGapMin').value, gapMaxSec: $('armyGapMax').value, repeat: $('armyRepeat').checked, roundMinSec: $('armyRoundMin').value, roundMaxSec: $('armyRoundMax').value, cooldownMinSec: $('armyCoolMin').value, cooldownMaxSec: $('armyCoolMax').value, topUp: $('armyTopUp').checked, topUpTarget: undots($('armyTopTarget').value) ?? 0, topUpMaxRounds: $('armyTopRounds').value } });
 $('armyAdd').onclick = () => { $('armyUnits').appendChild(atkRow({ name: '', count: 0, max: false })); $('armyNone').hidden = true; markDirty(); };
 $('armyUnits').addEventListener('click', (e) => { const b = e.target.closest('.adel'); if (b) { b.closest('tr').remove(); markDirty(); } });
 function readAtk() {

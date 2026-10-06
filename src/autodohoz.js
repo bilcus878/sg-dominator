@@ -15,7 +15,9 @@
  */
 
 export const AUTO_ARMY_DEFAULTS = {
-  enabled: false, minSec: 2, maxSec: 4, gapMinSec: 0.9, gapMaxSec: 2.5, repeat: false, cooldownSec: 60,
+  enabled: false, minSec: 2, maxSec: 4, gapMinSec: 0.9, gapMaxSec: 2.5, repeat: false,
+  roundMinSec: 2, roundMaxSec: 4, // pauza mezi dohozy téhož hráče (kola k horní hranici): náhodně v rozmezí
+  cooldownMinSec: 60, cooldownMaxSec: 120, // dřív než za tuhle (náhodnou) dobu se stejný hráč po dohození znovu nezačíná dohazovat
   topUp: false, topUpTarget: 0, topUpMaxRounds: 10, // dohazovat, dokud síla nepřekročí topUpTarget (nejvýš topUpMaxRounds dohozů)
 };
 
@@ -24,9 +26,20 @@ const PAGE_ALERT_GAP_MS = 10 * 60_000; // „stránka není otevřená“ se hl�
 const BELOW_REASONS = new Set(['threshold', 'critical']); // pád pod práh (propad nad prahem a návrat se nedohazují)
 const STALL_MS = 15_000; // pojistka: síla po dohození do téhle doby nevzrostla = dohoz nezabírá, přestat (běžně síla naskočí hned)
 
+/** Starší nastavení (pevná pauza cooldownSec, kola s prodlevou jako první dohoz) -> nová rozmezí. */
+export function migrateAutoArmy(a) {
+  if (!a || typeof a !== 'object') return a;
+  const o = { ...a };
+  if ('cooldownSec' in o && !('cooldownMinSec' in o)) o.cooldownMinSec = o.cooldownMaxSec = o.cooldownSec;
+  delete o.cooldownSec;
+  if (!('roundMinSec' in o) && ('minSec' in o || 'maxSec' in o)) { o.roundMinSec = o.minSec ?? AUTO_ARMY_DEFAULTS.minSec; o.roundMaxSec = o.maxSec ?? AUTO_ARMY_DEFAULTS.maxSec; }
+  return o;
+}
+
 /** Ověří a sjednotí nastavení auto-dohozu z UI. Čísla mimo meze se ořežou, max nikdy pod min. */
 export function sanitizeAutoArmy(cur, body) {
-  const next = { ...AUTO_ARMY_DEFAULTS, ...cur };
+  const next = { ...AUTO_ARMY_DEFAULTS, ...migrateAutoArmy(cur) };
+  body = migrateAutoArmy(body);
   if (!body || typeof body !== 'object') return next;
   const num = (v, lo, hi, d) => (Number.isFinite(Number(v)) && v !== '' && v !== null ? Math.min(hi, Math.max(lo, Number(v))) : d);
   if ('enabled' in body) next.enabled = !!body.enabled;
@@ -36,18 +49,23 @@ export function sanitizeAutoArmy(cur, body) {
   if ('maxSec' in body) next.maxSec = num(body.maxSec, 0, 120, next.maxSec);
   if ('gapMinSec' in body) next.gapMinSec = num(body.gapMinSec, 0, 60, next.gapMinSec);
   if ('gapMaxSec' in body) next.gapMaxSec = num(body.gapMaxSec, 0, 60, next.gapMaxSec);
-  if ('cooldownSec' in body) next.cooldownSec = num(body.cooldownSec, 0, 3600, next.cooldownSec);
+  if ('cooldownMinSec' in body) next.cooldownMinSec = num(body.cooldownMinSec, 0, 3600, next.cooldownMinSec);
+  if ('cooldownMaxSec' in body) next.cooldownMaxSec = num(body.cooldownMaxSec, 0, 3600, next.cooldownMaxSec);
+  if ('roundMinSec' in body) next.roundMinSec = num(body.roundMinSec, 0, 120, next.roundMinSec);
+  if ('roundMaxSec' in body) next.roundMaxSec = num(body.roundMaxSec, 0, 120, next.roundMaxSec);
   if ('topUpTarget' in body) next.topUpTarget = Math.floor(num(body.topUpTarget, 0, 1e13, next.topUpTarget));
   if ('topUpMaxRounds' in body) next.topUpMaxRounds = Math.floor(num(body.topUpMaxRounds, 1, 50, next.topUpMaxRounds));
   if (next.maxSec < next.minSec) next.maxSec = next.minSec;
   if (next.gapMaxSec < next.gapMinSec) next.gapMaxSec = next.gapMinSec;
+  if (next.cooldownMaxSec < next.cooldownMinSec) next.cooldownMaxSec = next.cooldownMinSec;
+  if (next.roundMaxSec < next.roundMinSec) next.roundMaxSec = next.roundMinSec;
   return next;
 }
 
 export function createAutoArmy({ rand = Math.random } = {}) {
   let queue = []; // [{ name, dueAt, firstDueAt, episode }]
   let lastDueAt = 0; // kdy byl naplánovaný poslední dohoz (kvůli rozestupu mezi hráči)
-  const lastSent = new Map(); // jméno -> kdy se naposled dohodilo
+  const blockedUntil = new Map(); // jméno -> do kdy se po dohození znovu nezačíná dohazovat (náhodná doba z rozmezí cooldownMin–Max)
   const episodes = new Map(); // jméno -> { phase: 'rescue'|'topup', target, maxRounds, rounds, minSec, maxSec, gapMinSec, gapMaxSec, startedAt } (jen při dohazování po horní hranici)
   const watch = new Map(); // jméno -> { sentAt, powerAtSend }: čeká se, až se ukáže účinek posledního dohozu
   const recent = []; // poslední události pro UI
@@ -72,7 +90,7 @@ export function createAutoArmy({ rand = Math.random } = {}) {
 
   /**
    * Alert z hlídání. Naplánuje dohoz jen pro pád pod práh (a při zapnutém opakování i pro připomínky),
-   * nejvýš jeden čekající na hráče a s odstupem cooldownSec od posledního dohození.
+   * nejvýš jeden čekající na hráče a s náhodným odstupem (cooldownMinSec–MaxSec) od posledního dohození.
    * @returns {{scheduled: boolean, dueAt?: number, why?: string}}
    */
   function onAlert(alert, auto, now = Date.now()) {
@@ -80,15 +98,15 @@ export function createAutoArmy({ rand = Math.random } = {}) {
     if (!BELOW_REASONS.has(alert.reason)) return { scheduled: false, why: 'reason' };
     if (alert.repeat && !auto.repeat) return { scheduled: false, why: 'repeat' };
     if (queue.some((q) => q.name === alert.name) || episodes.has(alert.name)) return { scheduled: false, why: 'queued' };
-    const last = lastSent.get(alert.name);
-    if (last !== undefined && now - last < auto.cooldownSec * 1000) return { scheduled: false, why: 'cooldown' };
+    const until = blockedUntil.get(alert.name);
+    if (until !== undefined && now < until) return { scheduled: false, why: 'cooldown' };
     const dueAt = dueFor(now, auto);
     const topUp = auto.topUp && auto.topUpTarget > 0;
     const episode = topUp
-      ? { phase: 'rescue', target: auto.topUpTarget, maxRounds: Math.max(1, auto.topUpMaxRounds), rounds: 0, minSec: auto.minSec, maxSec: auto.maxSec, gapMinSec: auto.gapMinSec, gapMaxSec: auto.gapMaxSec, startedAt: now }
+      ? { phase: 'rescue', target: auto.topUpTarget, maxRounds: Math.max(1, auto.topUpMaxRounds), rounds: 0, minSec: auto.roundMinSec, maxSec: auto.roundMaxSec, gapMinSec: auto.gapMinSec, gapMaxSec: auto.gapMaxSec, cool: [auto.cooldownMinSec, auto.cooldownMaxSec], startedAt: now }
       : null;
     if (episode) episodes.set(alert.name, episode);
-    queue.push({ name: alert.name, dueAt, firstDueAt: dueAt, episode });
+    queue.push({ name: alert.name, dueAt, firstDueAt: dueAt, episode, cool: [auto.cooldownMinSec, auto.cooldownMaxSec] });
     note(now, 'plan', alert.name, `za ${Math.round((dueAt - now) / 100) / 10} s${episode ? `, pak do ${fmt(episode.target)}` : ''}`);
     return { scheduled: true, dueAt };
   }
@@ -165,7 +183,9 @@ export function createAutoArmy({ rand = Math.random } = {}) {
       const powerBefore = io.power?.(item.name) ?? 0; // síla těsně před dohozem: podle ní se pozná, že dohoz zabral
       const r = io.request(item.name);
       if (r.ok) {
-        drop(); lastSent.set(item.name, now); total.sent++;
+        drop(); total.sent++;
+        const cool = item.cool ?? ep?.cool ?? [0, 0];
+        blockedUntil.set(item.name, now + Math.round(randRange(cool[0], cool[1]) * 1000)); // další samostatné dohazování téhož hráče až po náhodné pauze
         if (ep) {
           ep.rounds += 1;
           watch.set(item.name, { sentAt: now, powerAtSend: powerBefore });

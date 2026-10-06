@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createAutoArmy, sanitizeAutoArmy, AUTO_ARMY_DEFAULTS } from '../src/autodohoz.js';
+import { createAutoArmy, sanitizeAutoArmy, migrateAutoArmy, AUTO_ARMY_DEFAULTS } from '../src/autodohoz.js';
 import { sanitizeArmy, ARMY_DEFAULTS } from '../src/attack.js';
 import { sanitizeUpdate, DEFAULTS } from '../src/config.js';
 
-const ON = { ...AUTO_ARMY_DEFAULTS, enabled: true, minSec: 2, maxSec: 4, cooldownSec: 60 };
+const ON = { ...AUTO_ARMY_DEFAULTS, enabled: true, minSec: 2, maxSec: 4, roundMinSec: 2, roundMaxSec: 4, cooldownMinSec: 60, cooldownMaxSec: 60 };
 const alert = (name, reason = 'threshold', extra = {}) => ({ name, reason, power: 1, ...extra });
 /** io, který zaznamenává požadavky; `result` řídí odpověď na request, `below` stav hráče. */
 const mkIo = ({ result = () => ({ ok: true }), below = () => true } = {}) => {
@@ -121,7 +121,7 @@ test('tick: dohoz zaneprázdněný -> zkusí znovu; po 30 s se vzdá', () => {
 test('tick: stránka Rasová armáda není otevřená -> selhání, upozornění nejvýš jednou za 10 min', () => {
   const a = createAutoArmy({ rand: () => 0 });
   const closed = mkIo({ result: () => ({ ok: false, error: 'Otevři ve hře stránku Jednotky → Rasová armáda (se skriptem) a vyplň počty jednotek.' }) });
-  a.onAlert(alert('X'), { ...ON, minSec: 0, maxSec: 0, cooldownSec: 0 }, 0);
+  a.onAlert(alert('X'), { ...ON, minSec: 0, maxSec: 0, cooldownMinSec: 0, cooldownMaxSec: 0 }, 0);
   const e1 = a.tick(1000, closed)[0];
   assert.deepEqual([e1.type, e1.page, e1.notify], ['fail', true, true]);
   a.onAlert(alert('Y'), { ...ON, minSec: 0, maxSec: 0 }, 5000);
@@ -132,13 +132,13 @@ test('tick: stránka Rasová armáda není otevřená -> selhání, upozornění
 });
 
 test('sanitizeAutoArmy: meze, max nikdy pod min, nesmysly se ignorují', () => {
-  const n = sanitizeAutoArmy(AUTO_ARMY_DEFAULTS, { enabled: 1, minSec: '5', maxSec: '2', repeat: 1, cooldownSec: '90' });
-  assert.deepEqual(n, { ...AUTO_ARMY_DEFAULTS, enabled: true, minSec: 5, maxSec: 5, repeat: true, cooldownSec: 90 });
+  const n = sanitizeAutoArmy(AUTO_ARMY_DEFAULTS, { enabled: 1, minSec: '5', maxSec: '2', repeat: 1, cooldownMinSec: '90', cooldownMaxSec: '30', roundMinSec: '6', roundMaxSec: '3' });
+  assert.deepEqual(n, { ...AUTO_ARMY_DEFAULTS, enabled: true, minSec: 5, maxSec: 5, repeat: true, cooldownMinSec: 90, cooldownMaxSec: 90, roundMinSec: 6, roundMaxSec: 6 });
   const g = sanitizeAutoArmy(n, { gapMinSec: '7', gapMaxSec: '3' });
   assert.deepEqual([g.gapMinSec, g.gapMaxSec], [7, 7]); // max nikdy pod min
   assert.deepEqual([sanitizeAutoArmy(n, { gapMinSec: 999 }).gapMinSec, sanitizeAutoArmy(n, { gapMinSec: -1 }).gapMinSec], [60, 0]);
-  const c = sanitizeAutoArmy(n, { minSec: 9999, maxSec: 'abc', cooldownSec: -4 });
-  assert.deepEqual([c.minSec, c.maxSec, c.cooldownSec], [120, 120, 0]);
+  const c = sanitizeAutoArmy(n, { minSec: 9999, maxSec: 'abc', cooldownMinSec: -4, roundMinSec: 9999 });
+  assert.deepEqual([c.minSec, c.maxSec, c.cooldownMinSec, c.roundMinSec], [120, 120, 0, 120]);
   assert.deepEqual(sanitizeAutoArmy(n, {}), n);
 });
 
@@ -167,7 +167,7 @@ test('konfigurace: výchozí auto-dohoz je vypnutý a PUT ho zapne beze ztráty 
 
 
 // ---------- dohazování až po horní hranici ----------
-const TOP = { ...ON, minSec: 1, maxSec: 1, gapMinSec: 0, gapMaxSec: 0, topUp: true, topUpTarget: 750, topUpMaxRounds: 10, cooldownSec: 0 };
+const TOP = { ...ON, minSec: 1, maxSec: 1, roundMinSec: 1, roundMaxSec: 1, gapMinSec: 0, gapMaxSec: 0, topUp: true, topUpTarget: 750, topUpMaxRounds: 10, cooldownMinSec: 0, cooldownMaxSec: 0 };
 /** io s měnitelnou sílou hráče: každý dohoz ji zvedne o `boost`. */
 const mkTopIo = (state, { boost = 150, below = () => true } = {}) => {
   const sent = [];
@@ -372,4 +372,55 @@ test('snapshot ukazuje fázi hráče (záchrana / k hranici)', () => {
   assert.equal(a.snapshot(0).topping[0].phase, 'rescue');
   run(a, io, 0, 1500); // po prvním dohozu je hráč nad prahem a dál se dohazuje jen k hranici
   assert.equal(a.snapshot(1500).topping[0].phase, 'topup');
+});
+
+
+// ---------- náhodné pauzy místo pevných ----------
+test('pauza před opětovným dohazováním téhož hráče je náhodná v rozmezí (ne pevná)', () => {
+  const cfg = { ...ON, minSec: 0, maxSec: 0, gapMinSec: 0, gapMaxSec: 0, cooldownMinSec: 20, cooldownMaxSec: 40, repeat: true };
+  const unblock = new Set();
+  for (let i = 0; i < 80; i++) {
+    const a = createAutoArmy();
+    const io = mkIo();
+    a.onAlert(alert('X'), cfg, 0);
+    a.tick(0, io); // dohodí hned (prodleva 0) a zablokuje na náhodnou dobu
+    let t = 0;
+    while (!a.onAlert(alert('X', 'threshold', { repeat: true }), cfg, t).scheduled && t < 60_000) t += 100;
+    assert.ok(t >= 20_000 && t <= 40_100, `odblokováno po ${t} ms`);
+    unblock.add(t);
+  }
+  assert.ok(unblock.size > 20, 'pauza se vždy opakuje – není náhodná');
+});
+
+test('pauza mezi dohozy téhož hráče (kola k horní hranici) je náhodná v roundMin–roundMax', () => {
+  const gaps = new Set();
+  for (let i = 0; i < 40; i++) {
+    const state = { power: 60 };
+    const a = createAutoArmy();
+    const times = [];
+    const io = { stillBelow: () => true, power: () => state.power, request: () => { times.push(now); state.power += 100; return { ok: true }; } };
+    var now = 0;
+    a.onAlert(alert('X'), { ...TOP, roundMinSec: 3, roundMaxSec: 6, minSec: 0, maxSec: 0 }, 0);
+    for (now = 0; now <= 60_000; now += 100) a.tick(now, io);
+    for (let k = 1; k < times.length; k++) {
+      const g = times[k] - times[k - 1];
+      assert.ok(g >= 3000 && g <= 6300, `mezera ${g}`); // + max. jeden krok tiku
+      gaps.add(Math.round(g / 100));
+    }
+  }
+  assert.ok(gaps.size > 10, 'mezery mezi koly jsou pořád stejné');
+});
+
+test('migrace: stará pevná pauza cooldownSec a kola s prodlevou prvního dohozu se převedou na rozmezí', () => {
+  const m = migrateAutoArmy({ enabled: true, minSec: 3, maxSec: 5, cooldownSec: 2 });
+  assert.deepEqual([m.cooldownMinSec, m.cooldownMaxSec, m.roundMinSec, m.roundMaxSec, 'cooldownSec' in m], [2, 2, 3, 5, false]);
+  const n = sanitizeAutoArmy(AUTO_ARMY_DEFAULTS, { minSec: 3, maxSec: 5, cooldownSec: 2 });
+  assert.deepEqual([n.cooldownMinSec, n.cooldownMaxSec, n.roundMinSec, n.roundMaxSec], [2, 2, 3, 5]);
+  assert.equal('cooldownSec' in n, false);
+  // nové nastavení se nemění
+  const k = migrateAutoArmy({ roundMinSec: 7, roundMaxSec: 8, cooldownMinSec: 9, cooldownMaxSec: 10 });
+  assert.deepEqual([k.roundMinSec, k.cooldownMinSec], [7, 9]);
+  // přes army (načtení konfigurace) taky
+  const army = sanitizeArmy(ARMY_DEFAULTS, { units: [], auto: { enabled: true, cooldownSec: 5 } });
+  assert.deepEqual([army.auto.cooldownMinSec, army.auto.cooldownMaxSec], [5, 5]);
 });
