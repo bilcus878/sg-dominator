@@ -37,3 +37,22 @@ test('prodlevy přihlášení: meze a konec nikdy pod začátkem', () => {
   const b = sanitizeUpdate(base, { session: { reactMinSec: 0, reactMaxSec: 999 } }).session;
   assert.equal(b.reactMinSec, 0.5); assert.equal(b.reactMaxSec, 30);
 });
+
+import { sanitizeSession, SESSION_DEFAULTS } from '../src/config.js';
+test('nastavení přihlášení: pokusy, časy údržby, přepínače a zprávy se ošetří', () => {
+  const s = sanitizeSession(SESSION_DEFAULTS, { maxAttempts: 99, tabWaitMin: 0, enabled: false, closeTab: false, maintStart: '02:30', maintEnd: '03:10', notify: { ok: false, nesmysl: false } });
+  assert.equal(s.maxAttempts, 5); assert.equal(s.tabWaitMin, 2);
+  assert.equal(s.enabled, false); assert.equal(s.closeTab, false); assert.equal(s.reloadOthers, true);
+  assert.equal(s.maintStart, '02:30'); assert.equal(s.maintEnd, '03:10');
+  assert.equal(s.notify.ok, false); assert.equal(s.notify.failed, true); assert.ok(!('nesmysl' in s.notify));
+  const bad = sanitizeSession(s, { maintStart: '25:99', maintEnd: '01:00' }); // neplatný čas / konec před začátkem se nepřijme
+  assert.equal(bad.maintStart, '02:30'); assert.equal(bad.maintEnd, '03:10');
+  const r = sanitizeSession(SESSION_DEFAULTS, { retryFirstMinSec: 500, retryFirstMaxSec: 100, probeMinSec: 1 });
+  assert.equal(r.retryFirstMaxSec, 500); assert.equal(r.probeMinSec, 20);
+});
+
+test('údržba z nastavení: vlastní okno se respektuje', () => {
+  const cfg = { maintStart: '02:00', maintEnd: '02:30' };
+  assert.equal(maintenanceWaitMs(at(2, 10), cfg), 20 * 60_000 + 20_000);
+  assert.equal(maintenanceWaitMs(at(3, 10), cfg), 0);
+});

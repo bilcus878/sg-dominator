@@ -25,6 +25,24 @@ export const DATA_DIR = process.env.SG_DATA_DIR || defaultDataDir();
 export const LEGACY_DATA_DIR = fileURLToPath(new URL('../data/', import.meta.url)); // dřívější umístění ve složce projektu
 export const CONFIG_PATH = join(DATA_DIR, 'config.json');
 
+/** Přihlášení po odhlášení ze hry: vše, co skript Přihlášení umí nastavit. Dvojice od–do jsou vždy náhodné v rozmezí. */
+export const SESSION_DEFAULTS = {
+  enabled: true, // vypnuto = skript odhlášení jen hlídá, ale sám se nepřihlašuje
+  reactMinSec: 1.5, reactMaxSec: 3, // po odhlášení: za jak dlouho začít
+  maintStart: '03:00', maintEnd: '03:31', // denní údržba hry (po jejím konci + 20 s se čeká ještě maintMin–maintMax)
+  maintMinSec: 8, maintMaxSec: 70,
+  formMinSec: 1.5, formMaxSec: 4, // prodleva před kliknutím na Přihlaš, když Chrome doplnil údaje
+  maxAttempts: 3, // kolikrát se zkusí kliknout, než se to vzdá a ohlásí
+  retryFirstMinSec: 110, retryFirstMaxSec: 150, // čekání před 2. pokusem
+  retryNextMinSec: 280, retryNextMaxSec: 340, // čekání před dalšími pokusy
+  tabWaitMin: 8, // jak dlouho (min) karta čeká, než přihlašovací panel dokončí
+  closeTab: true, // po přihlášení zavřít panel otevřený skriptem
+  reloadOthers: true, reloadMinSec: 2, reloadMaxSec: 8, // po přihlášení obnovit ostatní karty hry (každá v jiný okamžik)
+  probeMinSec: 60, probeMaxSec: 120, // jak často hlídat, jestli přihlášení nevypršelo
+  notify: { expired: true, maintenance: true, ok: true, retry: true, failed: true, 'needs-user': true }, // které zprávy jdou do servisního chatu
+};
+export const SESSION_EVENTS = Object.keys(SESSION_DEFAULTS.notify);
+
 export const DEFAULTS = {
   port: 3940,
   token: '',
@@ -47,7 +65,7 @@ export const DEFAULTS = {
   // výjimky pro hráče: { [jméno]: { watch?: true|false, threshold?: číslo } }
   players: {},
   // skript Přihlášení: prodlevy (s) – po odhlášení do kliknutí a po konci denní údržby (3:31:20) do přihlášení
-  session: { reactMinSec: 1.5, reactMaxSec: 3, maintMinSec: 8, maintMaxSec: 70 },
+  session: { ...SESSION_DEFAULTS, notify: { ...SESSION_DEFAULTS.notify } }, // opětovné přihlášení po odhlášení ze hry (skript Přihlášení čte přes /session/config)
   op: { enabled: false, repeatSec: 10, vigilance: { ...VIGILANCE_DEFAULTS }, telescope: { ...TELESCOPE_DEFAULTS } }, // alert na tečky OP na mapě; repeatSec = připomínka, dokud svítí (0 = jen jednou); vigilance = automatické potvrzení tlačítka bdělosti po minSec až maxSec
   conquest: { ...CONQUEST_DEFAULTS }, // cizí rasy: k dobytí pod `below`, konec až nad `above`
   watchdog: { enabled: true, staleSec: 30 }, // hlášení, že hlídaná rasa / mapa přestala dodávat data
@@ -80,7 +98,7 @@ export function loadConfig() {
   }
   const cfg = merge(DEFAULTS, stored);
   // uložená podobjekty se s výchozími slučují jen mělce, takže chybějící nová pole se doplní tady
-  cfg.session = { ...DEFAULTS.session, ...cfg.session };
+  cfg.session = { ...DEFAULTS.session, ...cfg.session, notify: { ...SESSION_DEFAULTS.notify, ...cfg.session?.notify } };
   cfg.op.vigilance = { ...VIGILANCE_DEFAULTS, ...cfg.op.vigilance };
   cfg.op.telescope = { ...TELESCOPE_DEFAULTS, ...cfg.op.telescope };
   cfg.attack = sanitizeAttack(ATTACK_DEFAULTS, cfg.attack);
@@ -137,6 +155,32 @@ function merge(base, over) {
  * @param {object} ctx { playersOfRace(id) -> jména hráčů, které známe z dané rasy }; změna režimu rasy
  *   smaže jejich ruční výjimky hlídání, aby přepínač (Nehlídat / Vybraní / Celá rasa) dělal přesně to, co říká.
  */
+/** Nastavení přihlášení: čísla v mezích, dvojice od–do (konec nikdy pod začátkem), časy HH:MM, přepínače. */
+export function sanitizeSession(cur, body) {
+  const num = (v, d) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : d);
+  const ns = { ...SESSION_DEFAULTS, ...cur, notify: { ...SESSION_DEFAULTS.notify, ...cur?.notify } };
+  const rng = (a, b, lo, hi) => {
+    for (const k of [a, b]) if (k in body) ns[k] = Math.min(hi, Math.max(lo, num(body[k], ns[k])));
+    if (ns[b] < ns[a]) ns[b] = ns[a];
+  };
+  rng('reactMinSec', 'reactMaxSec', 0.5, 30);
+  rng('maintMinSec', 'maintMaxSec', 0, 900);
+  rng('formMinSec', 'formMaxSec', 0.5, 30);
+  rng('retryFirstMinSec', 'retryFirstMaxSec', 30, 900);
+  rng('retryNextMinSec', 'retryNextMaxSec', 30, 1800);
+  rng('reloadMinSec', 'reloadMaxSec', 0, 60);
+  rng('probeMinSec', 'probeMaxSec', 20, 600);
+  if ('maxAttempts' in body) ns.maxAttempts = Math.min(5, Math.max(1, Math.round(num(body.maxAttempts, ns.maxAttempts))));
+  if ('tabWaitMin' in body) ns.tabWaitMin = Math.min(30, Math.max(2, Math.round(num(body.tabWaitMin, ns.tabWaitMin))));
+  for (const k of ['enabled', 'closeTab', 'reloadOthers']) if (k in body) ns[k] = !!body[k];
+  const hhmm = (s) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(s) ? Number(s.slice(0, 2)) * 60 + Number(s.slice(3)) : null);
+  const st = 'maintStart' in body ? hhmm(body.maintStart) : hhmm(ns.maintStart);
+  const en = 'maintEnd' in body ? hhmm(body.maintEnd) : hhmm(ns.maintEnd);
+  if (st !== null && en !== null && en > st) { ns.maintStart = 'maintStart' in body ? body.maintStart : ns.maintStart; ns.maintEnd = 'maintEnd' in body ? body.maintEnd : ns.maintEnd; } // údržba musí skončit později, než začne (v rámci jednoho dne)
+  if (body.notify && typeof body.notify === 'object') for (const k of SESSION_EVENTS) if (k in body.notify) ns.notify[k] = !!body.notify[k];
+  return ns;
+}
+
 export function sanitizeUpdate(cur, body, ctx = {}) {
   const num = (v, d) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : d);
   const str = (v) => (typeof v === 'string' ? v.trim() : '');
@@ -220,16 +264,7 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
       if (Object.keys(rec).length) next.players[name] = rec; else delete next.players[name];
     }
   }
-  if (body.session && typeof body.session === 'object') {
-    const ns = { ...DEFAULTS.session, ...cur.session };
-    const rng = (a, b, lo, hi) => { // dvojice od–do v mezích; konec nikdy pod začátkem
-      for (const k of [a, b]) if (k in body.session) ns[k] = Math.min(hi, Math.max(lo, num(body.session[k], ns[k])));
-      if (ns[b] < ns[a]) ns[b] = ns[a];
-    };
-    rng('reactMinSec', 'reactMaxSec', 0.5, 30);
-    rng('maintMinSec', 'maintMaxSec', 0, 900);
-    next.session = ns;
-  }
+  if (body.session && typeof body.session === 'object') next.session = sanitizeSession(cur.session, body.session);
   if (body.op && typeof body.op === 'object') {
     next.op = { ...cur.op };
     if ('enabled' in body.op) next.op.enabled = !!body.op.enabled;

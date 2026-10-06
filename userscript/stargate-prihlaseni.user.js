@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Stargate dominator – přihlášení
 // @namespace    sg-dominator
-// @version      1.5.0
-// @description  Když hru po ~3 hodinách odhlásí, otevře se nový panel s přihlašovací stránkou, klikne na Přihlaš (údaje doplní Chrome, skript hesla nezná), panel se zavře a karty s daty se obnoví. V době denní údržby (3:00–3:31) počká.
+// @version      1.6.0
+// @description  Když hru po ~3 hodinách odhlásí, otevře se nový panel s přihlašovací stránkou, klikne na Přihlaš (údaje doplní Chrome, skript hesla nezná), panel se zavře a karty s daty se obnoví. V době denní údržby (výchozí 3:00–3:31) počká. Vše se nastavuje v aplikaci (Nastavení → Přihlášení).
 // @match        https://stargate-game.cz/*
 // @match        https://www.stargate-game.cz/*
 // @grant        GM_xmlhttpRequest
@@ -16,7 +16,7 @@
   'use strict';
   const SERVER = '__SERVER__';
   const TOKEN = '__TOKEN__';
-  const VERSION = '1.5.0'; // stejné jako @version
+  const VERSION = '1.6.0'; // stejné jako @version
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -42,10 +42,12 @@
   function releaseLock() { if (jget(localStorage, LOCK)?.id === tabId) jdel(localStorage, LOCK); }
 
   // <maint>
-  /** Denní údržba serveru (3:00:00–3:31). Vrací, za kolik ms po ní bude možné se přihlásit (0 = mimo údržbu). Skript se sám nikdy neodhlašuje, jen počká, až hra odhlásí. */
-  function maintenanceWaitMs(now = new Date()) {
-    const start = new Date(now); start.setHours(3, 0, 0, 0);
-    const end = new Date(now); end.setHours(3, 31, 20, 0);
+  /** Denní údržba serveru (z nastavení, výchozí 3:00–3:31). Vrací, za kolik ms po ní bude možné se přihlásit (0 = mimo údržbu). Skript se sám nikdy neodhlašuje, jen počká, až hra odhlásí. */
+  function maintenanceWaitMs(now = new Date(), cfg = {}) {
+    const hm = (t, d) => { const m = /^(\d{2}):(\d{2})$/.exec(t ?? ''); return m ? [Number(m[1]), Number(m[2])] : d; };
+    const [sh, sm] = hm(cfg.maintStart, [3, 0]), [eh, em] = hm(cfg.maintEnd, [3, 31]);
+    const start = new Date(now); start.setHours(sh, sm, 0, 0);
+    const end = new Date(now); end.setHours(eh, em, 20, 0); // 20 s rezerva po oficiálním konci
     return now >= start && now < end ? end - now : 0;
   }
   // </maint>
@@ -62,17 +64,20 @@
     });
   }
 
-  /** Prodlevy z Nastavení → Skripty (od–do v sekundách); bez serveru platí výchozí. */
-  function loadDelays() {
+  // výchozí hodnoty = stejné jako SESSION_DEFAULTS v aplikaci (použijí se, když server neodpoví)
+  const DEFAULTS = { enabled: true, reactMinSec: 1.5, reactMaxSec: 3, maintStart: '03:00', maintEnd: '03:31', maintMinSec: 8, maintMaxSec: 70, formMinSec: 1.5, formMaxSec: 4, maxAttempts: 3, retryFirstMinSec: 110, retryFirstMaxSec: 150, retryNextMinSec: 280, retryNextMaxSec: 340, tabWaitMin: 8, closeTab: true, reloadOthers: true, reloadMinSec: 2, reloadMaxSec: 8, probeMinSec: 60, probeMaxSec: 120 };
+  /** Nastavení z Nastavení → Přihlášení; bez serveru platí výchozí. */
+  function loadCfg() {
     return new Promise((resolve) => {
-      const d = { reactMinSec: 1.5, reactMaxSec: 3, maintMinSec: 8, maintMaxSec: 70 };
+      const d = { ...DEFAULTS };
       GM_xmlhttpRequest({
         method: 'GET', url: `${SERVER}/session/config`, headers: { 'x-token': TOKEN }, timeout: 4000,
-        onload: (r) => { try { const j = JSON.parse(r.responseText); for (const k of Object.keys(d)) if (Number.isFinite(j[k])) d[k] = j[k]; } catch { /* výchozí */ } resolve(d); },
+        onload: (r) => { try { const j = JSON.parse(r.responseText); for (const k of Object.keys(d)) if (j[k] !== undefined && typeof j[k] === typeof d[k]) d[k] = j[k]; } catch { /* výchozí */ } resolve(d); },
         onerror: () => resolve(d), ontimeout: () => resolve(d),
       });
     });
   }
+  const rndSec = (c, a, b) => rnd(c[a] * 1000, c[b] * 1000);
 
   function banner(text) {
     $('sgd-login-banner')?.remove();
@@ -139,34 +144,38 @@
   const stopHeartbeat = () => { clearInterval(heartbeat); heartbeat = null; };
   const channel = 'BroadcastChannel' in window ? new BroadcastChannel('sgd-relogin') : null;
 
+  /** @returns {Promise<boolean>} true = přihlašování běží (tady nebo v jiné kartě), false = vypnuté v nastavení */
   async function startRelogin(reason) {
-    if (getState() || !acquireLock()) return; // už běží (tady nebo v jiné kartě)
+    if (getState() || lockedByOther()) return true; // už běží (tady nebo v jiné kartě)
+    const dl = await loadCfg();
+    if (!dl.enabled) return false; // automatické přihlášení je v aplikaci vypnuté: jen hlídáme
+    if (getState() || !acquireLock()) return true;
     startHeartbeat();
     setState({ phase: 'wait', ret: location.href, attempts: 0, startedAt: Date.now() });
-    const dl = await loadDelays();
-    let wait = maintenanceWaitMs();
+    let wait = maintenanceWaitMs(new Date(), dl);
     if (wait > 0) {
-      wait += rnd(dl.maintMinSec * 1000, dl.maintMaxSec * 1000);
+      wait += rndSec(dl, 'maintMinSec', 'maintMaxSec');
       report('maintenance', `Odhlášeno (${reason}), probíhá údržba serveru: přihlásím se asi za ${Math.round(wait / 60000)} min.`);
     } else {
-      wait = rnd(dl.reactMinSec * 1000, dl.reactMaxSec * 1000); // celé odhlášení → začátek přihlašování má trvat do ~10 s
+      wait = rndSec(dl, 'reactMinSec', 'reactMaxSec'); // celé odhlášení → začátek přihlašování má trvat do ~10 s
       report('expired', `Odhlášeno ze hry (${reason}), přihlašuji se znovu.`);
     }
     const end = Date.now() + wait;
     while (Date.now() < end) await sleep(Math.min(5_000, end - Date.now()) + 1);
     // znovu: mezitím se mohlo přihlásit ručně
-    if (!(await stillLoggedOut())) { finishQuiet('Přihlášení už platí (někdo se přihlásil sám).'); return; }
+    if (!(await stillLoggedOut())) { finishQuiet('Přihlášení už platí (někdo se přihlásil sám).'); return true; }
     // jako člověk: nový panel s přihlašovací stránkou, tam klik na „Přihlaš“; tahle karta zatím čeká (data se po přihlášení obnoví)
     setState({ ...getState(), phase: 'tab' });
     jset(localStorage, JOB, { by: tabId, at: Date.now(), taken: null });
     GM_openInTab(location.origin + '/', { active: true, insert: true, setParent: true });
-    const until = Date.now() + 8 * 60_000;
+    const until = Date.now() + dl.tabWaitMin * 60_000;
     while (getState()?.phase === 'tab' && Date.now() < until) await sleep(1_000);
     if (getState()?.phase === 'tab') { // panel se nepřihlásil (nikdo nepřevzal úkol / zavřen)
-      report('failed', 'Nový panel se do 8 minut nepřihlásil. Přihlas se prosím ručně.');
+      report('failed', `Nový panel se do ${dl.tabWaitMin} minut nepřihlásil. Přihlas se prosím ručně.`);
       jdel(localStorage, JOB);
       finishQuiet(null);
     }
+    return true;
   }
 
   /** Přihlašovací panel se vzdal: smaže úkol a dá vědět čekající kartě. */
@@ -175,6 +184,7 @@
 
   async function doLogin(st) {
     startHeartbeat();
+    const cfg = await loadCfg();
     const user = $('log-jmeno'), pw = $('log-heslo'), btn = $('loginButton'), form = $('prihlaseni');
     const filled = () => (user.value && pw.value) || (user.matches(':-webkit-autofill') && pw.matches(':-webkit-autofill'));
     // Chrome doplní uložené údaje sám; skript je nezná ani nevyplňuje
@@ -186,7 +196,7 @@
       giveUp(st);
       return;
     }
-    await sleep(rnd(1_500, 4_000));
+    await sleep(rndSec(cfg, 'formMinSec', 'formMaxSec'));
     if (!document.querySelector('input[name="hra"]:checked')) ($('sg') ?? document.querySelector('input[name="hra"]'))?.click(); // výchozí je SG-1
     for (;;) {
       st = { ...(getState() ?? st), phase: 'submit' };
@@ -195,14 +205,14 @@
       await clickEl(btn);
       await sleep(10_000); // při úspěchu stránka mezitím přejde jinam a skript tady končí
       if (st.attempts === 1 && form?.isConnected && isLoginPage()) { try { form.submit(); } catch { /* nic */ } await sleep(10_000); }
-      if (st.attempts >= 3) break;
-      const back = st.attempts === 1 ? rnd(110_000, 150_000) : rnd(280_000, 340_000);
-      report('retry', `Přihlášení se nepovedlo (pokus ${st.attempts}/3), zkusím znovu za ${Math.round(back / 60000)} min.`);
+      if (st.attempts >= cfg.maxAttempts) break;
+      const back = st.attempts === 1 ? rndSec(cfg, 'retryFirstMinSec', 'retryFirstMaxSec') : rndSec(cfg, 'retryNextMinSec', 'retryNextMaxSec');
+      report('retry', `Přihlášení se nepovedlo (pokus ${st.attempts}/${cfg.maxAttempts}), zkusím znovu za ${Math.round(back / 60000)} min.`);
       const end = Date.now() + back;
       while (Date.now() < end) await sleep(5_000);
       if (!isLoginPage()) return;
     }
-    report('failed', 'Přihlášení se napotřetí nepovedlo. Přihlas se prosím ručně.');
+    report('failed', `Přihlášení se ${cfg.maxAttempts}× nepovedlo. Přihlas se prosím ručně.`);
     banner('Přihlášení se nepovedlo, přihlas se prosím ručně.');
     giveUp(st);
   }
@@ -213,12 +223,12 @@
       giveUp(st);
       return;
     }
+    const cfg = await loadCfg();
     const mins = Math.max(1, Math.round((Date.now() - (st.startedAt ?? Date.now())) / 60000));
-    finishQuiet(`Znovu přihlášeno (trvalo ${mins} min). Karty s daty se obnovují.`);
-    channel?.postMessage({ type: 'done', at: Date.now() });
+    finishQuiet(`Znovu přihlášeno (trvalo ${mins} min).${cfg.reloadOthers ? ' Karty s daty se obnovují.' : ''}`);
+    channel?.postMessage({ type: 'done', at: Date.now(), reload: cfg.reloadOthers ? [cfg.reloadMinSec, cfg.reloadMaxSec] : null });
     jdel(localStorage, JOB);
-    await sleep(rnd(1_500, 3_000));
-    window.close(); // panel otevřený skriptem se zavře sám (jinak zůstane na hlavní straně)
+    if (cfg.closeTab) { await sleep(rnd(1_500, 3_000)); window.close(); } // panel otevřený skriptem se zavře sám (jinak zůstane na hlavní straně)
   }
 
   // ---------- ostatní karty: po přihlášení se obnoví (každá v jiný okamžik) ----------
@@ -227,12 +237,12 @@
     channel.onmessage = (m) => {
       const t = m.data?.type, own = getState();
       if (own?.phase === 'tab') { // tahle karta čekala na přihlašovací panel
-        if (t === 'done' || t === 'failed') { finishQuiet(null); if (t === 'done') setTimeout(() => location.reload(), rnd(2_000, 6_000)); }
+        if (t === 'done' || t === 'failed') { finishQuiet(null); if (t === 'done' && m.data.reload) setTimeout(() => location.reload(), rnd(m.data.reload[0] * 1000, m.data.reload[1] * 1000)); }
         return;
       }
       if (t !== 'done' || own || isLoginPage()) return;
       if (loadedAt > m.data.at - 4_000) return; // už je načtená po přihlášení
-      setTimeout(() => location.reload(), rnd(2_000, 8_000));
+      if (m.data.reload) setTimeout(() => location.reload(), rnd(m.data.reload[0] * 1000, m.data.reload[1] * 1000));
     };
   }
 
@@ -244,7 +254,7 @@
       if (!getState() && !isLoginPage() && !lockedByOther()) {
         missing = hasPlayerRows(document) ? 0 : missing + 1;
         if (missing >= 2) { // tabulka chybí 2× po sobě (~3 s); dotaz na stránku pak potvrdí, že to není jen okamžik obnovy
-          if (!(await fetchedHasPlayers())) { startRelogin('na stránce hráčů rasy chybí tabulka (odhlášeno)'); return; }
+          if (!(await fetchedHasPlayers())) { if (await startRelogin('na stránce hráčů rasy chybí tabulka (odhlášeno)')) return; }
           missing = 0;
         }
       }
@@ -260,10 +270,11 @@
         const last = Number(localStorage.getItem(PROBE) || 0);
         if (Date.now() - last > 45_000) {
           localStorage.setItem(PROBE, String(Date.now()));
-          if (pageExpired() || (await probeExpired())) { startRelogin('vypršelo přihlášení'); return; }
+          if ((pageExpired() || (await probeExpired())) && (await startRelogin('vypršelo přihlášení'))) return;
         }
       }
-      await sleep(rnd(60_000, 120_000));
+      const c = await loadCfg();
+      await sleep(rndSec(c, 'probeMinSec', 'probeMaxSec'));
     }
   }
 
@@ -286,7 +297,7 @@
       return;
     }
     if (isLoginPage()) return;
-    if (pageExpired()) { await sleep(rnd(500, 1_500)); startRelogin('vypršelo přihlášení'); return; }
+    if (pageExpired()) { await sleep(rnd(500, 1_500)); if (await startRelogin('vypršelo přihlášení')) return; }
     watchLoop();
     if (onRacePage) racePageLoop();
   })();

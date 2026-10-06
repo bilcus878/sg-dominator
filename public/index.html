@@ -143,6 +143,7 @@
     <button class="tab" data-tab="channels">Kanály</button>
     <button class="tab" data-tab="data">Data</button>
     <button class="tab" data-tab="look">Vzhled</button>
+    <button class="tab" data-tab="login">Přihlášení</button>
     <button class="tab" data-tab="scripts">Skripty</button>
   </div>
   <div class="d-body">
@@ -324,19 +325,60 @@
       </div>
     </div>
 
+    <div class="pane" id="pane-login">
+      <div class="chan" style="border-color:var(--acc)">
+        <div class="chan-head"><span><b>Automatické přihlášení po odhlášení ze hry</b></span><label class="sw"><input type="checkbox" id="sesEnabled"><span></span></label></div>
+        <p class="muted" style="margin-top:0">Hra tě po ~3 hodinách odhlásí. Skript <b>Přihlášení</b> to pozná, počká náhodnou chvíli, v novém panelu klikne na Přihlaš (údaje doplní Chrome, skript hesla nezná), panel zavře a karty s daty obnoví. Vypnuto = skript odhlášení jen hlídá a sám se nepřihlásí. Všechny prodlevy jsou náhodné v rozmezí od–do, ať to nevypadá robotsky. Změny se projeví při dalším odhlášení, skript nestačí přeinstalovávat.</p>
+        <div id="sesStatus" class="muted"></div>
+      </div>
+      <div class="chan">
+        <div class="chan-head"><span><b>Kdy se přihlásit</b></span></div>
+        <div class="two"><div><label for="sesReactMin">Po odhlášení: nejdřív po (s)</label><input type="number" id="sesReactMin" min="0.5" max="30" step="0.1"></div>
+          <div><label for="sesReactMax">nejpozději po (s)</label><input type="number" id="sesReactMax" min="0.5" max="30" step="0.1"></div></div>
+        <div class="two"><div><label for="sesMaintStart">Denní údržba hry od</label><input type="time" id="sesMaintStart"></div>
+          <div><label for="sesMaintEnd">do (+ 20 s rezerva)</label><input type="time" id="sesMaintEnd"></div></div>
+        <div class="two"><div><label for="sesMaintMin">Po konci údržby: nejdřív po (s)</label><input type="number" id="sesMaintMin" min="0" max="900" step="1"></div>
+          <div><label for="sesMaintMax">nejpozději po (s)</label><input type="number" id="sesMaintMax" min="0" max="900" step="1"></div></div>
+        <small class="muted">V době údržby se nepřihlašuje, skript počká na její konec a pak ještě náhodnou chvíli.</small>
+        <div class="two"><div><label for="sesProbeMin">Kontrola, jestli přihlášení nevypršelo: nejdřív po (s)</label><input type="number" id="sesProbeMin" min="20" max="600" step="5"></div>
+          <div><label for="sesProbeMax">nejpozději po (s)</label><input type="number" id="sesProbeMax" min="20" max="600" step="5"></div></div>
+      </div>
+      <div class="chan">
+        <div class="chan-head"><span><b>Samotné přihlášení</b></span></div>
+        <div class="two"><div><label for="sesFormMin">Prodleva před kliknutím na Přihlaš (s)</label><input type="number" id="sesFormMin" min="0.5" max="30" step="0.1"></div>
+          <div><label for="sesFormMax">nejpozději (s)</label><input type="number" id="sesFormMax" min="0.5" max="30" step="0.1"></div></div>
+        <div class="two"><div><label for="sesAttempts">Počet pokusů, než se to vzdá</label><input type="number" id="sesAttempts" min="1" max="5" step="1"></div>
+          <div><label for="sesTabWait">Čekání na přihlašovací panel (min)</label><input type="number" id="sesTabWait" min="2" max="30" step="1"></div></div>
+        <div class="two"><div><label for="sesRetry1Min">Před 2. pokusem čekat od (s)</label><input type="number" id="sesRetry1Min" min="30" max="900" step="5"></div>
+          <div><label for="sesRetry1Max">do (s)</label><input type="number" id="sesRetry1Max" min="30" max="900" step="5"></div></div>
+        <div class="two"><div><label for="sesRetryNMin">Před dalšími pokusy čekat od (s)</label><input type="number" id="sesRetryNMin" min="30" max="1800" step="5"></div>
+          <div><label for="sesRetryNMax">do (s)</label><input type="number" id="sesRetryNMax" min="30" max="1800" step="5"></div></div>
+        <small class="muted">Když se přihlášení nepovede ani napodruhé, hlídání se nezacyklí: po posledním pokusu se to vzdá a pošle zprávu, ať se přihlásíš ručně.</small>
+      </div>
+      <div class="chan">
+        <div class="chan-head"><span><b>Po přihlášení</b></span></div>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="sesCloseTab"><span></span></span> Zavřít přihlašovací panel</label>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="sesReloadOthers"><span></span></span> Obnovit ostatní karty hry (každá v jiný okamžik)</label>
+        <div class="two"><div><label for="sesReloadMin">Obnovit nejdřív za (s)</label><input type="number" id="sesReloadMin" min="0" max="60" step="0.5"></div>
+          <div><label for="sesReloadMax">nejpozději za (s)</label><input type="number" id="sesReloadMax" min="0" max="60" step="0.5"></div></div>
+      </div>
+      <div class="chan">
+        <div class="chan-head"><span><b>Zprávy do servisního chatu</b></span></div>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="sesNExpired"><span></span></span> 🔑 Odhlášeno, přihlašuji se</label>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="sesNMaintenance"><span></span></span> 🛠 Probíhá údržba, přihlásím se po ní</label>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="sesNOk"><span></span></span> ✅ Znovu přihlášeno</label>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="sesNRetry"><span></span></span> 🔁 Pokus se nepovedl, zkusím znovu</label>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="sesNFailed"><span></span></span> ⚠️ Přihlášení se nepovedlo (přihlas se ručně)</label>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="sesNNeedsUser"><span></span></span> ⚠️ Chrome nedoplnil údaje (přihlas se ručně)</label>
+        <small class="muted">Chyby doporučuju nechat zapnuté. Zprávy chodí jen do servisního chatu a respektují vypínač Systémové zprávy v Alertech.</small>
+      </div>
+    </div>
+
     <div class="pane" id="pane-scripts">
       <p class="muted" style="margin-top:0">Skripty pro Tampermonkey. Seznam i kód se načítají přímo ze serveru, takže tu vždy najdeš aktuální verzi. Po každé změně skriptu porovnej číslo verze tady s číslem v Tampermonkey (Přehled).</p>
       <div class="chan" style="border-color:var(--acc)">
         <div class="chan-head"><span><b>Instalační stránka</b> <span class="muted" style="font-weight:400">– všechny skripty na jednom místě, stažení souboru i zkopírování kódu</span></span></div>
         <a href="/install" target="_blank" rel="noopener"><button type="button">Otevřít http://127.0.0.1:3940/install</button></a>
-      </div>
-      <div class="chan">
-        <div class="chan-head"><span><b>Přihlášení po odhlášení ze hry</b> <span class="muted" style="font-weight:400">– skript Přihlášení; prodlevy jsou vždy náhodné v rozmezí od–do</span></span></div>
-        <p class="muted" style="margin-top:0">Po odhlášení (a po konci denní údržby 3:00–3:31) skript počká náhodnou chvíli, aby to nevypadalo robotsky.</p>
-        <div class="two"><div><label for="sesReactMin">Po odhlášení: nejdřív po (s)</label><input type="number" id="sesReactMin" min="0.5" max="30" step="0.1"></div>
-          <div><label for="sesReactMax">nejpozději po (s)</label><input type="number" id="sesReactMax" min="0.5" max="30" step="0.1"></div></div>
-        <div class="two"><div><label for="sesMaintMin">Po konci údržby (3:31:20): nejdřív po (s)</label><input type="number" id="sesMaintMin" min="0" max="900" step="1"></div>
-          <div><label for="sesMaintMax">nejpozději po (s)</label><input type="number" id="sesMaintMax" min="0" max="900" step="1"></div></div>
       </div>
       <div id="scriptList"></div>
       <details open><summary>Když se po kliknutí na „Instalovat odkazem“ nic nestane</summary><p>

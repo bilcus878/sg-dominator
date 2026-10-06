@@ -57,7 +57,7 @@ $('save').onclick = async () => {
       attack: readAtk(),
       myRace: $('myRace').value,
       army: readArmy(),
-      session: { reactMinSec: $('sesReactMin').value, reactMaxSec: $('sesReactMax').value, maintMinSec: $('sesMaintMin').value, maintMaxSec: $('sesMaintMax').value },
+      session: collectSession(),
       discord: { enabled: $('dEnabled').checked, webhookUrl: $('dUrl').value },
       telegram: { enabled: $('tEnabled').checked, botToken: $('tToken').value, chatId: $('tChat').value, serviceChatId: $('tService').value },
     });

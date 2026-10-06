@@ -245,3 +245,17 @@ test('auto-dohoz: v hlavičce už není vypínač DOHOZ, ovládá se přepínač
   assert.equal(r.warnAfter, false);
   assert.match(r.titleAfter, /^Auto-dohoz:/, 'původní popis se vrátil');
 });
+
+test('Nastavení → Přihlášení: vlastní záložka, přepínač zapnuto/vypnuto zešedne zbytek a vše se uloží na server', { skip, timeout: 30_000 }, async () => {
+  await b.eval(`document.getElementById('openSettings').click(); document.querySelector('[data-tab=login]').click(); 1`); await sleep(300);
+  assert.equal(await b.eval(`document.getElementById('sesEnabled').checked`), true);
+  await b.eval(`const s = (id, v) => { const e = document.getElementById(id); e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); }; s('sesAttempts', '5'); s('sesMaintStart', '02:30'); s('sesMaintEnd', '03:15'); document.getElementById('sesNRetry').click(); document.getElementById('sesCloseTab').click(); document.getElementById('sesEnabled').click(); 1`);
+  assert.equal(await b.eval(`document.getElementById('pane-login').classList.contains('off')`), true, 'vypnuto = ostatní nastavení zešedlé');
+  await b.eval(`document.getElementById('save').click(); 1`); await sleep(800);
+  const ses = (await app.api('/api/config')).session;
+  assert.equal(ses.enabled, false); assert.equal(ses.maxAttempts, 5); assert.equal(ses.maintStart, '02:30'); assert.equal(ses.maintEnd, '03:15');
+  assert.equal(ses.notify.retry, false); assert.equal(ses.closeTab, false);
+  // vrátit zpět, ať to nerozhodí další zkoušky
+  await b.eval(`document.getElementById('sesEnabled').click(); document.getElementById('save').click(); document.getElementById('closeSettings').click(); 1`); await sleep(500);
+  assert.equal((await app.api('/api/config')).session.enabled, true);
+});

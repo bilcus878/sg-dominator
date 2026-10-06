@@ -265,6 +265,7 @@ function registerRace(raceId, name) {
 
 /** Skript „Přihlášení“ hlásí, že hru odhlásilo a jak se znovu přihlašuje. Zprávy jdou jen do servisního chatu (soukromě), nikdy do hlavní skupiny. */
 const SESSION_TEXT = { expired: '🔑', maintenance: '🛠', ok: '✅', retry: '🔁', failed: '⚠️', 'needs-user': '⚠️' };
+const sessionLog = [];
 async function handleSession(req) {
   if (!authOk(req)) return [401, { error: 'bad token' }];
   const body = await readJson(req, 4096);
@@ -272,7 +273,9 @@ async function handleSession(req) {
   const text = typeof body.text === 'string' ? body.text.slice(0, 300) : '';
   if (!event) return [400, { error: 'invalid event' }];
   console.log(`[přihlášení] ${event}: ${text}`);
-  if (text) sendService(cfg, `${SESSION_TEXT[event]} ${text}`);
+  sessionLog.unshift({ at: Date.now(), event, text }); sessionLog.length = Math.min(sessionLog.length, 30); // posledních 30 událostí pro záložku Přihlášení
+  if (text && cfg.session.notify?.[event] !== false) sendService(cfg, `${SESSION_TEXT[event]} ${text}`);
+  pushState();
   return [200, { ok: true }];
 }
 
@@ -460,7 +463,7 @@ function buildState() {
     vigilance: { count: vig.count, lastClickedAt: vig.clickedAt, pendingSince: vig.pending ? vig.seenAt : 0 },
     telescope: tele.snapshot(),
   };
-  return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState, autoArmy: { ...autoArmy.snapshot(now), rankPaused }, sound: cfg.sound, sendStatus: { ...sendStatus } };
+  return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState, autoArmy: { ...autoArmy.snapshot(now), rankPaused }, sound: cfg.sound, sendStatus: { ...sendStatus }, sessionLog: sessionLog.slice(0, 12) };
 }
 
 /** Hlídač výpadku: hlídané rasy a mapa (když je OP alert zapnutý) musí dodávat data. */

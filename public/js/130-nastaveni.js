@@ -21,7 +21,7 @@ function fillForm() {
   $('notifyRecovery').checked = cfg.notifyRecovery; $('repeatWhileBelow').checked = cfg.repeatWhileBelow;
   $('opRepeatSec').value = cfg.op.repeatSec; $('opEnabled2').checked = cfg.op.enabled;
   const vg = cfg.op.vigilance ?? { enabled: true, minSec: 5, maxSec: 10 };
-  { const ss = cfg.session ?? {}; $('sesReactMin').value = ss.reactMinSec ?? 1.5; $('sesReactMax').value = ss.reactMaxSec ?? 3; $('sesMaintMin').value = ss.maintMinSec ?? 8; $('sesMaintMax').value = ss.maintMaxSec ?? 70; }
+  fillSession(cfg.session ?? {});
   $('opVigEnabled').checked = vg.enabled; $('opVigMin').value = vg.minSec; $('opVigMax').value = vg.maxSec;
   $('opVigSkip').checked = vg.skipEnabled ?? true; $('opSkipMin').value = vg.skipMin ?? 5; $('opSkipMax').value = vg.skipMax ?? 10;
   $('opDownMin').value = vg.downMin ?? 3; $('opDownMax').value = vg.downMax ?? 15;
@@ -42,3 +42,35 @@ const openDrawer = () => { fillForm(); document.body.classList.add('open'); };
 const closeDrawer = () => document.body.classList.remove('open');
 $('openSettings').onclick = openDrawer; $('closeSettings').onclick = closeDrawer; $('cancel').onclick = closeDrawer; $('scrim').onclick = closeDrawer;
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
+
+/** Záložka Přihlášení: pole <-> cfg.session (id -> klíč; Min/Max dvojice jsou vždy od–do) */
+const SES_NUM = { sesReactMin: 'reactMinSec', sesReactMax: 'reactMaxSec', sesMaintMin: 'maintMinSec', sesMaintMax: 'maintMaxSec', sesProbeMin: 'probeMinSec', sesProbeMax: 'probeMaxSec', sesFormMin: 'formMinSec', sesFormMax: 'formMaxSec', sesRetry1Min: 'retryFirstMinSec', sesRetry1Max: 'retryFirstMaxSec', sesRetryNMin: 'retryNextMinSec', sesRetryNMax: 'retryNextMaxSec', sesReloadMin: 'reloadMinSec', sesReloadMax: 'reloadMaxSec', sesAttempts: 'maxAttempts', sesTabWait: 'tabWaitMin' };
+const SES_BOOL = { sesEnabled: 'enabled', sesCloseTab: 'closeTab', sesReloadOthers: 'reloadOthers' };
+const SES_TXT = { sesMaintStart: 'maintStart', sesMaintEnd: 'maintEnd' };
+const SES_NOTIFY = { sesNExpired: 'expired', sesNMaintenance: 'maintenance', sesNOk: 'ok', sesNRetry: 'retry', sesNFailed: 'failed', sesNNeedsUser: 'needs-user' };
+function fillSession(ss) {
+  for (const [id, k] of Object.entries(SES_NUM)) $(id).value = ss[k] ?? '';
+  for (const [id, k] of Object.entries(SES_BOOL)) $(id).checked = ss[k] !== false;
+  for (const [id, k] of Object.entries(SES_TXT)) $(id).value = ss[k] ?? '';
+  for (const [id, k] of Object.entries(SES_NOTIFY)) $(id).checked = ss.notify?.[k] !== false;
+  syncSessionEnabled();
+}
+function collectSession() {
+  const s = { notify: {} };
+  for (const [id, k] of Object.entries(SES_NUM)) s[k] = $(id).value;
+  for (const [id, k] of Object.entries(SES_BOOL)) s[k] = $(id).checked;
+  for (const [id, k] of Object.entries(SES_TXT)) s[k] = $(id).value;
+  for (const [id, k] of Object.entries(SES_NOTIFY)) s.notify[k] = $(id).checked;
+  return s;
+}
+/** Vypnuté automatické přihlášení: ostatní nastavení se zešedne, ať je vidět, že teď nic nedělají. */
+function syncSessionEnabled() { $('pane-login').classList.toggle('off', !$('sesEnabled').checked); }
+$('sesEnabled').onchange = syncSessionEnabled;
+const SES_EV = { expired: ['🔑', 'odhlášeno'], maintenance: ['🛠', 'údržba'], ok: ['✅', 'přihlášeno'], retry: ['🔁', 'další pokus'], failed: ['⚠️', 'nepovedlo se'], 'needs-user': ['⚠️', 'přihlas se ručně'] };
+function renderSessionStatus() {
+  const el = $('sesStatus'); if (!el) return;
+  const log = S?.sessionLog ?? [];
+  el.innerHTML = log.length
+    ? 'Poslední události: ' + log.slice(0, 4).map((e) => { const [ic, t] = SES_EV[e.event] ?? ['•', e.event]; return '<div>' + ic + ' ' + new Date(e.at).toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' – ' + t + (e.text ? ': ' + e.text.replace(/</g, '&lt;') : '') + '</div>'; }).join('')
+    : 'Od spuštění aplikace se skript ještě neodhlásil ani nepřihlašoval.';
+}

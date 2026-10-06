@@ -522,3 +522,7 @@
   .rpanel .rbody tbody tr { height:calc(var(--tfs) * 3.3); }
   .rpanel .rbody thead th { font-size:calc(var(--tfs) * .8); }
   .rpanel .pset { padding:0 6px; font-size:12px; }
+
+  /* záložka Přihlášení */
+  .swrow { display:flex; gap:10px; align-items:center; color:var(--fg); font-size:14px; margin:8px 0; cursor:pointer; }
+  #pane-login.off .chan:not(:first-child) { opacity:.45; } #pane-login .chan small { display:block; margin-top:8px; } #pane-login input[type=time] { width:100%; }
