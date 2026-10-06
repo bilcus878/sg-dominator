@@ -8,13 +8,14 @@ const EXPIRED_RE = new Function(`${src.match(/const EXPIRED_RE = .*?;/)[0]}; ret
 
 const at = (h, m, s = 0) => new Date(2026, 9, 6, h, m, s);
 
-test('údržba 3:00–3:31: čeká se do 3:31:20, jinak se nečeká', () => {
+test('údržba 3:00:00–3:31: čeká se do 3:31:20, jinak se nečeká', () => {
   assert.equal(maintenanceWaitMs(at(12, 0)), 0);
   assert.equal(maintenanceWaitMs(at(2, 56)), 0);
   assert.equal(maintenanceWaitMs(at(3, 31, 20)), 0);
   assert.equal(maintenanceWaitMs(at(3, 40)), 0);
   assert.equal(maintenanceWaitMs(at(3, 0)), 31 * 60_000 + 20_000);
-  assert.equal(maintenanceWaitMs(at(2, 57)), 34 * 60_000 + 20_000);
+  assert.equal(maintenanceWaitMs(at(2, 59, 59)), 0, 'před 3:00:00 se nečeká');
+  assert.equal(maintenanceWaitMs(at(3, 0, 1)), 31 * 60_000 + 19_000);
   assert.equal(maintenanceWaitMs(at(3, 31, 0)), 20_000);
 });
 

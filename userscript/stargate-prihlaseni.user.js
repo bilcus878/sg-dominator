@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – přihlášení
 // @namespace    sg-dominator
-// @version      1.1.0
+// @version      1.2.0
 // @description  Když hru po ~3 hodinách odhlásí (Vypršela platnost přihlášení), jedna karta se sama přihlásí zpátky (údaje doplní Chrome, skript hesla nezná), ostatní karty se obnoví. V době denní údržby (3:00–3:31) počká.
 // @match        https://stargate-game.cz/*
 // @match        https://www.stargate-game.cz/*
@@ -15,7 +15,7 @@
   'use strict';
   const SERVER = '__SERVER__';
   const TOKEN = '__TOKEN__';
-  const VERSION = '1.1.0'; // stejné jako @version
+  const VERSION = '1.2.0'; // stejné jako @version
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -41,9 +41,9 @@
   function releaseLock() { if (jget(localStorage, LOCK)?.id === tabId) jdel(localStorage, LOCK); }
 
   // <maint>
-  /** Denní údržba serveru (3:00–3:31). Vrací, za kolik ms po ní bude možné se přihlásit (0 = mimo údržbu); začíná se brzy, ať se nenarazí těsně před ní. */
+  /** Denní údržba serveru (3:00:00–3:31). Vrací, za kolik ms po ní bude možné se přihlásit (0 = mimo údržbu). Skript se sám nikdy neodhlašuje, jen počká, až hra odhlásí. */
   function maintenanceWaitMs(now = new Date()) {
-    const start = new Date(now); start.setHours(2, 57, 0, 0);
+    const start = new Date(now); start.setHours(3, 0, 0, 0);
     const end = new Date(now); end.setHours(3, 31, 20, 0);
     return now >= start && now < end ? end - now : 0;
   }
@@ -143,7 +143,13 @@
     // znovu: mezitím se mohlo přihlásit ručně
     if (!(await stillLoggedOut())) { finishQuiet('Přihlášení už platí (někdo se přihlásil sám).'); return; }
     setState({ ...getState(), phase: 'go' });
-    location.assign(location.origin + '/');
+    // jako člověk: nejdřív klik na odkaz „přihlásit“ ve hlášce o vypršení, pak (na přihlašovací stránce) klik na „Přihlaš“
+    const link = pageExpired() ? [...document.querySelectorAll('a')].find((a) => /^p\S+ihl\S+it$/i.test(a.textContent.trim())) : null;
+    if (link) {
+      await clickEl(link);
+      await sleep(4_000);
+      if (link.isConnected) location.assign(link.href); // klik nepřešel (hra ho ignorovala): přímý přechod
+    } else location.assign(location.origin + '/'); // karta s prázdnou stránkou hráčů: odkaz tam není
   }
 
   function finishQuiet(text) { stopHeartbeat(); releaseLock(); sessionStorage.removeItem(STATE); if (text) report('ok', text); }
