@@ -94,6 +94,7 @@ export async function sendService(cfg, text, log = console) {
 }
 
 /** Vrátí skupiny/chaty, do kterých bot nedávno dostal zprávu (pro snadné zjištění chat ID). */
+const seenChats = new Map(); // chaty objevené při dřívějším hledání (Telegram starší zprávy po přečtení zapomene)
 export async function findTelegramChats(botToken, knownIds = []) {
   const tg = async (method, params = '') => {
     const res = await fetch(`https://api.telegram.org/bot${botToken}/${method}${params}`, { signal: AbortSignal.timeout(8000) });
@@ -101,11 +102,12 @@ export async function findTelegramChats(botToken, knownIds = []) {
   };
   const me = await tg('getMe');
   if (!me.ok) throw new Error(me.description || 'Telegram odmítl token');
-  const data = await tg('getUpdates');
+  const data = await tg('getUpdates', '?offset=-100&limit=100'); // posledních 100 zpráv; bez offsetu by Telegram vracel nejstarší, a čerstvá zmínka bota by se mezi nimi nemusela vejít
   if (!data.ok) throw new Error(data.description || 'Telegram nevrátil zprávy');
-  const chats = new Map();
+  const chats = new Map(seenChats);
   const add = (c, extra = {}) => { if (c) chats.set(String(c.id), { id: String(c.id), title: c.title ?? [c.first_name, c.last_name].filter(Boolean).join(' '), type: c.type, ...extra }); };
   for (const u of data.result) add((u.message ?? u.channel_post ?? u.my_chat_member ?? u.edited_message ?? u.callback_query?.message)?.chat);
+  for (const [id, c] of chats) seenChats.set(id, c);
   // už nastavené chaty (hlavní, servisní) se nabídnou vždy, i když v nich bot nic nového neviděl; Telegram o nich řekne název
   for (const id of knownIds.filter(Boolean)) {
     if (chats.has(String(id))) continue;
