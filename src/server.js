@@ -16,6 +16,7 @@ import { BUILDINGS, createBuildRun } from './build.js';
 import { createTelescope } from './telescope.js';
 import { createConquest, CONQUEST_DEFAULTS } from './conquest.js';
 import { createArmy } from './army.js';
+import { createAutoArmy } from './autodohoz.js';
 import { mergeSeenUnits, sanitizeReport, sanitizeSeenUnits, unitsFor, ATTACK_TYPES } from './attack.js';
 
 // data bydlela dřív ve složce projektu (Dropbox); při prvním spuštění se přesunou mimo ni
@@ -27,6 +28,28 @@ const conquest = createConquest(); // cizí rasy: kdo je k dobytí
 const army = createArmy(); // tlačítko Dohodit -> skript na stránce Rasová armáda
 let armyWaiters = [];
 const wakeArmy = () => { for (const f of armyWaiters.splice(0)) f(); };
+const autoArmy = createAutoArmy(); // pád vlastního hráče pod práh -> po náhodné prodlevě sám požadavek Dohodit
+const autoArmyIo = {
+  /** Je hráč pořád pod prahem? (Mezitím ho mohl dohodit někdo jiný nebo se sám zvednout.) */
+  stillBelow(name) {
+    const raceId = playerRace.get(name);
+    if (!raceId) return true;
+    const p = store.snapshot(raceId, Date.now()).players.find((x) => x.name === name);
+    return p ? p.power < resolveWatch(cfg, raceId, name).threshold : true;
+  },
+  request(name) {
+    const r = army.request(name);
+    if (r.ok) { console.log(`[dohodit] auto: ${name}`); wakeArmy(); }
+    return r;
+  },
+};
+setInterval(() => {
+  for (const ev of autoArmy.tick(Date.now(), autoArmyIo)) {
+    if (ev.type !== 'fail') continue;
+    console.log(`[dohodit] auto selhal (${ev.name}): ${ev.error}`);
+    if (ev.notify) sendText(cfg, `⚠️ Auto-dohoz: ${ev.error}`);
+  }
+}, 300);
 const armyWait = (ms) => new Promise((ok) => { const t = setTimeout(ok, Math.max(0, ms)); armyWaiters.push(() => { clearTimeout(t); ok(); }); });
 const store = createStore();
 const op = createOpTracker();
@@ -182,6 +205,7 @@ async function handleIngest(req) {
     db.recordAlert(now, a);
     console.log(`[alert] [${a.race}] ${a.name} ${a.prev} -> ${a.power} (${a.reason})`);
     if (notifyOn(cfg, a.reason)) sendText(cfg, formatAlert(a)); // fire-and-forget, chyby se logují v notifieru; vypnutý druh se jen zapíše do historie
+    if (!attack) autoArmy.onAlert(a, cfg.army.auto, now); // vlastní hráč pod prahem: sám dohodit po náhodné prodlevě (jen když je auto-dohoz zapnutý)
   }
   pushState();
   return [200, { ok: true, alerts: alerts.length }];
@@ -316,7 +340,7 @@ function buildState() {
     vigilance: { count: vig.count, lastClickedAt: vig.clickedAt, pendingSince: vig.pending ? vig.seenAt : 0 },
     telescope: tele.snapshot(),
   };
-  return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState };
+  return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState, autoArmy: autoArmy.snapshot(now) };
 }
 
 /** Hlídač výpadku: hlídané rasy a mapa (když je OP alert zapnutý) musí dodávat data. */

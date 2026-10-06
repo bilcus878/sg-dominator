@@ -34,8 +34,12 @@ function renderArmy(a) {
   body.innerHTML = '';
   for (const u of a?.units ?? []) body.appendChild(atkRow(u));
   $('armyNone').hidden = (a?.units ?? []).length > 0;
+  const au = a?.auto ?? { enabled: false, minSec: 2, maxSec: 4, repeat: false, cooldownSec: 60 };
+  $('armyAutoOn').checked = !!au.enabled; $('armyMin').value = au.minSec; $('armyMax').value = au.maxSec;
+  $('armyRepeat').checked = !!au.repeat; $('armyCooldown').value = au.cooldownSec;
 }
-const readArmy = () => ({ units: [...$('armyUnits').rows].map((tr) => ({ name: tr.querySelector('.aname').value.trim(), count: undots(tr.querySelector('.acount').value) ?? 0, max: tr.querySelector('.amax').checked })).filter((u) => u.name) });
+const readArmy = () => ({ units: [...$('armyUnits').rows].map((tr) => ({ name: tr.querySelector('.aname').value.trim(), count: undots(tr.querySelector('.acount').value) ?? 0, max: tr.querySelector('.amax').checked })).filter((u) => u.name),
+  auto: { enabled: $('armyAutoOn').checked, minSec: $('armyMin').value, maxSec: $('armyMax').value, repeat: $('armyRepeat').checked, cooldownSec: $('armyCooldown').value } });
 $('armyAdd').onclick = () => { $('armyUnits').appendChild(atkRow({ name: '', count: 0, max: false })); $('armyNone').hidden = true; markDirty(); };
 $('armyUnits').addEventListener('click', (e) => { const b = e.target.closest('.adel'); if (b) { b.closest('tr').remove(); markDirty(); } });
 function readAtk() {
@@ -66,3 +70,25 @@ async function loadAtkInfo() {
 $('atkRefresh').onclick = loadAtkInfo;
 document.querySelector('[data-tab="attack"]').addEventListener('click', loadAtkInfo);
 
+
+/* ---------- Automatický dohoz: vypínač v hlavičce a stav ---------- */
+$('armyAuto').onchange = () => {
+  const on = $('armyAuto').checked;
+  cfg.army = { ...cfg.army, auto: { ...cfg.army.auto, enabled: on } };
+  $('armyAutoOn').checked = on;
+  renderAutoArmy();
+  savePartial({ army: { auto: { enabled: on } } });
+};
+function renderAutoArmy() {
+  const on = !!cfg?.army?.auto?.enabled;
+  $('armyTgl').classList.toggle('on', on);
+  const s = S.autoArmy;
+  if (!s) return;
+  const label = { plan: 'naplánováno', sent: 'odesláno', skip: 'přeskočeno', fail: 'selhalo' };
+  const last = s.recent[s.recent.length - 1];
+  const txt = `${on ? 'Zapnuto' : 'Vypnuto'}. Odesláno ${s.sent}×, přeskočeno ${s.skipped}×, selhalo ${s.failed}×.`
+    + (s.pending.length ? ` Čeká: ${s.pending.map((p) => `${esc(p.name)} za ${Math.ceil(p.inMs / 1000)} s`).join(', ')}.` : '')
+    + (last ? ` Naposledy: ${esc(last.name)} – ${label[last.type] ?? last.type}${last.text ? ` (${esc(last.text)})` : ''}.` : '');
+  const el = $('armyAutoStatus');
+  if (el.dataset.t !== txt) { el.dataset.t = txt; el.innerHTML = txt; }
+}

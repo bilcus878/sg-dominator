@@ -121,7 +121,7 @@ ntMenu.addEventListener('change', (e) => {
 $('notifyMaster').onchange = () => { cfg.notify = $('notifyMaster').checked; ntMenu.classList.toggle('chatoff', !cfg.notify); renderBell(); savePartial({ notify: $('notifyMaster').checked }); };
 
 function render() {
-  renderData(); renderBoard(); tickAges(); renderAlerts(); renderOp(); checkAlarms();
+  renderData(); renderBoard(); tickAges(); renderAlerts(); renderOp(); renderAutoArmy(); checkAlarms();
 }
 // živý stav: server ho posílá sám hned po příjmu dat (SSE); dotazování po vteřině jen jako záloha, když proud nejde
 let lastPush = 0, renderQueued = false;

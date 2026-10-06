@@ -6,6 +6,8 @@
  * units: [{ name, count, max }]  count = kolik poslat, max = kliknout na „Max“ (pošle všechny)
  * types: { P: [units], Z: [units], … }  jednotky pro ostatní druhy útoku (D má `units`)
  */
+import { AUTO_ARMY_DEFAULTS, sanitizeAutoArmy } from './autodohoz.js';
+
 export const ATTACK_TYPES = ['D', 'P', 'Z', 'U', 'N', 'L', 'S', 'T']; // druhy útoku jako ve hře; D = dobývací (jeho jednotky jsou v `units`)
 export const ATTACK_DEFAULTS = { units: [], types: {}, autoSubmit: false, randomPlanet: true, closeTab: true };
 
@@ -30,10 +32,13 @@ function cleanUnits(list) {
 }
 
 /** Nastavení dohozu: jednotky, které se po dohození znovu vyplní do formuláře Rasová armáda. */
-export const ARMY_DEFAULTS = { units: [] };
+export const ARMY_DEFAULTS = { units: [], auto: { ...AUTO_ARMY_DEFAULTS } };
 export function sanitizeArmy(cur, body) {
-  const next = { ...ARMY_DEFAULTS, ...cur, units: [...(cur?.units ?? [])] };
-  if (body && typeof body === 'object' && Array.isArray(body.units)) next.units = cleanUnits(body.units);
+  const next = { ...ARMY_DEFAULTS, ...cur, units: [...(cur?.units ?? [])], auto: sanitizeAutoArmy(AUTO_ARMY_DEFAULTS, cur?.auto) };
+  if (body && typeof body === 'object') {
+    if (Array.isArray(body.units)) next.units = cleanUnits(body.units);
+    if (body.auto && typeof body.auto === 'object') next.auto = sanitizeAutoArmy(next.auto, body.auto);
+  }
   return next;
 }
 

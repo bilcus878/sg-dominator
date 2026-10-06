@@ -1,0 +1,149 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { createAutoArmy, sanitizeAutoArmy, AUTO_ARMY_DEFAULTS } from '../src/autodohoz.js';
+import { sanitizeArmy, ARMY_DEFAULTS } from '../src/attack.js';
+import { sanitizeUpdate, DEFAULTS } from '../src/config.js';
+
+const ON = { ...AUTO_ARMY_DEFAULTS, enabled: true, minSec: 2, maxSec: 4, cooldownSec: 60 };
+const alert = (name, reason = 'threshold', extra = {}) => ({ name, reason, power: 1, ...extra });
+/** io, který zaznamenává požadavky; `result` řídí odpověď na request, `below` stav hráče. */
+const mkIo = ({ result = () => ({ ok: true }), below = () => true } = {}) => {
+  const sent = [];
+  return { sent, stillBelow: below, request: (name) => { const r = result(name); if (r.ok) sent.push(name); return r; } };
+};
+
+test('vypnutý auto-dohoz nic neplánuje', () => {
+  const a = createAutoArmy();
+  assert.deepEqual(a.onAlert(alert('X'), { ...ON, enabled: false }, 0), { scheduled: false, why: 'off' });
+  assert.equal(a.snapshot(0).pending.length, 0);
+});
+
+test('plánuje jen pád pod práh (threshold, critical); propad, návrat a jiné se ignorují', () => {
+  const a = createAutoArmy();
+  for (const reason of ['drop', 'recovered', 'target', 'op']) assert.equal(a.onAlert(alert('X', reason), ON, 0).scheduled, false, reason);
+  assert.equal(a.onAlert(alert('X', 'threshold'), ON, 0).scheduled, true);
+  assert.equal(a.onAlert(alert('Y', 'critical'), ON, 0).scheduled, true);
+});
+
+test('prodleva je v nastaveném rozmezí a náhodná', () => {
+  const delays = new Set();
+  for (let i = 0; i < 200; i++) {
+    const a = createAutoArmy();
+    const r = a.onAlert(alert('X'), ON, 1000);
+    const d = r.dueAt - 1000;
+    assert.ok(d >= 2000 && d <= 4000, `prodleva ${d}`);
+    delays.add(d);
+  }
+  assert.ok(delays.size > 50, 'čas se opakuje, není náhodný');
+});
+
+test('víc hráčů naráz: dohazují se postupně s odstupem, ne ve stejnou vteřinu', () => {
+  const a = createAutoArmy();
+  const times = ['A', 'B', 'C'].map((n) => a.onAlert(alert(n), { ...ON, minSec: 3, maxSec: 3 }, 0).dueAt);
+  assert.equal(times[0], 3000);
+  assert.ok(times[1] - times[0] >= 900 && times[2] - times[1] >= 900, `odstupy ${times}`);
+});
+
+test('jeden čekající požadavek na hráče; připomínky se bez opakování ignorují', () => {
+  const a = createAutoArmy();
+  assert.equal(a.onAlert(alert('X'), ON, 0).scheduled, true);
+  assert.equal(a.onAlert(alert('X'), ON, 100).why, 'queued');
+  assert.equal(createAutoArmy().onAlert(alert('X', 'threshold', { repeat: true }), ON, 0).why, 'repeat');
+  assert.equal(createAutoArmy().onAlert(alert('X', 'threshold', { repeat: true }), { ...ON, repeat: true }, 0).scheduled, true);
+});
+
+test('tick: odešle až po termínu, jen když je hráč pořád pod prahem', () => {
+  const a = createAutoArmy({ rand: () => 0.5 }); // 3 s
+  a.onAlert(alert('X'), ON, 0);
+  const io = mkIo();
+  assert.deepEqual(a.tick(2999, io), []);
+  assert.deepEqual(io.sent, []);
+  assert.deepEqual(a.tick(3000, io), [{ type: 'sent', name: 'X' }]);
+  assert.deepEqual(io.sent, ['X']);
+  assert.equal(a.snapshot(3000).sent, 1);
+  assert.equal(a.snapshot(3000).pending.length, 0);
+
+  const b = createAutoArmy({ rand: () => 0.5 });
+  b.onAlert(alert('Y'), ON, 0);
+  const io2 = mkIo({ below: () => false }); // mezitím ho někdo dohodil
+  assert.deepEqual(b.tick(5000, io2), [{ type: 'skip', name: 'Y' }]);
+  assert.deepEqual(io2.sent, []);
+  assert.equal(b.snapshot(5000).skipped, 1);
+});
+
+test('tick: pauza mezi dohozy téhož hráče (cooldown)', () => {
+  const a = createAutoArmy({ rand: () => 0 }); // 2 s
+  const io = mkIo();
+  a.onAlert(alert('X'), ON, 0);
+  a.tick(2000, io);
+  assert.equal(a.onAlert(alert('X', 'threshold', { repeat: true }), { ...ON, repeat: true }, 30_000).why, 'cooldown');
+  assert.equal(a.onAlert(alert('X', 'threshold', { repeat: true }), { ...ON, repeat: true }, 62_001).scheduled, true);
+});
+
+test('tick: zadává se nejvýš jeden požadavek najednou', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkIo();
+  a.onAlert(alert('A'), { ...ON, minSec: 1, maxSec: 1 }, 0);
+  a.onAlert(alert('B'), { ...ON, minSec: 1, maxSec: 1 }, 0);
+  a.tick(60_000, io); // oba jsou splatné
+  assert.deepEqual(io.sent, ['A']);
+  a.tick(60_001, io);
+  assert.deepEqual(io.sent, ['A', 'B']);
+});
+
+test('tick: dohoz zaneprázdněný -> zkusí znovu; po 30 s se vzdá', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  a.onAlert(alert('X'), { ...ON, minSec: 1, maxSec: 1 }, 0);
+  const busy = mkIo({ result: () => ({ ok: false, error: 'Ještě se dohazuje Y, chvíli počkej.' }) });
+  assert.deepEqual(a.tick(1000, busy), []); // posunuto o chvíli
+  assert.equal(a.snapshot(1000).pending.length, 1);
+  assert.equal(a.snapshot(1000).failed, 0);
+  const ev = a.tick(32_000, busy);
+  assert.equal(ev[0].type, 'fail');
+  assert.equal(a.snapshot(32_000).failed, 1);
+  assert.equal(a.snapshot(32_000).pending.length, 0);
+});
+
+test('tick: stránka Rasová armáda není otevřená -> selhání, upozornění nejvýš jednou za 10 min', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const closed = mkIo({ result: () => ({ ok: false, error: 'Otevři ve hře stránku Jednotky → Rasová armáda (se skriptem) a vyplň počty jednotek.' }) });
+  a.onAlert(alert('X'), { ...ON, minSec: 0, maxSec: 0, cooldownSec: 0 }, 0);
+  const e1 = a.tick(1000, closed)[0];
+  assert.deepEqual([e1.type, e1.page, e1.notify], ['fail', true, true]);
+  a.onAlert(alert('Y'), { ...ON, minSec: 0, maxSec: 0 }, 5000);
+  const e2 = a.tick(7000, closed)[0];
+  assert.deepEqual([e2.page, e2.notify], [true, false]); // hlášeno před chvílí
+  a.onAlert(alert('Z'), { ...ON, minSec: 0, maxSec: 0 }, 700_000);
+  assert.equal(a.tick(702_000, closed)[0].notify, true);
+});
+
+test('sanitizeAutoArmy: meze, max nikdy pod min, nesmysly se ignorují', () => {
+  const n = sanitizeAutoArmy(AUTO_ARMY_DEFAULTS, { enabled: 1, minSec: '5', maxSec: '2', repeat: 1, cooldownSec: '90' });
+  assert.deepEqual(n, { enabled: true, minSec: 5, maxSec: 5, repeat: true, cooldownSec: 90 });
+  const c = sanitizeAutoArmy(n, { minSec: 9999, maxSec: 'abc', cooldownSec: -4 });
+  assert.deepEqual([c.minSec, c.maxSec, c.cooldownSec], [120, 120, 0]);
+  assert.deepEqual(sanitizeAutoArmy(n, {}), n);
+});
+
+test('army: nastavení auto-dohozu a jednotky se navzájem nemažou', () => {
+  const cur = sanitizeArmy(ARMY_DEFAULTS, { units: [{ name: 'Jaffa', count: 5 }], auto: { enabled: true, minSec: 2, maxSec: 4 } });
+  assert.equal(cur.units.length, 1);
+  assert.equal(cur.auto.enabled, true);
+  const onlyAuto = sanitizeArmy(cur, { auto: { enabled: false } }); // vypínač v hlavičce
+  assert.equal(onlyAuto.units.length, 1);
+  assert.equal(onlyAuto.auto.enabled, false);
+  assert.deepEqual([onlyAuto.auto.minSec, onlyAuto.auto.maxSec], [2, 4]);
+  const onlyUnits = sanitizeArmy(cur, { units: [] });
+  assert.equal(onlyUnits.units.length, 0);
+  assert.equal(onlyUnits.auto.enabled, true);
+});
+
+test('konfigurace: výchozí auto-dohoz je vypnutý a PUT ho zapne beze ztráty jednotek', () => {
+  assert.equal(DEFAULTS.army.auto.enabled, false);
+  const base = structuredClone(DEFAULTS);
+  base.army = sanitizeArmy(base.army, { units: [{ name: 'Jaffa', count: 7 }] });
+  const next = sanitizeUpdate(base, { army: { auto: { enabled: true, minSec: 1, maxSec: 3 } } });
+  assert.equal(next.army.auto.enabled, true);
+  assert.deepEqual([next.army.auto.minSec, next.army.auto.maxSec], [1, 3]);
+  assert.equal(next.army.units[0].count, 7);
+});

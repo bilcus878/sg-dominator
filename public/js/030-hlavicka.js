@@ -2,6 +2,8 @@
 function renderChips() {
   const notify = cfg.notify !== false;
   if (document.activeElement !== $('notifyMaster')) $('notifyMaster').checked = notify;
+  if (document.activeElement !== $('armyAuto')) $('armyAuto').checked = !!cfg.army?.auto?.enabled;
+  $('armyTgl').classList.toggle('on', !!cfg.army?.auto?.enabled);
   ntMenu.classList.toggle('chatoff', !notify);
   renderBell();
   for (const cb of ntMenu.querySelectorAll('input[data-nt]')) if (document.activeElement !== cb) cb.checked = cfg.notifyTypes?.[cb.dataset.nt] !== false;

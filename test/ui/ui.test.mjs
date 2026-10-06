@@ -25,7 +25,7 @@ after(async () => { await b?.close(); app?.stop(); });
 test('hlavička je jeden štíhlý řádek a tlačítka jsou ve správném pořadí', { skip }, async () => {
   assert.ok(await b.eval(`document.querySelector('header').getBoundingClientRect().height`) < 70);
   const order = await b.eval(`[...document.querySelectorAll('.ctl > *')].map(e => e.id || e.className.split(' ')[0]).join('>')`);
-  assert.equal(order, 'hlwrap>opTgl>addwrap>ntwrap>alwrap>openSettings');
+  assert.equal(order, 'hlwrap>opTgl>armyTgl>addwrap>ntwrap>alwrap>openSettings');
 });
 
 test('tabulka: záhlaví přesně nad daty, čísla na středu řádku, výška řádku se zapnutím ± nemění', { skip }, async () => {
