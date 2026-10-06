@@ -346,6 +346,11 @@
   .alarmbar.ok { background:#0c3a26; border-color:var(--ok); animation:none; } .alarmbar.ok button { background:var(--ok); color:#06241a; }
   @keyframes alarmPulse { 0% { box-shadow:0 0 0 0 rgba(255,60,60,.8), 0 14px 40px rgba(0,0,0,.6); } 70% { box-shadow:0 0 0 18px rgba(255,60,60,0), 0 14px 40px rgba(0,0,0,.6); } 100% { box-shadow:0 0 0 0 rgba(255,60,60,0), 0 14px 40px rgba(0,0,0,.6); } }
 
+  .alwrap { position:relative; } .almenu { width:440px; max-width:94vw; padding:6px 0 4px; }
+  .alhd { display:flex; justify-content:space-between; align-items:center; padding:6px 14px 8px; border-bottom:1px solid var(--line); } .alhd b { color:var(--acc); text-transform:uppercase; letter-spacing:.04em; font-size:13px; } .alhd button { padding:4px 12px; font-size:12px; }
+  .almenu .alertgrid { display:block; max-height:min(62vh,520px); overflow:auto; padding:0 14px; } .almenu .empty { padding:18px; text-align:center; }
+  .albadge { position:absolute; top:-5px; right:-5px; min-width:17px; height:17px; padding:0 4px; border-radius:99px; background:var(--bad); color:#fff; font-size:10.5px; font-weight:700; line-height:17px; text-align:center; border:2px solid var(--bg); box-sizing:content-box; }
+  .hbtn.sq.open { border-color:var(--acc); }
   /* ===== hlavička v3: pohled jako rozbalovací nabídka, jedna nabídka Alerty ===== */
   .viewwrap { position:relative; flex:0 0 auto; } .viewwrap .hbtn { padding:0 11px 0 13px; gap:8px; } .viewwrap .hbtn svg { opacity:.7; }
   .vdot { display:none; width:7px; height:7px; border-radius:50%; background:var(--ok); animation:pulse 1.4s infinite; } .vdot.on { display:inline-block; }
@@ -444,6 +449,16 @@
         <div class="ntchan" id="ntChan"></div>
       </div>
     </div>
+    <div class="alwrap">
+      <button type="button" class="hbtn sq" id="alBtn" title="Poslední alerty" aria-haspopup="true">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><b class="albadge" id="alBadge" hidden></b>
+      </button>
+      <div class="ntmenu almenu" id="alMenu" hidden>
+        <div class="alhd"><b>Poslední alerty <span class="muted" id="alertsCount"></span></b><button class="ghost" id="clearAlerts">Vymazat</button></div>
+        <div class="alertgrid" id="alerts"></div>
+        <div class="empty" id="noalerts">Zatím žádné alerty.</div>
+      </div>
+    </div>
     <button class="hbtn sq" id="openSettings" title="Nastavení" aria-label="Nastavení">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
     </button>
@@ -500,16 +515,6 @@
     </div>
   </section>
 
-  <section class="card alertsbox" id="alertsBox" data-view="watch">
-    <div class="card-head">
-      <h2><button class="linkbtn" id="alertsToggle" title="Sbalit / rozbalit">▾ Poslední alerty <span class="muted" id="alertsCount"></span></button></h2>
-      <button class="ghost" id="clearAlerts">Vymazat</button>
-    </div>
-    <div id="alertsBody">
-      <div class="alertgrid" id="alerts"></div>
-      <div class="empty" id="noalerts">Zatím žádné alerty.</div>
-    </div>
-  </section>
 </main>
 
 <div id="scrim"></div>
@@ -1449,16 +1454,26 @@ $('lookReset').addEventListener('click', () => { lay().panels = {}; saveLayouts(
 document.querySelector('[data-tab="look"]').addEventListener('click', fillLook);
 
 /* ---------- alerty (pod nástěnkou, sbalitelné) ---------- */
-let alertsOpen = store.get('alertsOpen') !== '0';
-function applyAlertsOpen() {
-  $('alertsBox').classList.toggle('collapsed', !alertsOpen);
-  $('alertsToggle').firstChild.textContent = (alertsOpen ? '▾ ' : '▸ ') + 'Poslední alerty ';
+const alMenu = $('alMenu');
+let alSeen = Number(store.get('alSeen') ?? 0) || 0; // čas, kdy jsi alerty naposledy otevřel (kolik je nových = odznak)
+const toggleAl = (open) => {
+  alMenu.hidden = !(open ?? alMenu.hidden);
+  $('alBtn').classList.toggle('open', !alMenu.hidden);
+  if (!alMenu.hidden) { alSeen = Date.now(); store.set('alSeen', String(alSeen)); renderAlBadge(); }
+};
+function renderAlBadge() {
+  const n = (S.alerts ?? []).filter((a) => a.ts > alSeen).length;
+  $('alBadge').hidden = !n || !alMenu.hidden; $('alBadge').textContent = n > 9 ? '9+' : String(n);
 }
-$('alertsToggle').onclick = () => { alertsOpen = !alertsOpen; store.set('alertsOpen', alertsOpen ? '1' : '0'); applyAlertsOpen(); };
+$('alBtn').onclick = (e) => { e.stopPropagation(); closeMenu(); viewMenu.hidden = true; toggleNt(false); toggleAl(); };
+document.addEventListener('click', (e) => { if (!alMenu.hidden && !e.target.closest('.alwrap')) toggleAl(false); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !alMenu.hidden) toggleAl(false); });
 
 function renderAlerts() {
   $('noalerts').hidden = S.alerts.length > 0;
   $('alertsCount').textContent = S.alerts.length ? `(${S.alerts.length})` : '';
+  if (!alMenu.hidden) alSeen = Date.now(); // otevřená nabídka = vše vidíš
+  renderAlBadge();
   const label = { drop: 'propad %', recovered: 'zpět nad prahem' };
   $('alerts').innerHTML = S.alerts.map((a) => {
     const t = new Date(a.ts).toLocaleTimeString('cs-CZ');
@@ -1610,9 +1625,9 @@ $('sndVol').addEventListener('change', () => { saveSnd(); playAlarm('recovered')
 
 const ntMenu = $('ntMenu');
 const toggleNt = (open) => { ntMenu.hidden = !(open ?? ntMenu.hidden); $('notifyCaret').classList.toggle('open', !ntMenu.hidden); };
-$('notifyCaret').onclick = (e) => { e.stopPropagation(); ensureCtx(); closeMenu(); viewMenu.hidden = true; toggleNt(); };
+$('notifyCaret').onclick = (e) => { e.stopPropagation(); ensureCtx(); closeMenu(); viewMenu.hidden = true; toggleAl(false); toggleNt(); };
 // jen jedna nabídka otevřená najednou (capture: stopPropagation u ostatních tlačítek by jinak zavírání přeskočilo)
-document.addEventListener('click', (e) => { if (e.target.closest('#addPanel, #viewBtn') && !ntMenu.hidden) toggleNt(false); if (e.target.closest('#addPanel') && !viewMenu.hidden) viewMenu.hidden = true; if (e.target.closest('#viewBtn')) closeMenu(); }, true);
+document.addEventListener('click', (e) => { if (e.target.closest('#addPanel, #viewBtn') && !ntMenu.hidden) toggleNt(false); if (e.target.closest('#addPanel, #viewBtn') && !alMenu.hidden) toggleAl(false); if (e.target.closest('#addPanel') && !viewMenu.hidden) viewMenu.hidden = true; if (e.target.closest('#viewBtn')) closeMenu(); }, true);
 ntMenu.addEventListener('change', (e) => { // zvuk: vypínače, hlasitost a druhy poplachů (chat řeší další posluchač níže)
   if (e.target.id === 'sndOn') snd.on = e.target.checked;
   else if (e.target.id === 'sndVol') snd.vol = Number(e.target.value);
@@ -1860,7 +1875,7 @@ $('test').onclick = async () => {
   } catch (e) { toast(e.message, true); }
 };
 
-(async () => { cfg = await api('/api/config'); renderChips(); applyAlertsOpen(); refresh(); startStream(); setInterval(() => { if (Date.now() - lastPush > 2500) refresh(); }, 1000); })();
+(async () => { cfg = await api('/api/config'); renderChips(); refresh(); startStream(); setInterval(() => { if (Date.now() - lastPush > 2500) refresh(); }, 1000); })();
 
 /* ---------- navigace mezi pohledy ---------- */
 const viewMenu = $('viewMenu');
