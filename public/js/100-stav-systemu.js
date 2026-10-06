@@ -21,7 +21,7 @@ function healthItems() {
   return items;
 }
 function renderHealth() {
-  renderSessionStatus();
+  renderSessionStatus(); renderRecalcStats();
   if (!S.serverTime) return;
   renderChannels();
   const items = healthItems();

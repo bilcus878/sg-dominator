@@ -137,6 +137,16 @@ const op = createOpTracker();
 let opLastAt = 0;
 const lastWritten = new Map();
 const watchdog = createWatchdog();
+/** Přepočty, které se mají u hráče ukázat (podle Nastavení → Data: zapnuté druhy a nejvyšší stáří). */
+function recalcShown(raceId, name, now) {
+  const rc = cfg.recalc;
+  const cutoff = rc.hideOlderDays > 0 ? now - rc.hideOlderDays * 86_400_000 : 0;
+  let m = rc.showMilitary ? recalc.of(raceId, name) : { recalcAt: null, recalcHour: null };
+  if (m.recalcAt && m.recalcAt < cutoff) m = { recalcAt: null, recalcHour: null };
+  let o = rc.showEconomic ? econ.of(raceId, name) : { econAt: null, econUsual: null, econEvents: null };
+  if (o.econAt && o.econAt < cutoff) o = { econAt: null, econUsual: null, econEvents: null };
+  return { ...m, ...o };
+}
 const raceLastAt = new Map(); // raceId -> čas posledních dat (nezávisle na pročišťování store)
 const playerRace = new Map(); // jméno -> raceId (pro přepočet prahů po změně konfigurace)
 // historie planet pro stavění (spokojenost, co už bylo postaveno) – mimo konfiguraci, může být velká
@@ -295,8 +305,8 @@ async function handleIngest(req) {
   registerRace(raceId, raceName);
   // víc oken stejné stránky s různými daty: platí to, kde se data mění; data ze starého okna se ignorují (nic se z nich nehlásí)
   if (!store.ingest({ raceId, page, src, players }, now)) return [200, { ok: true, ignored: true }];
-  for (const f of recalc.ingest(raceId, players, now)) console.log(`[přepočet] ${f.name}: ${String(f.hour).padStart(2, '0')}:00`);
-  for (const f of econ.ingest(raceId, players, now)) console.log(`[ekonomický přepočet?] ${f.name}: ${new Date(f.at).toLocaleTimeString('cs-CZ')}${f.online ? ' online' : ''}`);
+  if (cfg.recalc.military) for (const f of recalc.ingest(raceId, players, now)) console.log(`[přepočet] ${f.name}: ${String(f.hour).padStart(2, '0')}:00`);
+  if (cfg.recalc.economic) for (const f of econ.ingest(raceId, players, now, { minRel: cfg.recalc.econMinGrowthPct / 100 })) console.log(`[ekonomický přepočet?] ${f.name}: ${new Date(f.at).toLocaleTimeString('cs-CZ')}${f.online ? ' online' : ''}`);
   raceLastAt.set(raceId, now);
   ingestTimes.push(now);
   { const a = raceIngest.get(raceId) ?? []; a.push(now); while (a.length && a[0] < now - 10_000) a.shift(); raceIngest.set(raceId, a); }
@@ -452,7 +462,7 @@ function buildState() {
       rate: (raceIngest.get(id) ?? []).filter((t) => t > now - 5_000).length / 5, // příjmů za vteřinu (posledních 5 s)
       players: snap.players.map((p) => ({
         name: p.name, power: p.power, planets: p.planets ?? null, planetsDelta: p.planetsDelta ?? null, planetsChange: p.planetsChange ?? 0, planetsAt: p.planetsAt ?? 0,
-        powerDelta: p.powerDelta, powerAt: p.powerAt, attackable: p.attackable ?? null, online: p.online ?? null, rank: p.rank ?? null, ...recalc.of(id, p.name), ...econ.of(id, p.name), hracId: p.hracId ?? null, utokId: p.utokId ?? null, attacks: p.attacks ?? null, ...conquest.status(id, p.name), ...resolveWatch(cfg, id, p.name),
+        powerDelta: p.powerDelta, powerAt: p.powerAt, attackable: p.attackable ?? null, online: p.online ?? null, rank: p.rank ?? null, ...recalcShown(id, p.name, now), hracId: p.hracId ?? null, utokId: p.utokId ?? null, attacks: p.attacks ?? null, ...conquest.status(id, p.name), ...resolveWatch(cfg, id, p.name),
       })),
     };
   });
@@ -463,7 +473,7 @@ function buildState() {
     vigilance: { count: vig.count, lastClickedAt: vig.clickedAt, pendingSince: vig.pending ? vig.seenAt : 0 },
     telescope: tele.snapshot(),
   };
-  return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState, autoArmy: { ...autoArmy.snapshot(now), rankPaused }, sound: cfg.sound, sendStatus: { ...sendStatus }, sessionLog: sessionLog.slice(0, 12) };
+  return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState, autoArmy: { ...autoArmy.snapshot(now), rankPaused }, sound: cfg.sound, sendStatus: { ...sendStatus }, sessionLog: sessionLog.slice(0, 12), recalcStats: { military: recalc.count(), economic: econ.count() } };
 }
 
 /** Hlídač výpadku: hlídané rasy a mapa (když je OP alert zapnutý) musí dodávat data. */
@@ -625,6 +635,9 @@ const routes = {
     pushState();
     return [200, publicConfig(cfg)];
   },
+  // smazání zachycených přepočtů (po novém věku nebo když se data rozladí); nastavení zůstává
+  'DELETE /api/recalc/military': async () => { recalc.clear(); pushState(); return [200, { ok: true }]; },
+  'DELETE /api/recalc/economic': async () => { econ.clear(); pushState(); return [200, { ok: true }]; },
   'GET /api/state': async () => [200, buildState()],
   // nový věk: smaže rasy i výjimky u hráčů a zapomene načtená data; prahy a kanály zůstávají
   'DELETE /api/races': async () => {

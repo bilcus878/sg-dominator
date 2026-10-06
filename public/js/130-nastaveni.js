@@ -23,6 +23,7 @@ function fillForm() {
   const vg = cfg.op.vigilance ?? { enabled: true, minSec: 5, maxSec: 10 };
   fillSession(cfg.session ?? {});
   fillLogin(cfg.login ?? {});
+  fillRecalc(cfg.recalc ?? {});
   $('opVigEnabled').checked = vg.enabled; $('opVigMin').value = vg.minSec; $('opVigMax').value = vg.maxSec;
   $('opVigSkip').checked = vg.skipEnabled ?? true; $('opSkipMin').value = vg.skipMin ?? 5; $('opSkipMax').value = vg.skipMax ?? 10;
   $('opDownMin').value = vg.downMin ?? 3; $('opDownMax').value = vg.downMax ?? 15;
@@ -86,3 +87,25 @@ $('loginClear').onclick = async () => {
   if (!confirm('Smazat uložené heslo z aplikace?')) return;
   try { cfg = await api('/api/config', 'PUT', { login: { clearPassword: true, enabled: false } }); fillLogin(cfg.login); toast('Heslo smazáno'); } catch (e) { toast(e.message, true); }
 };
+
+/** Přepočty hráčů (Nastavení → Data) */
+function fillRecalc(r) {
+  $('rcMil').checked = r.military !== false; $('rcEco').checked = r.economic !== false;
+  $('rcShowMil').checked = r.showMilitary !== false; $('rcShowEco').checked = r.showEconomic !== false;
+  $('rcMinGrowth').value = r.econMinGrowthPct ?? 0.1; $('rcHideDays').value = r.hideOlderDays ?? 0;
+  renderRecalcStats();
+}
+function collectRecalc() {
+  return { military: $('rcMil').checked, economic: $('rcEco').checked, showMilitary: $('rcShowMil').checked, showEconomic: $('rcShowEco').checked, econMinGrowthPct: $('rcMinGrowth').value, hideOlderDays: $('rcHideDays').value };
+}
+function renderRecalcStats() {
+  const el = $('rcStats'); if (!el) return;
+  const st = S?.recalcStats;
+  el.textContent = st ? `Zachyceno: vojenské ⟳ u ${st.military} hráčů, ekonomické 💰 u ${st.economic} hráčů.` : '';
+}
+for (const [id, kind, label] of [['rcClearMil', 'military', 'vojenské'], ['rcClearEco', 'economic', 'ekonomické']]) {
+  $(id).onclick = async () => {
+    if (!confirm('Vymazat všechny zachycené ' + label + ' přepočty? Začnou se sbírat znovu.')) return;
+    try { await api('/api/recalc/' + kind, 'DELETE'); toast('Vymazáno'); refresh(); } catch (e) { toast(e.message, true); }
+  };
+}

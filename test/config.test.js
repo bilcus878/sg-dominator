@@ -110,3 +110,13 @@ test('sound: sdílené nastavení zvuku se ořezává, slučuje po částech a v
   assert.deepEqual([c.sound.on, c.sound.vol, c.sound.types], [true, 5, { service: true, op: false, threshold: true }]);
   assert.equal(sanitizeUpdate(c, { sound: { vol: 'abc' } }).sound.vol, 5); // nesmysl se ignoruje
 });
+
+test('nastavení přepočtů hráčů: přepínače, meze citlivosti a stáří', async () => {
+  const { sanitizeUpdate, DEFAULTS } = await import('../src/config.js');
+  const base = { ...DEFAULTS, token: 'x' };
+  assert.equal(base.recalc.military, true);
+  const a = sanitizeUpdate(base, { recalc: { economic: false, showMilitary: false, econMinGrowthPct: 99, hideOlderDays: -3 } }).recalc;
+  assert.equal(a.economic, false); assert.equal(a.military, true); assert.equal(a.showMilitary, false);
+  assert.equal(a.econMinGrowthPct, 5); assert.equal(a.hideOlderDays, 0);
+  assert.equal(sanitizeUpdate(base, { recalc: { econMinGrowthPct: 0 } }).recalc.econMinGrowthPct, 0.01);
+});

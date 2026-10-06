@@ -23,7 +23,7 @@ export function createEcon(saved = {}, { onChange = () => {} } = {}) {
   const rec = saved; // „raceId|jméno“ -> { events: [{ at, popGain, online, colon, planetsBefore }] } (nejnovější první)
   const last = new Map(); // klíč -> { pop, planets, pending: { pop, at } | null }
 
-  function ingest(raceId, players, now = Date.now()) {
+  function ingest(raceId, players, now = Date.now(), { minRel = MIN_REL } = {}) {
     const found = [];
     let changed = false;
     for (const p of players) {
@@ -41,7 +41,7 @@ export function createEcon(saved = {}, { onChange = () => {} } = {}) {
       const planetsSame = !Number.isFinite(p.planets) || !Number.isFinite(s.planets) || p.planets === s.planets;
       const gain = p.population - s.pop;
       if (!planetsSame) { s.pop = p.population; s.planets = p.planets; s.pending = null; continue; } // dobývání: nový základ
-      if (gain > 0 && gain >= s.pop * MIN_REL) {
+      if (gain > 0 && gain >= s.pop * minRel) {
         if (s.pending && s.pending.pop === p.population) { // potvrzeno druhým čtením
           const prev = rec[key]?.events?.[0];
           if (prev && s.pending.at - prev.at < SAME_EVENT_MS) { prev.popGain += gain; } // pokračování stejného přepočtu
@@ -70,5 +70,7 @@ export function createEcon(saved = {}, { onChange = () => {} } = {}) {
     const u = usualHour(evs);
     return { econAt: evs[0].at, econUsual: u, econEvents: evs.slice(0, 5).map((e) => ({ at: e.at, online: e.online, colon: e.colon ?? 0 })) };
   };
-  return { ingest, of };
+  const clear = () => { for (const k of Object.keys(rec)) delete rec[k]; last.clear(); onChange(rec); };
+  const count = () => Object.keys(rec).length;
+  return { ingest, of, clear, count };
 }

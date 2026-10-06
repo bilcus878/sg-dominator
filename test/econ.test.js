@@ -53,3 +53,17 @@ test('obvyklá hodina = nejčastější hodina událostí', () => {
   assert.deepEqual(usualHour([{ at: at(14, 5) }, { at: at(14, 40) }, { at: at(9, 0) }]), { hour: 14, n: 2 });
   assert.equal(usualHour([]), null);
 });
+
+test('ekonomický přepočet: citlivost (nejmenší růst %) a mazání', () => {
+  const strict = createEcon({});
+  strict.ingest('4', [P(100_000)], at(14, 0));
+  strict.ingest('4', [P(100_500)], at(14, 5)); // +0,5 %
+  assert.deepEqual(strict.ingest('4', [P(100_500)], at(14, 6), { minRel: 0.01 }), [], '0,5 % je pod prahem 1 %');
+  const loose = createEcon({});
+  loose.ingest('4', [P(100_000)], at(14, 0));
+  loose.ingest('4', [P(100_500)], at(14, 5), { minRel: 0.001 });
+  assert.equal(loose.ingest('4', [P(100_500)], at(14, 6), { minRel: 0.001 }).length, 1);
+  assert.equal(loose.count(), 1);
+  loose.clear();
+  assert.equal(loose.count(), 0); assert.equal(loose.of('4', 'A').econAt, null);
+});

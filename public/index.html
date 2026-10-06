@@ -313,6 +313,19 @@
         <label for="wdStale">Hlásit po (s) bez dat</label><input type="number" id="wdStale" min="10">
       </div>
       <div class="chan">
+        <div class="chan-head"><span>Přepočty hráčů</span></div>
+        <p class="muted" style="margin-top:0">Aplikace z dat ras zjišťuje, kdy se hráči přepočítávají: <b>⟳ vojenský</b> (v celou hodinu se mu ve sloupci Dobyt vynuluje počet) a <b>💰 ekonomický</b> (odhad: hráči po přihlášení vzroste populace, aniž by se změnil počet planet). Zachycené časy se ukládají a ukazují se pod jménem.</p>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="rcMil"><span></span></span> Sbírat vojenské přepočty ⟳</label>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="rcEco"><span></span></span> Sbírat ekonomické přepočty 💰 (odhad)</label>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="rcShowMil"><span></span></span> Ukazovat ⟳ u jmen</label>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="rcShowEco"><span></span></span> Ukazovat 💰 u jmen</label>
+        <div class="two"><div><label for="rcMinGrowth">Ekonomický: nejmenší růst populace (%)</label><input type="number" id="rcMinGrowth" min="0.01" max="5" step="0.01"></div>
+          <div><label for="rcHideDays">Skrýt přepočty starší než (dní, 0 = nikdy)</label><input type="number" id="rcHideDays" min="0" max="365" step="1"></div></div>
+        <small class="muted" style="display:block;margin-top:8px">Menší růst populace = citlivější (víc falešných poplachů), větší = jistější, ale mohou se minout drobné přepočty. Vypnuté sbírání jen přestane přidávat nová data, uložené časy zůstanou.</small>
+        <p class="muted" id="rcStats" style="margin:8px 0"></p>
+        <button class="ghost" id="rcClearMil" type="button">Vymazat vojenské</button> <button class="ghost" id="rcClearEco" type="button">Vymazat ekonomické</button>
+      </div>
+      <div class="chan">
         <div class="chan-head"><span>Nový věk – vymazat rasy</span></div>
         <p class="muted" style="margin-top:0">Rasy a hráči se každý věk mění. Tlačítko smaže seznam načtených ras, <b>nastavení hlídání u ras a hráčů</b> (režimy, prahy ras, vlastní prahy a vypnutí u hráčů) a rozložení panelů. Výchozí hranice, pravidla a kanály zůstanou.</p>
         <p class="muted">Rasy, které máš zrovna otevřené v prohlížeči, se po chvíli načtou znovu jako vypnuté.</p>

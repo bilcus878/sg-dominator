@@ -57,5 +57,6 @@ export function createRecalc(saved = {}, { onChange = () => {} } = {}) {
     return r ? { recalcAt: r.at, recalcHour: r.hour } : { recalcAt: null, recalcHour: null };
   };
   const clear = () => { for (const k of Object.keys(rec)) delete rec[k]; last.clear(); onChange(rec); };
-  return { ingest, of, clear };
+  const count = () => Object.keys(rec).length;
+  return { ingest, of, clear, count };
 }

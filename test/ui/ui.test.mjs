@@ -281,3 +281,13 @@ test('Nastavení → Přihlášení: heslo se uloží, v rozhraní se ukáže je
   assert.equal((await app.api('/api/config')).login.hasPassword, false);
   await b.eval(`document.getElementById('closeSettings').click(); 1`);
 });
+
+test('Nastavení → Data: přepočty hráčů se dají vypnout a ukázat statistika; uloží se na server', { skip, timeout: 30_000 }, async () => {
+  await b.eval(`document.getElementById('openSettings').click(); document.querySelector('[data-tab=data]').click(); 1`); await sleep(300);
+  assert.match(await b.eval(`document.getElementById('rcStats').textContent`), /Zachyceno/);
+  await b.eval(`document.getElementById('rcEco').click(); document.getElementById('rcShowMil').click(); document.getElementById('save').click(); 1`); await sleep(800);
+  const r = (await app.api('/api/config')).recalc;
+  assert.equal(r.economic, false); assert.equal(r.showMilitary, false); assert.equal(r.military, true);
+  await b.eval(`document.getElementById('openSettings').click(); document.querySelector('[data-tab=data]').click(); document.getElementById('rcEco').click(); document.getElementById('rcShowMil').click(); document.getElementById('save').click(); document.getElementById('closeSettings').click(); 1`); await sleep(700);
+  assert.equal((await app.api('/api/config')).recalc.economic, true);
+});
