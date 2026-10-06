@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         Stargate dominator – přihlášení
 // @namespace    sg-dominator
-// @version      1.3.0
-// @description  Když hru po ~3 hodinách odhlásí (Vypršela platnost přihlášení), jedna karta se sama přihlásí zpátky (údaje doplní Chrome, skript hesla nezná), ostatní karty se obnoví. V době denní údržby (3:00–3:31) počká.
+// @version      1.4.0
+// @description  Když hru po ~3 hodinách odhlásí, otevře se nový panel s přihlašovací stránkou, klikne na Přihlaš (údaje doplní Chrome, skript hesla nezná), panel se zavře a karty s daty se obnoví. V době denní údržby (3:00–3:31) počká.
 // @match        https://stargate-game.cz/*
 // @match        https://www.stargate-game.cz/*
 // @grant        GM_xmlhttpRequest
+// @grant        GM_openInTab
 // @connect      127.0.0.1
 // @noframes
 // @run-at       document-idle
@@ -15,7 +16,7 @@
   'use strict';
   const SERVER = '__SERVER__';
   const TOKEN = '__TOKEN__';
-  const VERSION = '1.3.0'; // stejné jako @version
+  const VERSION = '1.4.0'; // stejné jako @version
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -25,7 +26,7 @@
   const jget = (st, k) => { try { return JSON.parse(st.getItem(k)); } catch { return null; } };
   const jset = (st, k, v) => { try { st.setItem(k, JSON.stringify(v)); } catch { /* plné/zakázané úložiště */ } };
   const jdel = (st, k) => { try { st.removeItem(k); } catch { /* nic */ } };
-  const LOCK = 'sgd_relogin_lock', PROBE = 'sgd_probe_at', STATE = 'sgd_relogin_state', TABID = 'sgd_tab_id';
+  const LOCK = 'sgd_relogin_lock', PROBE = 'sgd_probe_at', STATE = 'sgd_relogin_state', JOB = 'sgd_relogin_job', TABID = 'sgd_tab_id';
   const tabId = (() => { let id = sessionStorage.getItem(TABID); if (!id) { id = Math.random().toString(36).slice(2); sessionStorage.setItem(TABID, id); } return id; })();
   const getState = () => jget(sessionStorage, STATE);
   const setState = (s) => jset(sessionStorage, STATE, s);
@@ -142,16 +143,21 @@
     while (Date.now() < end) await sleep(Math.min(5_000, end - Date.now()) + 1);
     // znovu: mezitím se mohlo přihlásit ručně
     if (!(await stillLoggedOut())) { finishQuiet('Přihlášení už platí (někdo se přihlásil sám).'); return; }
-    setState({ ...getState(), phase: 'go' });
-    // jako člověk: nejdřív klik na odkaz „přihlásit“ ve hlášce o vypršení, pak (na přihlašovací stránce) klik na „Přihlaš“
-    const link = pageExpired() ? [...document.querySelectorAll('a')].find((a) => /^p\S+ihl\S+it$/i.test(a.textContent.trim())) : null;
-    if (link) {
-      await clickEl(link);
-      await sleep(4_000);
-      if (link.isConnected) location.assign(link.href); // klik nepřešel (hra ho ignorovala): přímý přechod
-    } else location.assign(location.origin + '/'); // karta s prázdnou stránkou hráčů: odkaz tam není
+    // jako člověk: nový panel s přihlašovací stránkou, tam klik na „Přihlaš“; tahle karta zatím čeká (data se po přihlášení obnoví)
+    setState({ ...getState(), phase: 'tab' });
+    jset(localStorage, JOB, { by: tabId, at: Date.now(), taken: null });
+    GM_openInTab(location.origin + '/', { active: true, insert: true, setParent: true });
+    const until = Date.now() + 8 * 60_000;
+    while (getState()?.phase === 'tab' && Date.now() < until) await sleep(1_000);
+    if (getState()?.phase === 'tab') { // panel se nepřihlásil (nikdo nepřevzal úkol / zavřen)
+      report('failed', 'Nový panel se do 8 minut nepřihlásil. Přihlas se prosím ručně.');
+      jdel(localStorage, JOB);
+      finishQuiet(null);
+    }
   }
 
+  /** Přihlašovací panel se vzdal: smaže úkol a dá vědět čekající kartě. */
+  function giveUp(st) { finishQuiet(null); if (st?.worker) { jdel(localStorage, JOB); channel?.postMessage({ type: 'failed' }); } }
   function finishQuiet(text) { stopHeartbeat(); releaseLock(); sessionStorage.removeItem(STATE); if (text) report('ok', text); }
 
   async function doLogin(st) {
@@ -164,7 +170,7 @@
     if (!filled()) {
       report('needs-user', 'Přihlašovací formulář není vyplněný (Chrome nedoplnil uložené údaje). Přihlas se ručně.');
       banner('Chrome nedoplnil přihlašovací údaje, přihlas se prosím ručně.');
-      finishQuiet(null);
+      giveUp(st);
       return;
     }
     await sleep(rnd(1_500, 4_000));
@@ -185,31 +191,33 @@
     }
     report('failed', 'Přihlášení se napotřetí nepovedlo. Přihlas se prosím ručně.');
     banner('Přihlášení se nepovedlo, přihlas se prosím ručně.');
-    finishQuiet(null);
+    giveUp(st);
   }
 
   async function afterLogin(st) {
     if (pageExpired()) { // po přihlášení zase „vypršelo“ – nezacyklit se
       report('failed', 'Po přihlášení hra pořád hlásí vypršelé přihlášení. Přihlas se prosím ručně.');
-      finishQuiet(null);
+      giveUp(st);
       return;
     }
     const mins = Math.max(1, Math.round((Date.now() - (st.startedAt ?? Date.now())) / 60000));
     finishQuiet(`Znovu přihlášeno (trvalo ${mins} min). Karty s daty se obnovují.`);
     channel?.postMessage({ type: 'done', at: Date.now() });
-    // vrátit tuhle kartu na stránku, na které byla (hlavní strana a přihlašovací stránka se nechají)
-    const ret = st.ret;
-    if (ret && !/stargate-game\.cz\/?(index\.php)?(\?.*)?$/.test(ret) && ret !== location.href) {
-      await sleep(rnd(2_500, 6_000));
-      location.assign(ret);
-    }
+    jdel(localStorage, JOB);
+    await sleep(rnd(1_500, 3_000));
+    window.close(); // panel otevřený skriptem se zavře sám (jinak zůstane na hlavní straně)
   }
 
   // ---------- ostatní karty: po přihlášení se obnoví (každá v jiný okamžik) ----------
   const loadedAt = Date.now();
   if (channel) {
     channel.onmessage = (m) => {
-      if (m.data?.type !== 'done' || getState() || isLoginPage()) return;
+      const t = m.data?.type, own = getState();
+      if (own?.phase === 'tab') { // tahle karta čekala na přihlašovací panel
+        if (t === 'done' || t === 'failed') { finishQuiet(null); if (t === 'done') setTimeout(() => location.reload(), rnd(2_000, 6_000)); }
+        return;
+      }
+      if (t !== 'done' || own || isLoginPage()) return;
       if (loadedAt > m.data.at - 4_000) return; // už je načtená po přihlášení
       setTimeout(() => location.reload(), rnd(2_000, 8_000));
     };
@@ -250,9 +258,19 @@
   (async () => {
     const st = getState();
     if (st) {
-      if (st.phase === 'wait') { finishQuiet(null); } // karta se obnovila uprostřed čekání: nic se nedělá, hlídání začne znovu
+      if (st.phase === 'wait' || st.phase === 'tab') { finishQuiet(null); } // karta se obnovila uprostřed čekání: nic se nedělá, hlídání začne znovu
       else if (isLoginPage()) { await doLogin(st); return; }
-      else if (st.phase === 'go' || st.phase === 'submit') { await afterLogin(st); return; }
+      else if (st.phase === 'submit') { await afterLogin(st); return; }
+    }
+    if (isLoginPage() && !st) { // přihlašovací panel otevřený kartou, která zjistila odhlášení: převezme úkol
+      const job = jget(localStorage, JOB);
+      if (job && !job.taken && Date.now() - job.at < 3 * 60_000) {
+        jset(localStorage, JOB, { ...job, taken: tabId });
+        const w = { phase: 'submit', worker: true, attempts: 0, startedAt: job.at };
+        setState(w);
+        await doLogin(w);
+      }
+      return;
     }
     if (isLoginPage()) return;
     if (pageExpired()) { await sleep(rnd(500, 1_500)); startRelogin('vypršelo přihlášení'); return; }
