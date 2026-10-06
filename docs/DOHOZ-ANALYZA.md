@@ -21,6 +21,8 @@ army.request(jméno) ──► skript na stránce „Rasová armáda“ si ho vy
 ověření výsledku: chyba skriptu? vyzvednuto? síla vzrostla? ──► další kolo / hotovo / zpráva
 ```
 
+Zrušené volby: „dohazovat znovu při každé připomínce“ a „nejvíc dohozů na hráče“ (zbytečně komplikovaly rozhodování; staré hodnoty z nastavení se ignorují).
+
 Důležité vlastnosti, které se při návrhu hlídaly:
 
 * **Spouštěč je jen skutečný pád.** Při startu serveru je hráč, který už je pod prahem, jen „výchozí stav“ (bez alertu).
@@ -35,7 +37,7 @@ Důležité vlastnosti, které se při návrhu hlídaly:
 | Rozhodování podle starých dat | Data hráče starší než 10 s se nepoužijí; síla ≤ 0 = chyba čtení; bez čerstvých dat se nic neposílá (po 30 s se hráč vzdá se zprávou) |
 | Dohoz, který se nepovedl, a nikdo to neví | Každý dohoz se ověřuje (i bez horní hranice): chyba skriptu, nevyzvednutý požadavek, nebo síla nevzrostla = zpráva |
 | Falešný „úspěch“ z drobného kolísání síly | Na účinek se čeká až po odeslání skriptem; „vzrostla“ = o víc než 0,1 % cíle |
-| Smyčka jednotek bez konce | Nejvyšší počet dohozů na hráče; síla nevzrostla do 15 s = konec; **hodinová pojistka** (výchozí 60): po překročení se auto-dohoz sám vypne (i v nastavení) a pošle zprávu |
+| Smyčka jednotek bez konce | Počet dohozů na hráče se v nastavení **neomezuje** (dohazuje se až po horní hranici), proto: síla nevzrostla do 15 s = konec; **hodinová pojistka** (výchozí 200): po překročení se auto-dohoz sám vypne (i v nastavení) a pošle zprávu; interní tvrdý strop 500 kol na hráče |
 | Jeden hráč spotřebuje vše, druhý zůstává pod prahem | Nejdřív každý hráč nad práh (záchrana), pak střídavě k horní hranici; hráč, který se zase propadne pod práh, má opět přednost |
 | Hráč znovu padne krátce po dohození | Pád se neztratí: dohoz se odloží na konec pauzy a před kliknutím se ověří, že je hráč pořád pod prahem |
 | Dva hráči naráz ve stejné vteřině | Rozestup mezi hráči (nastavitelné rozmezí); najednou se zadává nejvýš jeden požadavek |
@@ -74,7 +76,10 @@ políčka `jed1…`, sloupec „V armádě“ sedí s tím, co skript očekává
 ## 5. Nastavení (Nastavení → Dohoz)
 
 1. po pádu pod práh počkat · 2. odstup mezi hráči · 3. pauza mezi dohozy téhož hráče · 4. znovu začít dohazovat téhož hráče
-(vše jako náhodné rozmezí od–do v sekundách) · horní hranice · nejvíc dohozů na hráče · pojistka dohozů za hodinu.
+(vše jako náhodné rozmezí od–do v sekundách).
+**Kolikrát dohazovat** (vzájemně se vylučují): *Jednou za pád pod práh* nebo *Až do horní hranice* (bez omezení počtu dohozů).
+Horní hranice je výchozí pro všechny hráče a u každého hráče jde nastavit zvlášť (klik na ↑ vedle prahu pod jménem).
+Pojistka: nejvíc dohozů za hodinu (výchozí 200).
 Vypínač je na třech místech (hlavička DOHOZ, záhlaví panelu AUTO, nastavení) a všechny jsou propojené. Při selhání
 dohozu svítí vypínač v hlavičce červeně.
 

@@ -17,15 +17,15 @@
  *  - sílu bere jen z čerstvých dat (io.power / io.stillBelow vrací null bez čerstvých dat → nic se neposílá naslepo);
  *  - vypnutí auto-dohozu okamžitě zruší všechno naplánované i rozjeté dohazování;
  *  - pojistka: víc než `maxPerHour` dohozů za hodinu = auto-dohoz se vypne a pošle se zpráva;
- *  - nejvyšší počet kol na hráče, nezabírá-li dohoz (síla nevzroste) se dohazování ukončí.
+ *  - nezabírá-li dohoz (síla nevzroste), dohazování se ukončí; počet dohozů na hráče se neomezuje (jen interní tvrdý strop).
  */
 
 export const AUTO_ARMY_DEFAULTS = {
-  enabled: false, minSec: 2, maxSec: 4, gapMinSec: 0.9, gapMaxSec: 2.5, repeat: false,
+  enabled: false, minSec: 2, maxSec: 4, gapMinSec: 0.9, gapMaxSec: 2.5,
   roundMinSec: 2, roundMaxSec: 4, // pauza mezi dohozy téhož hráče (kola k horní hranici): náhodně v rozmezí
   cooldownMinSec: 60, cooldownMaxSec: 120, // dřív než za tuhle (náhodnou) dobu se stejný hráč po dohození znovu nezačíná dohazovat
-  topUp: false, topUpTarget: 0, topUpMaxRounds: 10, // dohazovat, dokud síla nepřekročí topUpTarget (nejvýš topUpMaxRounds dohozů)
-  maxPerHour: 60, // pojistka: víc dohozů za hodinu = auto-dohoz se sám vypne
+  topUp: false, topUpTarget: 0, // false = jeden dohoz za pád pod práh; true = dohazovat, dokud síla nepřekročí topUpTarget (bez omezení počtu dohozů)
+  maxPerHour: 200, // pojistka: víc dohozů za hodinu = auto-dohoz se sám vypne
 };
 
 const GIVE_UP_MS = 30_000; // tak dlouho se po termínu zkouší, když je dohoz zaneprázdněný / stránka armády se načítá / chybí čerstvá data
@@ -34,11 +34,14 @@ const BELOW_REASONS = new Set(['threshold', 'critical']); // pád pod práh (pro
 const STALL_MS = 15_000; // pojistka: síla po dohození do téhle doby nevzrostla = dohoz nezabírá, přestat (běžně síla naskočí hned)
 const GAIN_FRACTION = 0.001; // „síla vzrostla“ = o víc než 0,1 % cíle (filtr drobného přirozeného kolísání)
 const HOUR_MS = 3_600_000;
+const MAX_ROUNDS = 500; // jen tvrdý strop proti chybě v kódu; v nastavení se počet dohozů na hráče neomezuje
 
 /** Starší nastavení (pevná pauza cooldownSec, kola s prodlevou jako první dohoz) -> nová rozmezí. */
 export function migrateAutoArmy(a) {
   if (!a || typeof a !== 'object') return a;
   const o = { ...a };
+  delete o.repeat; // „dohazovat znovu při připomínce“ zrušeno: buď jednou za pád, nebo až po horní hranici
+  delete o.topUpMaxRounds; // limit kol zrušen
   if ('cooldownSec' in o && !('cooldownMinSec' in o)) o.cooldownMinSec = o.cooldownMaxSec = o.cooldownSec;
   delete o.cooldownSec;
   if (!('roundMinSec' in o) && ('minSec' in o || 'maxSec' in o)) { o.roundMinSec = o.minSec ?? AUTO_ARMY_DEFAULTS.minSec; o.roundMaxSec = o.maxSec ?? AUTO_ARMY_DEFAULTS.maxSec; }
@@ -52,7 +55,6 @@ export function sanitizeAutoArmy(cur, body) {
   if (!body || typeof body !== 'object') return next;
   const num = (v, lo, hi, d) => (Number.isFinite(Number(v)) && v !== '' && v !== null ? Math.min(hi, Math.max(lo, Number(v))) : d);
   if ('enabled' in body) next.enabled = !!body.enabled;
-  if ('repeat' in body) next.repeat = !!body.repeat;
   if ('topUp' in body) next.topUp = !!body.topUp;
   if ('minSec' in body) next.minSec = num(body.minSec, 0, 120, next.minSec);
   if ('maxSec' in body) next.maxSec = num(body.maxSec, 0, 120, next.maxSec);
@@ -63,7 +65,6 @@ export function sanitizeAutoArmy(cur, body) {
   if ('roundMinSec' in body) next.roundMinSec = num(body.roundMinSec, 0, 120, next.roundMinSec);
   if ('roundMaxSec' in body) next.roundMaxSec = num(body.roundMaxSec, 0, 120, next.roundMaxSec);
   if ('topUpTarget' in body) next.topUpTarget = Math.floor(num(body.topUpTarget, 0, 1e13, next.topUpTarget));
-  if ('topUpMaxRounds' in body) next.topUpMaxRounds = Math.floor(num(body.topUpMaxRounds, 1, 50, next.topUpMaxRounds));
   if ('maxPerHour' in body) next.maxPerHour = Math.floor(num(body.maxPerHour, 1, 1000, next.maxPerHour));
   if (next.maxSec < next.minSec) next.maxSec = next.minSec;
   if (next.gapMaxSec < next.gapMinSec) next.gapMaxSec = next.gapMinSec;
@@ -72,7 +73,7 @@ export function sanitizeAutoArmy(cur, body) {
   return next;
 }
 
-export function createAutoArmy({ rand = Math.random } = {}) {
+export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS } = {}) {
   let queue = []; // [{ name, dueAt, firstDueAt, episode, cool, limit }]
   let lastDueAt = 0; // kdy byl naplánovaný poslední dohoz (kvůli rozestupu mezi hráči)
   const blockedUntil = new Map(); // jméno -> do kdy se po dohození znovu nezačíná dohazovat (náhodná doba z rozmezí cooldownMin–Max)
@@ -105,14 +106,14 @@ export function createAutoArmy({ rand = Math.random } = {}) {
   };
 
   /**
-   * Alert z hlídání. Naplánuje dohoz jen pro pád pod práh (a při zapnutém opakování i pro připomínky),
+   * Alert z hlídání. Naplánuje dohoz jen pro pád pod práh (připomínky „stále pod prahem“ se ignorují),
    * nejvýš jeden čekající na hráče; po předchozím dohození se nový dohoz odloží o náhodnou pauzu (cooldownMinSec–MaxSec).
    * @returns {{scheduled: boolean, dueAt?: number, deferred?: boolean, why?: string}}
    */
   function onAlert(alert, auto, now = Date.now()) {
     if (!auto?.enabled) return { scheduled: false, why: 'off' };
     if (!BELOW_REASONS.has(alert.reason)) return { scheduled: false, why: 'reason' };
-    if (alert.repeat && !auto.repeat) return { scheduled: false, why: 'repeat' };
+    if (alert.repeat) return { scheduled: false, why: 'repeat' }; // připomínka „stále pod prahem“ není nový pád
     if (queue.some((q) => q.name === alert.name) || episodes.has(alert.name)) return { scheduled: false, why: 'queued' };
     let dueAt = dueFor(now, auto);
     // pauza po předchozím dohození: nový pád se NEZAHODÍ, jen se dohoz odloží na konec pauzy (až bude potřeba, ověří se, že je hráč pořád pod prahem)
@@ -123,7 +124,7 @@ export function createAutoArmy({ rand = Math.random } = {}) {
     const limit = auto.maxPerHour ?? 60;
     const topUp = auto.topUp && auto.topUpTarget > 0;
     const episode = topUp
-      ? { phase: 'rescue', target: auto.topUpTarget, maxRounds: Math.max(1, auto.topUpMaxRounds), rounds: 0, minSec: auto.roundMinSec, maxSec: auto.roundMaxSec, gapMinSec: auto.gapMinSec, gapMaxSec: auto.gapMaxSec, cool, limit, startedAt: now }
+      ? { phase: 'rescue', target: auto.topUpTarget, maxRounds, rounds: 0, minSec: auto.roundMinSec, maxSec: auto.roundMaxSec, gapMinSec: auto.gapMinSec, gapMaxSec: auto.gapMaxSec, cool, limit, startedAt: now }
       : null;
     if (episode) episodes.set(alert.name, episode);
     queue.push({ name: alert.name, dueAt, firstDueAt: dueAt, episode, cool, limit });
@@ -182,7 +183,7 @@ export function createAutoArmy({ rand = Math.random } = {}) {
       } else if (p > w.powerAtSend + gain) { // dohoz zabral
         if (!ep) { watch.delete(name); note(now, 'verified', name, `síla ${fmt(p)}`); continue; }
         if (ep.rounds >= ep.maxRounds) {
-          endEpisode(name, now, 'max', `max ${ep.maxRounds} dohozů, síla ${fmt(p)}`, events, true, `⚠️ Auto-dohoz: ${name} je po ${ep.rounds} dohozech jen na ${fmt(p)} (cíl ${fmt(ep.target)}), dohazování končí.`);
+          endEpisode(name, now, 'max', `bezpečnostní strop ${ep.maxRounds} dohozů, síla ${fmt(p)}`, events, true, `⚠️ Auto-dohoz: ${name} je po ${ep.rounds} dohozech jen na ${fmt(p)} (cíl ${fmt(ep.target)}), dohazování se z bezpečnostních důvodů zastavilo.`);
           continue;
         }
         watch.delete(name);
@@ -193,7 +194,7 @@ export function createAutoArmy({ rand = Math.random } = {}) {
         }
         const dueAt = dueFor(now, ep);
         queue.push({ name, dueAt, firstDueAt: dueAt, episode: ep, cool: ep.cool, limit: ep.limit });
-        note(now, 'plan', name, `${ep.phase === 'rescue' ? 'nad práh' : 'k hranici'}: kolo ${ep.rounds + 1}/${ep.maxRounds} za ${Math.round((dueAt - now) / 100) / 10} s (síla ${fmt(p)})`);
+        note(now, 'plan', name, `${ep.phase === 'rescue' ? 'nad práh' : 'k hranici'}: kolo ${ep.rounds + 1} za ${Math.round((dueAt - now) / 100) / 10} s (síla ${fmt(p)})`);
       } else if (age > STALL_MS) {
         endEpisode(name, now, 'stall', `síla ${fmt(p)} nevzrostla`, events, true, `⚠️ Auto-dohoz: ${name} – po dohození síla nevzrostla (${fmt(p)}), dohazování končí. Zkontroluj armádu a stránku Rasová armáda.`);
       }

@@ -34,15 +34,16 @@ function renderArmy(a) {
   body.innerHTML = '';
   for (const u of a?.units ?? []) body.appendChild(atkRow(u));
   $('armyNone').hidden = (a?.units ?? []).length > 0;
-  const au = a?.auto ?? { enabled: false, minSec: 2, maxSec: 4, gapMinSec: 0.9, gapMaxSec: 2.5, repeat: false, roundMinSec: 2, roundMaxSec: 4, cooldownMinSec: 60, cooldownMaxSec: 120, maxPerHour: 60 };
+  const au = a?.auto ?? { enabled: false, minSec: 2, maxSec: 4, gapMinSec: 0.9, gapMaxSec: 2.5, roundMinSec: 2, roundMaxSec: 4, cooldownMinSec: 60, cooldownMaxSec: 120, maxPerHour: 200 };
   $('armyAutoOn').checked = !!au.enabled; $('armyMin').value = au.minSec; $('armyMax').value = au.maxSec;
   $('armyGapMin').value = au.gapMinSec ?? 0.9; $('armyGapMax').value = au.gapMaxSec ?? 2.5;
-  $('armyRepeat').checked = !!au.repeat; $('armyRoundMin').value = au.roundMinSec ?? 2; $('armyRoundMax').value = au.roundMaxSec ?? 4;
-  $('armyCoolMin').value = au.cooldownMinSec ?? 60; $('armyCoolMax').value = au.cooldownMaxSec ?? 120; $('armyMaxHour').value = au.maxPerHour ?? 60;
-  $('armyTopUp').checked = !!au.topUp; $('armyTopTarget').value = au.topUpTarget ? dots(au.topUpTarget) : ''; $('armyTopRounds').value = au.topUpMaxRounds ?? 10;
+  $('armyRoundMin').value = au.roundMinSec ?? 2; $('armyRoundMax').value = au.roundMaxSec ?? 4;
+  $('armyCoolMin').value = au.cooldownMinSec ?? 60; $('armyCoolMax').value = au.cooldownMaxSec ?? 120; $('armyMaxHour').value = au.maxPerHour ?? 200;
+  $('armyTopTarget').value = au.topUpTarget ? dots(au.topUpTarget) : '';
+  setArmyMode(!!au.topUp);
 }
 const readArmy = () => ({ units: [...$('armyUnits').rows].map((tr) => ({ name: tr.querySelector('.aname').value.trim(), count: undots(tr.querySelector('.acount').value) ?? 0, max: tr.querySelector('.amax').checked })).filter((u) => u.name),
-  auto: { enabled: $('armyAutoOn').checked, minSec: $('armyMin').value, maxSec: $('armyMax').value, gapMinSec: $('armyGapMin').value, gapMaxSec: $('armyGapMax').value, repeat: $('armyRepeat').checked, roundMinSec: $('armyRoundMin').value, roundMaxSec: $('armyRoundMax').value, cooldownMinSec: $('armyCoolMin').value, cooldownMaxSec: $('armyCoolMax').value, maxPerHour: $('armyMaxHour').value, topUp: $('armyTopUp').checked, topUpTarget: undots($('armyTopTarget').value) ?? 0, topUpMaxRounds: $('armyTopRounds').value } });
+  auto: { enabled: $('armyAutoOn').checked, minSec: $('armyMin').value, maxSec: $('armyMax').value, gapMinSec: $('armyGapMin').value, gapMaxSec: $('armyGapMax').value, roundMinSec: $('armyRoundMin').value, roundMaxSec: $('armyRoundMax').value, cooldownMinSec: $('armyCoolMin').value, cooldownMaxSec: $('armyCoolMax').value, maxPerHour: $('armyMaxHour').value, topUp: $('armyTopUp').checked, topUpTarget: undots($('armyTopTarget').value) ?? 0 } });
 $('armyAdd').onclick = () => { $('armyUnits').appendChild(atkRow({ name: '', count: 0, max: false })); $('armyNone').hidden = true; markDirty(); };
 $('armyUnits').addEventListener('click', (e) => { const b = e.target.closest('.adel'); if (b) { b.closest('tr').remove(); markDirty(); } });
 function readAtk() {
@@ -90,7 +91,7 @@ function renderAutoArmy() {
   for (const cb of document.querySelectorAll('.autoarmy')) if (document.activeElement !== cb) cb.checked = on; // vypínače v záhlaví panelů
   const s = S.autoArmy;
   if (!s) return;
-  const label = { plan: 'naplánováno', sent: 'odesláno', skip: 'přeskočeno', fail: 'selhalo', rescued: 'je nad prahem', rescue: 'znovu pod prahem', verified: 'dohoz zabral', cancel: 'zrušeno', breaker: 'pojistka: vypnuto', done: 'dosáhl horní hranice', stall: 'dohoz nezabral', max: 'došel max počet dohozů' };
+  const label = { plan: 'naplánováno', sent: 'odesláno', skip: 'přeskočeno', fail: 'selhalo', rescued: 'je nad prahem', rescue: 'znovu pod prahem', verified: 'dohoz zabral', cancel: 'zrušeno', breaker: 'pojistka: vypnuto', done: 'dosáhl horní hranice', stall: 'dohoz nezabral', max: 'bezpečnostní strop kol' };
   const last = s.recent[s.recent.length - 1];
   const txt = `${on ? 'Zapnuto' : 'Vypnuto'}. Odesláno ${s.sent}×, přeskočeno ${s.skipped}×, selhalo ${s.failed}×.`
     + (s.topping?.length ? ` Dohazuje do horní hranice: ${s.topping.map((t) => `${esc(t.name)} (${t.phase === 'rescue' ? 'nad práh' : 'k hranici'} ${t.rounds}/${t.maxRounds}, cíl ${dots(t.target)})`).join(', ')}.` : '')
@@ -102,3 +103,17 @@ function renderAutoArmy() {
   const el = $('armyAutoStatus');
   if (el.dataset.t !== full) { el.dataset.t = full; el.innerHTML = full; }
 }
+
+/* ---------- Režim dohazování: jednou za pád / až do horní hranice (vzájemně se vylučují) ---------- */
+function setArmyMode(top) {
+  $('armyTopUp').checked = top;
+  for (const b of document.querySelectorAll('#armyModeSeg button')) b.classList.toggle('on', (b.dataset.m === 'top') === top);
+  $('armyTopBox').hidden = !top;
+  $('armyModeHint').textContent = top
+    ? 'Po každém dohození bot sleduje sílu hráče a dohazuje znovu, dokud hráč nepřekročí horní hranici.'
+    : 'Při každém pádu pod práh bot dohodí jednou. (Když hráč po dohození znovu klesne, dohodí se při dalším pádu.)';
+}
+$('armyModeSeg').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-m]');
+  if (b) { setArmyMode(b.dataset.m === 'top'); markDirty(); }
+});

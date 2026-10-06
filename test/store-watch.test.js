@@ -27,7 +27,7 @@ test('watch: režim rasy je nadřazený, výjimky hráče platí jen v all (watc
     races: { 1: { mode: 'all', threshold: 50 }, 2: { mode: 'selected', threshold: null }, 3: { mode: 'off', threshold: null } },
     players: { Vip: { watch: true, threshold: 999 }, Skip: { watch: false } },
   };
-  assert.deepEqual(resolveWatch(cfg, '1', 'A'), { watched: true, threshold: 50, critical: 0, overridden: false, ownThreshold: null });
+  assert.deepEqual(resolveWatch(cfg, '1', 'A'), { watched: true, threshold: 50, critical: 0, overridden: false, ownThreshold: null, ownTop: null });
   assert.equal(resolveWatch(cfg, '1', 'Skip').watched, false); // all: výjimka vypíná
   assert.equal(resolveWatch(cfg, '2', 'A').watched, false); // selected: bez výjimky se nehlídá
   assert.equal(resolveWatch(cfg, '2', 'Vip').watched, true); // selected: výjimka zapíná

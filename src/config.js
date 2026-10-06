@@ -202,6 +202,10 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
         if (p.threshold === null || p.threshold === '') delete rec.threshold;
         else if (Number.isFinite(Number(p.threshold)) && Number(p.threshold) >= 0) rec.threshold = Number(p.threshold);
       }
+      if ('topTarget' in p) { // vlastní horní hranice pro dohazování (prázdné = výchozí z Nastavení → Dohoz)
+        if (p.topTarget === null || p.topTarget === '') delete rec.topTarget;
+        else if (Number.isFinite(Number(p.topTarget)) && Number(p.topTarget) >= 0) rec.topTarget = Math.min(1e13, Math.floor(Number(p.topTarget)));
+      }
       if (Object.keys(rec).length) next.players[name] = rec; else delete next.players[name];
     }
   }

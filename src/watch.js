@@ -24,5 +24,6 @@ export function resolveWatch(cfg, raceId, name) {
     critical: criticalPct > 0 ? Math.round((threshold * criticalPct) / 100) : 0,
     overridden: explicit !== undefined,
     ownThreshold: p?.threshold ?? null,
+    ownTop: p?.topTarget ?? null, // vlastní horní hranice pro dohazování
   };
 }

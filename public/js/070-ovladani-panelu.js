@@ -194,6 +194,10 @@ $('board').addEventListener('change', (e) => {
     const v = undots(t.value);
     p.ownThreshold = v;
     savePartial({ players: { [name]: { threshold: v } } });
+  } else if (kind === 'tp') { // vlastní horní hranice pro auto-dohoz
+    const v = undots(t.value);
+    p.ownTop = v;
+    savePartial({ players: { [name]: { topTarget: v } } });
   }
 });
 

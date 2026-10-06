@@ -238,7 +238,10 @@ async function handleIngest(req) {
     db.recordAlert(now, a);
     console.log(`[alert] [${a.race}] ${a.name} ${a.prev} -> ${a.power} (${a.reason})`);
     if (notifyOn(cfg, a.reason)) sendText(cfg, formatAlert(a)); // fire-and-forget, chyby se logují v notifieru; vypnutý druh se jen zapíše do historie
-    if (!attack) autoArmy.onAlert(a, cfg.army.auto, now); // vlastní hráč pod prahem: sám dohodit po náhodné prodlevě (jen když je auto-dohoz zapnutý)
+    if (!attack) { // vlastní hráč pod prahem: horní hranici může mít nastavenou zvlášť u hráče
+      const own = cfg.players[a.name]?.topTarget;
+      autoArmy.onAlert(a, own != null ? { ...cfg.army.auto, topUpTarget: own } : cfg.army.auto, now);
+    } // vlastní hráč pod prahem: sám dohodit po náhodné prodlevě (jen když je auto-dohoz zapnutý)
   }
   pushState();
   return [200, { ok: true, alerts: alerts.length }];
