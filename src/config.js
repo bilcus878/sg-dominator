@@ -69,7 +69,7 @@ export const DEFAULTS = {
   session: { ...SESSION_DEFAULTS, notify: { ...SESSION_DEFAULTS.notify } }, // opětovné přihlášení po odhlášení ze hry (skript Přihlášení čte přes /session/config)
   op: { enabled: false, repeatSec: 10, vigilance: { ...VIGILANCE_DEFAULTS }, telescope: { ...TELESCOPE_DEFAULTS } }, // alert na tečky OP na mapě; repeatSec = připomínka, dokud svítí (0 = jen jednou); vigilance = automatické potvrzení tlačítka bdělosti po minSec až maxSec
   conquest: { ...CONQUEST_DEFAULTS }, // cizí rasy: k dobytí pod `below`, konec až nad `above`
-  recalc: { military: true, economic: true, showMilitary: true, showEconomic: true, econMinGrowthPct: 0.1, hideOlderDays: 0 }, // přepočty hráčů: co se sbírá (military = vynulování Dobyt, economic = odhad z růstu populace), co se ukazuje u jmen, citlivost a stáří
+  recalc: { shared: true, military: true, economic: true, showMilitary: true, showEconomic: true, econMinGrowthPct: 0.1, hideOlderDays: 0 }, // přepočty hráčů: co se sbírá (military = vynulování Dobyt, economic = odhad z růstu populace), co se ukazuje u jmen, citlivost a stáří
   watchdog: { enabled: true, staleSec: 30 }, // hlášení, že hlídaná rasa / mapa přestala dodávat data
   discord: { enabled: false, webhookUrl: '' },
   telegram: { enabled: false, botToken: '', chatId: '', serviceChatId: '' }, // serviceChatId = servisní chat pro systémové zprávy
@@ -328,7 +328,7 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
   }
   if (body.recalc && typeof body.recalc === 'object') {
     const r = { ...DEFAULTS.recalc, ...cur.recalc };
-    for (const k of ['military', 'economic', 'showMilitary', 'showEconomic']) if (k in body.recalc) r[k] = !!body.recalc[k];
+    for (const k of ['shared', 'military', 'economic', 'showMilitary', 'showEconomic']) if (k in body.recalc) r[k] = !!body.recalc[k];
     if ('econMinGrowthPct' in body.recalc) r.econMinGrowthPct = Math.min(5, Math.max(0.01, num(body.recalc.econMinGrowthPct, r.econMinGrowthPct)));
     if ('hideOlderDays' in body.recalc) r.hideOlderDays = Math.min(365, Math.round(num(body.recalc.hideOlderDays, r.hideOlderDays)));
     next.recalc = r;

@@ -22,6 +22,7 @@ import { createUnemp } from './unemp.js';
 import { createRecalc } from './recalc.js';
 import { createEcon } from './econ.js';
 import { createAutoArmy } from './autodohoz.js';
+import { mergeRecalc, mergeEcon, sharedFileName, buildShared, sameShared, readAllShared, writeShared } from './shared-data.js';
 import { DEFAULT_PROFILES, validName, buildProfile, mergeProfileConfig, sameContent, readProfile, writeProfile, listProfiles, cleanUi } from './profiles.js';
 import { mergeSeenUnits, sanitizeReport, sanitizeSeenUnits, unitsFor, ATTACK_TYPES } from './attack.js';
 
@@ -159,20 +160,21 @@ const playerRace = new Map(); // jméno -> raceId (pro přepočet prahů po změ
 // historie planet pro stavění (spokojenost, co už bylo postaveno) – mimo konfiguraci, může být velká
 // přepočty hráčů (vynulování „Dobyt“): hodina přepočtu se pamatuje i po restartu
 const RECALC_PATH = join(DATA_DIR, 'recalc.json');
-const recalc = createRecalc((() => { try { return JSON.parse(readFileSync(RECALC_PATH, 'utf8')); } catch { return {}; } })(), {
-  onChange: (rec) => {
-    try { mkdirSync(DATA_DIR, { recursive: true }); writeFileSync(`${RECALC_PATH}.tmp`, JSON.stringify(rec)); renameSync(`${RECALC_PATH}.tmp`, RECALC_PATH); }
-    catch (e) { console.error('přepočty se neuložily:', e.message); }
-  },
-});
+function saveRecalcFile(rec) {
+  try { mkdirSync(DATA_DIR, { recursive: true }); writeFileSync(`${RECALC_PATH}.tmp`, JSON.stringify(rec)); renameSync(`${RECALC_PATH}.tmp`, RECALC_PATH); }
+  catch (e) { console.error('přepočty se neuložily:', e.message); }
+}
+const recalcRec = (() => { try { return JSON.parse(readFileSync(RECALC_PATH, 'utf8')); } catch { return {}; } })(); // živý objekt (sdílí se s createRecalc; sloučení z cizích souborů ho mění na místě)
+const recalc = createRecalc(recalcRec, { onChange: (rec) => { saveRecalcFile(rec); sharedDirty = true; } });
 // ekonomický přepočet hráčů (odhad z růstu populace, online a přibytých planet z mateřských lodí), pamatuje se i po restartu
 const ECON_PATH = join(DATA_DIR, 'econ.json');
-const econ = createEcon((() => { try { return JSON.parse(readFileSync(ECON_PATH, 'utf8')); } catch { return {}; } })(), {
-  onChange: (rec) => {
-    try { mkdirSync(DATA_DIR, { recursive: true }); writeFileSync(`${ECON_PATH}.tmp`, JSON.stringify(rec)); renameSync(`${ECON_PATH}.tmp`, ECON_PATH); }
-    catch (e) { console.error('ekonomické přepočty se neuložily:', e.message); }
-  },
-});
+function saveEconFile(rec) {
+  try { mkdirSync(DATA_DIR, { recursive: true }); writeFileSync(`${ECON_PATH}.tmp`, JSON.stringify(rec)); renameSync(`${ECON_PATH}.tmp`, ECON_PATH); }
+  catch (e) { console.error('ekonomické přepočty se neuložily:', e.message); }
+}
+const econRec = (() => { try { return JSON.parse(readFileSync(ECON_PATH, 'utf8')); } catch { return {}; } })();
+const econ = createEcon(econRec, { onChange: (rec) => { saveEconFile(rec); sharedDirty = true; } });
+let sharedDirty = false; // vlastní data se změnila od posledního zápisu do sdíleného souboru
 const LEDGER_PATH = join(DATA_DIR, 'build-planets.json');
 const ledger = (() => {
   try { return { planets: JSON.parse(readFileSync(LEDGER_PATH, 'utf8')).planets ?? {} }; } catch { return { planets: {} }; }
@@ -480,7 +482,7 @@ function buildState() {
     vigilance: { count: vig.count, lastClickedAt: vig.clickedAt, pendingSince: vig.pending ? vig.seenAt : 0 },
     telescope: tele.snapshot(),
   };
-  return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState, autoArmy: { ...autoArmy.snapshot(now), rankPaused }, sound: cfg.sound, sendStatus: { ...sendStatus }, sessionLog: sessionLog.slice(0, 12), profile: { name: prof.name, uiRev: profRt.uiRev, conflict: profRt.conflict, syncedAt: prof.syncedAt, fileAt: profRt.fileAt }, recalcStats: { military: recalc.count(), economic: econ.count() } };
+  return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState, autoArmy: { ...autoArmy.snapshot(now), rankPaused }, sound: cfg.sound, sendStatus: { ...sendStatus }, sessionLog: sessionLog.slice(0, 12), profile: { name: prof.name, uiRev: profRt.uiRev, conflict: profRt.conflict, syncedAt: prof.syncedAt, fileAt: profRt.fileAt }, recalcStats: { military: recalc.count(), economic: econ.count() }, shared: sharedView() };
 }
 
 /** Hlídač výpadku: hlídané rasy a mapa (když je OP alert zapnutý) musí dodávat data. */
@@ -581,7 +583,36 @@ function profilePoll() {
 setTimeout(profilePoll, 1500);
 setInterval(profilePoll, 60_000);
 
+// ---------- sdílená data o přepočtech (profiles/data-<počítač>.json; každý počítač píše jen svůj soubor, čte všechny) ----------
+const HOST = process.env.SG_HOST || hostname();
+const SHARED_FILE = sharedFileName(HOST);
+const shared = { clearedAt: { military: 0, economic: 0 }, files: 0, mergedAt: 0, received: 0, error: '' };
+/** Sloučí data ze všech souborů do paměti a (když se něco změnilo) zapíše vlastní soubor. */
+function sharedSync() {
+  if (!cfg.recalc.shared) return;
+  try {
+    const files = readAllShared(PROFILES_DIR);
+    for (const f of files) for (const k of ['military', 'economic']) shared.clearedAt[k] = Math.max(shared.clearedAt[k], f.clearedAt?.[k] ?? 0); // náhrobky (nový věk) se šíří
+    const others = files.filter((f) => f.file !== SHARED_FILE);
+    const before = [Object.keys(recalcRec).length, Object.keys(econRec).length];
+    const now = Date.now();
+    const ch1 = mergeRecalc(recalcRec, files.map((f) => f.recalc), { clearedAt: shared.clearedAt.military, now });
+    const ch2 = mergeEcon(econRec, files.map((f) => f.econ), { clearedAt: shared.clearedAt.economic, now });
+    if (ch1) saveRecalcFile(recalcRec);
+    if (ch2) saveEconFile(econRec);
+    if (ch1 || ch2) { shared.received += Math.max(0, Object.keys(recalcRec).length - before[0]) + Math.max(0, Object.keys(econRec).length - before[1]); pushState(); }
+    const own = files.find((f) => f.file === SHARED_FILE);
+    const next = buildShared(HOST, recalcRec, econRec, shared.clearedAt, now);
+    if (!own || !sameShared(own, next)) { writeShared(PROFILES_DIR, SHARED_FILE, next); console.log(`[sdílení] uloženo profiles/${SHARED_FILE}${ch1 || ch2 ? ' (po sloučení s cizími daty)' : ''}`); }
+    shared.files = others.length + 1; shared.mergedAt = now; shared.error = ''; sharedDirty = false;
+  } catch (e) { shared.error = e.message; console.error('sdílení přepočtů selhalo:', e.message); }
+}
+function sharedView() { return { on: !!cfg.recalc.shared, files: shared.files, mergedAt: shared.mergedAt, received: shared.received, error: shared.error, file: SHARED_FILE }; }
+setTimeout(sharedSync, 3000);
+setInterval(sharedSync, 60_000); // po pullu z gitu se cizí data načtou do minuty; vlastní se zapisují jen při změně
+
 const routes = {
+  'POST /api/recalc/sync': async () => { sharedSync(); pushState(); return [200, sharedView()]; },
   'GET /api/profile': async () => [200, { ...profileView(), profiles: profileChoices() }],
   'PUT /api/profile': async (req) => {
     const b = await readJson(req);
@@ -733,8 +764,8 @@ const routes = {
     return [200, publicConfig(cfg)];
   },
   // smazání zachycených přepočtů (po novém věku nebo když se data rozladí); nastavení zůstává
-  'DELETE /api/recalc/military': async () => { recalc.clear(); pushState(); return [200, { ok: true }]; },
-  'DELETE /api/recalc/economic': async () => { econ.clear(); pushState(); return [200, { ok: true }]; },
+  'DELETE /api/recalc/military': async () => { recalc.clear(); shared.clearedAt.military = Date.now(); sharedSync(); pushState(); return [200, { ok: true }]; },
+  'DELETE /api/recalc/economic': async () => { econ.clear(); shared.clearedAt.economic = Date.now(); sharedSync(); pushState(); return [200, { ok: true }]; },
   'GET /api/state': async () => [200, buildState()],
   // nový věk: smaže rasy i výjimky u hráčů a zapomene načtená data; prahy a kanály zůstávají
   'DELETE /api/races': async () => {

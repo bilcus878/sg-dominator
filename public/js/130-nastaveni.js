@@ -90,22 +90,26 @@ $('loginClear').onclick = async () => {
 
 /** Přepočty hráčů (Nastavení → Data) */
 function fillRecalc(r) {
+  $('rcShared').checked = r.shared !== false;
   $('rcMil').checked = r.military !== false; $('rcEco').checked = r.economic !== false;
   $('rcShowMil').checked = r.showMilitary !== false; $('rcShowEco').checked = r.showEconomic !== false;
   $('rcMinGrowth').value = r.econMinGrowthPct ?? 0.1; $('rcHideDays').value = r.hideOlderDays ?? 0;
   renderRecalcStats();
 }
 function collectRecalc() {
-  return { military: $('rcMil').checked, economic: $('rcEco').checked, showMilitary: $('rcShowMil').checked, showEconomic: $('rcShowEco').checked, econMinGrowthPct: $('rcMinGrowth').value, hideOlderDays: $('rcHideDays').value };
+  return { shared: $('rcShared').checked, military: $('rcMil').checked, economic: $('rcEco').checked, showMilitary: $('rcShowMil').checked, showEconomic: $('rcShowEco').checked, econMinGrowthPct: $('rcMinGrowth').value, hideOlderDays: $('rcHideDays').value };
 }
 function renderRecalcStats() {
   const el = $('rcStats'); if (!el) return;
   const st = S?.recalcStats;
   el.textContent = st ? `Zachyceno: vojenské ⟳ u ${st.military} hráčů, ekonomické 💰 u ${st.economic} hráčů.` : '';
+  const sh = S?.shared, ss = $('rcSharedStatus');
+  if (ss) ss.textContent = !sh ? '' : sh.error ? 'Sdílení selhalo: ' + sh.error : !sh.on ? 'Sdílení je vypnuté.' : `Sdílení: ${sh.files} ${sh.files === 1 ? 'soubor' : sh.files < 5 ? 'soubory' : 'souborů'} (tento počítač + ${Math.max(0, sh.files - 1)} další), naposledy sloučeno ${sh.mergedAt ? new Date(sh.mergedAt).toLocaleTimeString('cs-CZ') : '–'}, od spuštění přijato ${sh.received} nových záznamů.`;
 }
+$('rcSync').onclick = async () => { try { await api('/api/recalc/sync', 'POST', {}); toast('Sloučeno'); refresh(); } catch (e) { toast(e.message, true); } };
 for (const [id, kind, label] of [['rcClearMil', 'military', 'vojenské'], ['rcClearEco', 'economic', 'ekonomické']]) {
   $(id).onclick = async () => {
-    if (!confirm('Vymazat všechny zachycené ' + label + ' přepočty? Začnou se sbírat znovu.')) return;
+    if (!confirm('Vymazat všechny zachycené ' + label + ' přepočty? Začnou se sbírat znovu.' + ($('rcShared').checked ? '\n\nSdílení je zapnuté: mazání se přenese i na ostatní počítače, až si stáhnou tvůj push.' : ''))) return;
     try { await api('/api/recalc/' + kind, 'DELETE'); toast('Vymazáno'); refresh(); } catch (e) { toast(e.message, true); }
   };
 }
