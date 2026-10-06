@@ -33,9 +33,9 @@
   /* denní změna planet ze hry: schovaná, dokud se nezapne tlačítkem ± v záhlaví Planety */
   th.pc { text-align:right; }
   /* planety: počet vpravo a hned za ním (po zapnutí ±) denní změna ze hry; krátká změna +1/−1 pod počtem */
-  .pcw { display:flex; justify-content:flex-end; align-items:flex-start; gap:8px; } .pnum { text-align:right; } .pnum .pv { display:block; line-height:20px; }
-  .pdd { display:none; font-size:11px; color:var(--mut); line-height:20px; min-width:30px; text-align:left; font-variant-numeric:tabular-nums; }
-  .rpanel.dday .pdd { display:block; } .pdd.plus { color:var(--ok); } .pdd.minus { color:var(--bad); }
+  .pcw { display:flex; justify-content:flex-end; align-items:flex-start; gap:0; } .pnum { text-align:right; } .pnum .pv { display:block; line-height:20px; }
+  .pdd { display:block; visibility:hidden; box-sizing:border-box; width:44px; padding-left:20px; font-size:11px; color:var(--mut); line-height:20px; text-align:center; font-variant-numeric:tabular-nums; }
+  .rpanel.dday .pdd { visibility:visible; } .pdd.plus { color:var(--ok); } .pdd.minus { color:var(--bad); }
   tr.off td:not(.c) { opacity:.45; }
   .below { color:var(--bad); font-weight:600; }
   /* změna jako ve hře: nárůst zeleně, ztráta červeně */
@@ -312,7 +312,8 @@
   .hw { display:flex; align-items:center; justify-content:flex-end; gap:4px; } .hw .hl { position:relative; } .hw .sarrow { position:absolute; left:100%; top:50%; transform:translateY(-50%); margin-left:3px; width:12px; text-align:center; } .hw .mini { margin:0 8px 0 0; text-transform:none; letter-spacing:0; }
   .rbody th.thname { padding-left:20px; } /* jména mají vlevo místo pro zelenou tečku online */
   .rbody th.thname .rwatch { text-transform:none; letter-spacing:0; font-weight:400; }
-  .rpanel.dday .rbody th.pc .hw { padding-right:38px; } /* když je vidět denní změna, počet planet se posune doleva, záhlaví s ním */
+  .ddslot { margin-left:-4px; flex:0 0 auto; width:44px; padding-left:20px; box-sizing:border-box; } .ddslot .mini { margin:0; display:block; width:24px; text-align:center; padding:0; } /* nad sloupcem denní změny; ten je vyhrazený vždy, nic se neposouvá */
+  .rbody td.pc, .rbody th.pc { padding-right:8px; }
   .rbody tbody tr:not(.below):hover td { background:rgba(255,255,255,.028); }
   .rbody td.n { padding-right:24px; } .rbody th.n { padding-right:24px; } /* vpravo je místo pro šipku řazení, která visí za textem záhlaví */
   /* ===== panel rasy v2: kompaktní hlavička, ať zbyde místo na hráče ===== */
@@ -912,7 +913,7 @@ function buildPanel(id) {
     </div>`}
     <div hidden><span class="rcount"></span><input type="checkbox" class="rbelow"><span class="rbelowtxt"></span></div>
     <div class="rbody"><table>
-      <thead><tr><th class="sortable thname" data-act="sort" data-key="name" title="Řadit podle jména"><span class="nlbl">Jméno <span class="sarrow"></span></span><input type="search" class="rfilter" placeholder="Hledat…" hidden><button type="button" class="mini srch" data-act="search" title="Hledat hráče (jméno)">🔍</button><span class="rwatch"></span></th>${isW ? '<th>Rasa</th>' : ''}<th class="n pc sortable" data-act="sort" data-key="planets" title="Řadit podle počtu planet. Získaná planeta zeleně +1, ztracená červeně −1 (30 s od poslední změny)"><div class="hw"><button type="button" class="mini ddbtn" data-act="dday" title="Ukázat u každého hráče, kolik planet získal nebo ztratil za den (údaj ze hry, jako ve hře)">±</button><span class="hl">Planety<span class="sarrow"></span></span></div></th><th class="n sortable" data-act="sort" data-key="power" title="Řadit podle síly"><div class="hw"><span class="hl">Síla<span class="sarrow"></span></span></div></th><th class="dcol" title="Druhy útoku jako ve hře: D dobývací, P partyzánský, Z, U univerzální, N orbitální, L loupežný, S špionážní, T otrokářský. Svítí = jde zahájit">Útok</th><th class="c hcol" title="Pošle hráči rasovou armádu (stránka Jednotky → Rasová armáda musí být otevřená a vyplněná)"></th><th class="c">Hlídat</th></tr></thead>
+      <thead><tr><th class="sortable thname" data-act="sort" data-key="name" title="Řadit podle jména"><span class="nlbl">Jméno <span class="sarrow"></span></span><input type="search" class="rfilter" placeholder="Hledat…" hidden><button type="button" class="mini srch" data-act="search" title="Hledat hráče (jméno)">🔍</button><span class="rwatch"></span></th>${isW ? '<th>Rasa</th>' : ''}<th class="n pc sortable" data-act="sort" data-key="planets" title="Řadit podle počtu planet. Získaná planeta zeleně +1, ztracená červeně −1 (30 s od poslední změny)"><div class="hw"><span class="hl">Planety<span class="sarrow"></span></span><span class="ddslot"><button type="button" class="mini ddbtn" data-act="dday" title="Ukázat u každého hráče, kolik planet získal nebo ztratil za den (údaj ze hry, jako ve hře)">±</button></span></div></th><th class="n sortable" data-act="sort" data-key="power" title="Řadit podle síly"><div class="hw"><span class="hl">Síla<span class="sarrow"></span></span></div></th><th class="dcol" title="Druhy útoku jako ve hře: D dobývací, P partyzánský, Z, U univerzální, N orbitální, L loupežný, S špionážní, T otrokářský. Svítí = jde zahájit">Útok</th><th class="c hcol" title="Pošle hráči rasovou armádu (stránka Jednotky → Rasová armáda musí být otevřená a vyplněná)"></th><th class="c">Hlídat</th></tr></thead>
       <tbody></tbody></table><div class="empty rempty"></div></div>
     <div class="rgrip e" data-dir="e" title="Táhni pro změnu šířky (dvojklik = výchozí)"></div>
     <div class="rgrip s" data-dir="s" title="Táhni pro změnu výšky (dvojklik = výchozí)"></div>
