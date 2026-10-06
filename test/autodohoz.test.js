@@ -887,3 +887,90 @@ test('snapshot: epizoda přednostního hráče je označená', () => {
   const t = Object.fromEntries(a.snapshot(0).topping.map((x) => [x.name, x.self]));
   assert.deepEqual(t, { 'Já': true, Eva: false });
 });
+
+
+// ---------- režim „nad práh“: dohazuje se, dokud hráč není nad prahem ----------
+const thrAlert = (name, threshold = 100, reason = 'threshold') => ({ name, reason, power: 1, threshold });
+const ONCE = { ...ON, minSec: 1, maxSec: 1, roundMinSec: 1, roundMaxSec: 1, gapMinSec: 0, gapMaxSec: 0, cooldownMinSec: 0, cooldownMaxSec: 0, topUp: false };
+
+test('nad práh: dohoz nestačil, dohazuje se znovu, dokud hráč není nad prahem, a pak se skončí', () => {
+  const state = { power: 0 };
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkTopIo(state, { boost: 40 }); // 0 -> 40 -> 80 -> 120 (práh 100)
+  io.threshold = () => 100;
+  a.onAlert(thrAlert('X', 100), ONCE, 0);
+  const ev = run(a, io, 0, 60_000);
+  assert.equal(io.sent.length, 3);
+  assert.equal(state.power, 120);
+  assert.ok(ev.some((e) => e.type === 'done' && e.notify), 'bylo potřeba víc dohozů -> zpráva');
+  assert.equal(a.snapshot(60_000).topping.length, 0);
+  assert.equal(run(a, io, 60_500, 90_000).length, 0); // dál nic
+});
+
+test('nad práh: stačil jeden dohoz -> jeden dohoz a žádná zpráva (běžná věc)', () => {
+  const state = { power: 60 };
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkTopIo(state, { boost: 200 });
+  io.threshold = () => 100;
+  a.onAlert(thrAlert('X', 100), ONCE, 0);
+  const ev = run(a, io, 0, 30_000);
+  assert.equal(io.sent.length, 1);
+  assert.equal(ev.filter((e) => e.notify).length, 0);
+  assert.equal(ev.some((e) => e.type === 'done'), true);
+});
+
+test('nad práh: dohoz nezabírá (síla nevzroste) -> konec se zprávou, neposílá se donekonečna', () => {
+  const state = { power: 60 };
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkTopIo(state, { boost: 0 });
+  io.threshold = () => 100;
+  a.onAlert(thrAlert('X', 100), ONCE, 0);
+  const ev = run(a, io, 0, 60_000);
+  assert.equal(io.sent.length, 1);
+  assert.ok(ev.some((e) => e.type === 'stall' && e.notify));
+});
+
+test('nad práh: cílem je práh právě toho hráče (každý jiný)', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkMulti({ Bob: 10, Eva: 10 }, { Bob: 50, Eva: 50 });
+  io.threshold = (n) => (n === 'Bob' ? 100 : 300);
+  a.onAlert(thrAlert('Bob', 100), ONCE, 0);
+  a.onAlert(thrAlert('Eva', 300), ONCE, 0);
+  run(a, io, 0, 120_000);
+  assert.ok(io.powers.Bob >= 100 && io.powers.Bob < 150, `Bob ${io.powers.Bob}`);
+  assert.ok(io.powers.Eva >= 300 && io.powers.Eva < 350, `Eva ${io.powers.Eva}`);
+});
+
+test('horní hranice pod prahem hráče se nebere: cíl je vždy aspoň práh', () => {
+  const state = { power: 10 };
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkTopIo(state, { boost: 30 });
+  io.threshold = () => 100;
+  a.onAlert(thrAlert('X', 100), { ...ONCE, topUp: true, topUpTarget: 50 }, 0); // nesmyslná hranice 50 < práh 100
+  run(a, io, 0, 60_000);
+  assert.ok(state.power >= 100, `síla ${state.power}`);
+});
+
+test('nad práh: alert bez známého prahu se chová jako jeden dohoz (nelze určit cíl)', () => {
+  const state = { power: 10 };
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkTopIo(state, { boost: 5 });
+  a.onAlert(alert('X'), ONCE, 0); // alert bez threshold
+  run(a, io, 0, 60_000);
+  assert.equal(io.sent.length, 1);
+});
+
+test('nad práh: přednostní dohoz (já) dohazuje rychle, dokud nejsem nad prahem', () => {
+  const state = { power: 0 };
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkTopIo(state, { boost: 40 });
+  io.threshold = () => 100;
+  const times = [];
+  const orig = io.request;
+  let now = 0;
+  io.request = (n) => { times.push(now); return orig(n); };
+  a.onAlert(thrAlert('Já', 100), { ...ME, ...ONCE, selfName: 'Já' }, 0);
+  for (now = 0; now <= 20_000; now += 50) a.tick(now, io);
+  assert.equal(io.sent.length, 3);
+  assert.ok(times.at(-1) < 3000, `hotovo za ${times.at(-1)} ms`);
+});

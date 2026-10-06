@@ -3,6 +3,9 @@
  * Dohodit (stejný jako tlačítko v aplikaci; stránku Rasová armáda vyplní a odešle skript). Náhodná prodleva a rozestup
  * mezi víc hráči mají zajistit, že to nevypadá jako stroj. Čistá logika bez I/O; skutečný požadavek dělá `io.request`.
  *
+ * Dohazuje se vždy, dokud hráč není NAD CÍLEM: v režimu „nad práh“ je cílem práh hráče (jeden dohoz často nestačí, např. jednotky přidají
+ * 30 mil. a práh je 100 mil.), v režimu topUp horní hranice. Stejný mechanismus (záchrana → případně k horní hranici) platí v obou režimech.
+ *
  * Dohazování až po horní hranici (topUp): jeden dohoz často nestačí (jednotky dají třeba 150 mil. a hráč potřebuje
  * dostat nad 700 mil.), proto bot po každém dohození sleduje sílu hráče v datech a když je pořád pod horní
  * hranicí a síla vzrostla, po náhodné prodlevě dohodí znovu. Sílu sleduje živě: další kolo naplánuje hned, jakmile se po
@@ -83,7 +86,7 @@ export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS } = 
   let queue = []; // [{ name, dueAt, firstDueAt, episode, cool, limit }]
   let lastDueAt = 0; // kdy byl naplánovaný poslední dohoz (kvůli rozestupu mezi hráči)
   const blockedUntil = new Map(); // jméno -> do kdy se po dohození znovu nezačíná dohazovat (náhodná doba z rozmezí cooldownMin–Max)
-  const episodes = new Map(); // jméno -> { phase: 'rescue'|'topup', target, maxRounds, rounds, minSec, maxSec, gapMinSec, gapMaxSec, cool, limit, startedAt } (jen při dohazování po horní hranici)
+  const episodes = new Map(); // jméno -> { phase: 'rescue'|'topup', target, quiet, maxRounds, rounds, minSec, maxSec, gapMinSec, gapMaxSec, cool, limit, startedAt } (jen při dohazování po horní hranici)
   const watch = new Map(); // jméno -> { sentAt, powerAtSend, reqId }: čeká se na výsledek a účinek posledního dohozu (i bez horní hranice)
   const sentTimes = []; // kdy se dohazovalo (pro hodinovou pojistku)
   const recent = []; // poslední události pro UI
@@ -104,6 +107,9 @@ export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS } = 
     return at;
   };
   const fmt = (n) => Math.round(n).toLocaleString('cs-CZ');
+  const doneText = (name, p, ep) => (ep.quiet
+    ? `✅ Auto-dohoz: ${name} je zpět nad prahem (síla ${fmt(p)}) po ${ep.rounds}. dohozu.`
+    : `✅ Auto-dohoz: ${name} je na ${fmt(p)} (nad hranicí ${fmt(ep.target)}) po ${ep.rounds}. dohozu.`);
   const hasRescue = () => [...episodes.values()].some((e) => e.phase === 'rescue'); // někdo je ještě pod prahem a čeká na záchranu
   const isTop = (q) => !!q.episode && q.episode.phase === 'topup';
   const norm = (s) => String(s ?? '').trim().toLowerCase();
@@ -132,13 +138,17 @@ export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS } = 
     if (deferred) { dueAt = until + Math.round(randRange(0, 1000)); lastDueAt = Math.max(lastDueAt, dueAt); }
     const cool = self ? [0, 0] : [auto.cooldownMinSec, auto.cooldownMaxSec];
     const limit = auto.maxPerHour ?? 60;
-    const topUp = auto.topUp && auto.topUpTarget > 0;
-    const episode = topUp
-      ? { phase: 'rescue', target: auto.topUpTarget, maxRounds, rounds: 0, minSec: self ? auto.selfRoundMinSec ?? 0.4 : auto.roundMinSec, maxSec: self ? auto.selfRoundMaxSec ?? 1.2 : auto.roundMaxSec, gapMinSec: auto.gapMinSec, gapMaxSec: auto.gapMaxSec, priority: self, cool, limit, startedAt: now }
+    // cíl dohazování: v režimu „až do horní hranice“ horní hranice, jinak práh hráče (dohazuje se, dokud hráč není nad prahem – jeden dohoz
+    // často nestačí). Cíl nikdy nebývá pod prahem hráče, jinak by se skončilo, ještě než je hráč nad prahem.
+    const topUp = !!auto.topUp && auto.topUpTarget > 0;
+    const thr = Number(alert.threshold);
+    const target = Math.max(topUp ? auto.topUpTarget : 0, Number.isFinite(thr) && thr > 0 ? thr : 0);
+    const episode = target > 0
+      ? { phase: 'rescue', target, quiet: !topUp, maxRounds, rounds: 0, minSec: self ? auto.selfRoundMinSec ?? 0.4 : auto.roundMinSec, maxSec: self ? auto.selfRoundMaxSec ?? 1.2 : auto.roundMaxSec, gapMinSec: auto.gapMinSec, gapMaxSec: auto.gapMaxSec, priority: self, cool, limit, startedAt: now }
       : null;
     if (episode) episodes.set(alert.name, episode);
     queue.push({ name: alert.name, dueAt, firstDueAt: dueAt, episode, cool, limit, priority: self });
-    note(now, 'plan', alert.name, `${self ? '⚡ ' : ''}za ${Math.round((dueAt - now) / 100) / 10} s${deferred ? ' (po pauze)' : ''}${episode ? `, pak do ${fmt(episode.target)}` : ''}`);
+    note(now, 'plan', alert.name, `${self ? '⚡ ' : ''}za ${Math.round((dueAt - now) / 100) / 10} s${deferred ? ' (po pauze)' : ''}${episode ? (topUp ? `, pak do ${fmt(episode.target)}` : ` (dohazuje se, dokud není nad ${fmt(episode.target)})`) : ''}`);
     return { scheduled: true, dueAt, deferred };
   }
 
@@ -189,7 +199,7 @@ export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS } = 
       const ref = ep ? ep.target : io.threshold?.(name) ?? 0;
       const gain = Math.max(1, Math.round(ref * GAIN_FRACTION));
       if (ep && p >= ep.target) {
-        endEpisode(name, now, 'done', `${fmt(p)} po ${ep.rounds}× dohozu`, events, true, `✅ Auto-dohoz: ${name} je na ${fmt(p)} (nad hranicí ${fmt(ep.target)}) po ${ep.rounds}. dohozu.`);
+        endEpisode(name, now, 'done', `${fmt(p)} po ${ep.rounds}× dohozu`, events, !(ep.quiet && ep.rounds <= 1), doneText(name, p, ep)); // jeden dohoz nad práh je běžná věc, zpráva až když bylo potřeba víc dohozů nebo šlo o horní hranici
       } else if (p > w.powerAtSend + gain) { // dohoz zabral
         if (!ep) { watch.delete(name); note(now, 'verified', name, `síla ${fmt(p)}`); continue; }
         if (ep.rounds >= ep.maxRounds) {
@@ -254,7 +264,7 @@ export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS } = 
         if (p == null) { noData(); continue; }
         if (p >= ep.target) {
           drop();
-          endEpisode(item.name, now, 'done', `${fmt(p)} po ${ep.rounds}× dohozu`, events, true, `✅ Auto-dohoz: ${item.name} je na ${fmt(p)} (nad hranicí ${fmt(ep.target)}) po ${ep.rounds}. dohozu.`);
+          endEpisode(item.name, now, 'done', `${fmt(p)} po ${ep.rounds}× dohozu`, events, !(ep.quiet && ep.rounds <= 1), doneText(item.name, p, ep));
           continue;
         }
       } else { // první dohoz: mezitím ho někdo dohodil / vyskočil nad práh / zmizela data

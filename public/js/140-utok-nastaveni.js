@@ -93,10 +93,10 @@ function renderAutoArmy() {
   for (const cb of document.querySelectorAll('.autoarmy')) if (document.activeElement !== cb) cb.checked = on; // vypínače v záhlaví panelů
   const s = S.autoArmy;
   if (!s) return;
-  const label = { plan: 'naplánováno', sent: 'odesláno', skip: 'přeskočeno', fail: 'selhalo', rescued: 'je nad prahem', rescue: 'znovu pod prahem', verified: 'dohoz zabral', cancel: 'zrušeno', breaker: 'pojistka: vypnuto', done: 'dosáhl horní hranice', stall: 'dohoz nezabral', max: 'bezpečnostní strop kol' };
+  const label = { plan: 'naplánováno', sent: 'odesláno', skip: 'přeskočeno', fail: 'selhalo', rescued: 'je nad prahem', rescue: 'znovu pod prahem', verified: 'dohoz zabral', cancel: 'zrušeno', breaker: 'pojistka: vypnuto', done: 'je nad cílem', stall: 'dohoz nezabral', max: 'bezpečnostní strop kol' };
   const last = s.recent[s.recent.length - 1];
   const txt = `${on ? 'Zapnuto' : 'Vypnuto'}. Odesláno ${s.sent}×, přeskočeno ${s.skipped}×, selhalo ${s.failed}×.`
-    + (s.topping?.length ? ` Dohazuje do horní hranice: ${s.topping.map((t) => `${esc(t.name)} (${t.phase === 'rescue' ? 'nad práh' : 'k hranici'} ${t.rounds}/${t.maxRounds}, cíl ${dots(t.target)})`).join(', ')}.` : '')
+    + (s.topping?.length ? ` Dohazuje se: ${s.topping.map((t) => `${esc(t.name)} (${t.phase === 'rescue' ? 'nad práh' : 'k hranici'}, ${t.rounds}. dohoz, cíl ${dots(t.target)})`).join(', ')}.` : '')
     + (s.pending.length ? ` Čeká: ${s.pending.map((p) => `${esc(p.name)} za ${Math.ceil(p.inMs / 1000)} s`).join(', ')}.` : '')
     + (last ? ` Naposledy: ${esc(last.name)} – ${label[last.type] ?? last.type}${last.text ? ` (${esc(last.text)})` : ''}.` : '');
   { // moje jméno v rase: našlo se v načtených datech? (nabídka jmen pro dopisování + stav)
@@ -123,7 +123,7 @@ function setArmyMode(top) {
   $('armyTopBox').hidden = !top;
   $('armyModeHint').textContent = top
     ? 'Po každém dohození bot sleduje sílu hráče a dohazuje znovu, dokud hráč nepřekročí horní hranici.'
-    : 'Při každém pádu pod práh bot dohodí jednou. (Když hráč po dohození znovu klesne, dohodí se při dalším pádu.)';
+    : 'Bot dohazuje, dokud hráč nepřekročí svůj práh (většinou stačí jeden dohoz), a pak skončí. Když hráč po dohození znovu klesne, začne se znovu.';
 }
 $('armyModeSeg').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-m]');

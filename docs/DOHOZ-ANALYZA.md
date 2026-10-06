@@ -83,7 +83,7 @@ neposouvají termíny. Ostatní pojistky (čerstvá data, ověřování, hodinov
 
 1. po pádu pod práh počkat · 2. odstup mezi hráči · 3. pauza mezi dohozy téhož hráče · 4. znovu začít dohazovat téhož hráče
 (vše jako náhodné rozmezí od–do v sekundách).
-**Kolikrát dohazovat** (vzájemně se vylučují): *Jednou za pád pod práh* nebo *Až do horní hranice* (bez omezení počtu dohozů).
+**Kolikrát dohazovat** (vzájemně se vylučují): *Nad práh* (dohazuje se, dokud hráč není nad svým prahem, většinou stačí jeden dohoz; když ne, pokračuje se) nebo *Až do horní hranice* (bez omezení počtu dohozů).
 Horní hranice je výchozí pro všechny hráče a u každého hráče jde nastavit zvlášť: v tabulce hráčů tlačítko ⚙ vedle jména otevře okno
 s dolním prahem (alert) i horní hranicí (dohoz), každé pole je popsané a má tlačítko „výchozí“.
 Pojistka: nejvíc dohozů za hodinu (výchozí 200).

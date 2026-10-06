@@ -142,7 +142,7 @@ function openPset(btn) {
   $('psTop').value = dots(p.ownTop); $('psTop').placeholder = gTop ? dots(gTop) : 'např. 750 000 000';
   $('psLowHelp').textContent = `Když síla hráče klesne pod toto číslo, přijde alert (a spustí se auto-dohoz). Prázdné = výchozí práh ${dots(defLow)}.`;
   $('psTopHelp').textContent = `Auto-dohoz dohazuje, dokud síla hráče nepřekročí toto číslo. Prázdné = výchozí ${gTop ? dots(gTop) : '(zatím nenastavená)'} z Nastavení → Dohoz.`
-    + (topMode ? '' : ' Pozor: auto-dohoz je teď v režimu „Jednou za pád“, horní hranice se použije až po přepnutí na „Až do horní hranice“.');
+    + (topMode ? '' : ' Pozor: auto-dohoz je teď v režimu „Nad práh“, horní hranice se použije až po přepnutí na „Až do horní hranice“.');
   $('psErr').textContent = '';
   const pop = $('psetPop'), rc = btn.getBoundingClientRect();
   pop.hidden = false;
