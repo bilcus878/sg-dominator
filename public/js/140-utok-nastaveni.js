@@ -73,16 +73,18 @@ document.querySelector('[data-tab="attack"]').addEventListener('click', loadAtkI
 
 
 /* ---------- Automatický dohoz: vypínač v hlavičce a stav ---------- */
-$('armyAuto').onchange = () => {
-  const on = $('armyAuto').checked;
+function setAutoArmy(on) { // společné pro vypínač v hlavičce, v záhlaví panelu a v nastavení
   cfg.army = { ...cfg.army, auto: { ...cfg.army.auto, enabled: on } };
+  $('armyAuto').checked = on;
   $('armyAutoOn').checked = on;
   renderAutoArmy();
   savePartial({ army: { auto: { enabled: on } } });
-};
+}
+$('armyAuto').onchange = () => setAutoArmy($('armyAuto').checked);
 function renderAutoArmy() {
   const on = !!cfg?.army?.auto?.enabled;
   $('armyTgl').classList.toggle('on', on);
+  for (const cb of document.querySelectorAll('.autoarmy')) if (document.activeElement !== cb) cb.checked = on; // vypínače v záhlaví panelů
   const s = S.autoArmy;
   if (!s) return;
   const label = { plan: 'naplánováno', sent: 'odesláno', skip: 'přeskočeno', fail: 'selhalo' };

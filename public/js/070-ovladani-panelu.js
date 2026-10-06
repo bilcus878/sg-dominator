@@ -153,6 +153,7 @@ $('board').addEventListener('focusin', (e) => { const inp = e.target.closest?.('
 $('board').addEventListener('change', (e) => {
   const t = e.target;
   const id = t.closest('.rpanel')?.dataset.p; if (!id) return;
+  if (t.classList.contains('autoarmy')) return setAutoArmy(t.checked); // vypínač auto-dohozu v záhlaví sloupce Dohodit
   if (t.classList.contains('rcrit')) {
     const r = raceOf(id); if (!r) return;
     const v = t.value === '' ? null : Number(t.value);

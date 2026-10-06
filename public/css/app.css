@@ -59,6 +59,10 @@
   .rpanel[data-role=defend] .dcol { display:none; }
   .rpanel[data-role=attack] .hcol { display:none; } /* dohodit jen naší rase */
   .rbody td.hcol { width:1%; white-space:nowrap; } .dohodit { padding:3px 9px; font-size:12px; }
+  .autoh { display:inline-flex; align-items:center; gap:6px; margin:0; cursor:pointer; color:var(--mut); font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; }
+  .autoh i { font-style:normal; } .autoh:hover { color:var(--fg); }
+  .autoh .sw { width:28px; height:16px; } .autoh .sw span::before { width:10px; height:10px; left:3px; top:3px; }
+  .autoh .sw input:checked + span::before { transform:translateX(12px); }
   /* hráč naší rasy pod prahem: celý řádek červeně (trvale), po pádu 10 s navíc pulzuje; tlačítko Dohodit svítí, ať je jasné, kam kliknout */
   tr.below td { background:rgba(214,31,31,.14); } tr.below td:first-child { box-shadow:inset 4px 0 0 var(--bad); }
   tr.below td.crit { background:rgba(255,107,107,.26); }
