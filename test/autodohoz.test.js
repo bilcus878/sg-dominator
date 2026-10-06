@@ -1033,3 +1033,20 @@ test('rychlá větev: když hráč mezitím vyskočil nad práh (výkyv dat), do
   const ev = a.tick(1000, io);
   assert.deepEqual(io.sent, []); assert.ok(ev.some((e) => e.type === 'skip'));
 });
+
+test('nový pád téhož hráče krátce po dohozu (útok ho srazí znovu) se dohodí znovu: 20s okno se týká jen potvrzení téhož pádu, ne nového pádu', () => {
+  const a = createAutoArmy({ rand: () => 0 });
+  const auto = { ...ON, minSec: 1.5, maxSec: 2, quietMinSec: 0, quietMaxSec: 0, cooldownMinSec: 1, cooldownMaxSec: 1 };
+  let power = 50; // pod prahem 100
+  const io = mkIo({ below: () => power < 100 }); io.power = () => power; io.threshold = () => 100; io.belowStreak = () => 2;
+  // 1. pád: rychlá větev naplánuje, tick pošle dohoz
+  assert.equal(a.onAlert(alert('X', 'threshold', { threshold: 100, early: true }), auto, 0).scheduled, true);
+  a.tick(1300, io); assert.deepEqual(io.sent, ['X']);
+  power = 500; a.tick(2000, io); // dohoz zabral: hráč je nad prahem, dohazování skončilo
+  // potvrzený alert z pravidel o stejném pádu se ignoruje
+  assert.equal(a.onAlert(alert('X', 'threshold', { threshold: 100 }), auto, 2500).why, 'early');
+  // 2. pád za 5 s (hráče srazil další útok): rychlá větev ho zachytí znovu a dohodí podruhé
+  power = 40;
+  assert.equal(a.onAlert(alert('X', 'threshold', { threshold: 100, early: true }), auto, 5000).scheduled, true);
+  a.tick(6400, io); assert.deepEqual(io.sent, ['X', 'X']);
+});
