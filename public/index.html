@@ -345,6 +345,17 @@
   <div class="d-foot"><button id="save">Uložit</button><button class="ghost" id="cancel">Zrušit</button><span class="muted" id="dirtyNote"></span></div>
 </aside>
 <div id="alarmBar" class="alarmbar" role="alert" hidden><span class="aicon">🚨</span><b id="alarmTxt"></b><button type="button" id="alarmStop">🔕 Ztlumit</button></div>
+<div class="pop" id="psetPop" role="dialog" aria-label="Nastavení hráče" hidden>
+  <div class="pop-h"><b id="psName"></b><span class="muted" id="psRace"></span></div>
+  <label for="psLow">↓ Dolní práh (alert)</label>
+  <div class="pop-row"><input id="psLow" type="text" inputmode="numeric" class="num" autocomplete="off"><button type="button" class="ghost mini" data-reset="low" title="Smazat vlastní hodnotu: bude platit výchozí">výchozí</button></div>
+  <small id="psLowHelp"></small>
+  <label for="psTop">↑ Horní hranice (auto-dohoz)</label>
+  <div class="pop-row"><input id="psTop" type="text" inputmode="numeric" class="num" autocomplete="off"><button type="button" class="ghost mini" data-reset="top" title="Smazat vlastní hodnotu: bude platit výchozí">výchozí</button></div>
+  <small id="psTopHelp"></small>
+  <div class="pop-err" id="psErr"></div>
+  <div class="pop-f"><button type="button" id="psSave">Uložit</button><button type="button" class="ghost" id="psClose">Zavřít</button></div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script src="/js/010-core.js"></script>

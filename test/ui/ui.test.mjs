@@ -144,3 +144,38 @@ test('staré údaje (10 s bez příjmu): tabulka ztlumená, okraj červený, LED
   await app.ingest(20, 'Bedrosian', ours);
   assert.ok(await b.waitFor(`document.querySelector('${P}').dataset.fresh === 'ok'`, 5000), 'panel se po návratu dat neoživil');
 });
+
+test('nastavení hráče: jedno tlačítko ⚙ otevře okno s dolním prahem i horní hranicí; validace, uložení, výchozí, zavření', { skip, timeout: 40_000 }, async () => {
+  const btn = `${P} tbody tr .pset`;
+  assert.equal(await b.eval(`document.querySelectorAll('${P} tbody tr:first-child .pset').length`), 1, 'u hráče je jediné tlačítko nastavení');
+  assert.equal(await b.eval(`document.querySelectorAll('${P} tbody tr:first-child .thv, ${P} tbody tr:first-child input.thin').length`), 0, 'staré odznaky pryč');
+  assert.match(await b.eval(`document.querySelector('${btn}').title`), /Dolní práh[\s\S]*Horní hranice/);
+  const name = await b.eval(`document.querySelector('${P} tbody tr .nm').textContent`);
+  await b.eval(`document.querySelector('${btn}').click(); 1`); await sleep(300);
+  assert.equal(await b.eval(`document.getElementById('psetPop').hidden`), false);
+  assert.equal(await b.eval(`document.getElementById('psName').textContent`), name);
+  assert.match(await b.eval(`document.getElementById('psLowHelp').textContent`), /pod toto číslo/);
+  assert.match(await b.eval(`document.getElementById('psTopHelp').textContent`), /nepřekročí/);
+  const set = (id, v) => b.eval(`(() => { const e = document.getElementById('${id}'); e.value = '${v}'; e.dispatchEvent(new Event('input', { bubbles: true })); })(); 1`);
+  await set('psLow', '200000000'); await set('psTop', '150000000'); // horní pod dolním: nejde uložit
+  await b.eval(`document.getElementById('psSave').click(); 1`); await sleep(300);
+  assert.match(await b.eval(`document.getElementById('psErr').textContent`), /musí být vyšší/);
+  assert.equal(await b.eval(`document.getElementById('psetPop').hidden`), false);
+  await set('psTop', '800000000');
+  await b.eval(`document.getElementById('psSave').click(); 1`); await sleep(900);
+  assert.equal(await b.eval(`document.getElementById('psetPop').hidden`), true);
+  const players = (await app.api('/api/config')).players;
+  assert.deepEqual(players[name], { threshold: 200_000_000, topTarget: 800_000_000 });
+  assert.match(await b.eval(`document.querySelector('${btn}').innerText`), /↓.*↑/); // vlastní hodnoty na tlačítku
+  await b.eval(`document.querySelector('${btn}').click(); 1`); await sleep(300); // znovu: předvyplněno, „výchozí“ vyprázdní pole
+  assert.equal(await b.eval(`document.getElementById('psTop').value.split('.').join('')`), '800000000');
+  await b.eval(`document.querySelector('[data-reset="low"]').click(); document.querySelector('[data-reset="top"]').click(); 1`);
+  assert.equal(await b.eval(`document.getElementById('psLow').value + document.getElementById('psTop').value`), '');
+  await b.eval(`document.getElementById('psetPop').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 1`); // Esc zavře bez uložení
+  assert.equal(await b.eval(`document.getElementById('psetPop').hidden`), true);
+  assert.equal((await app.api('/api/config')).players[name].topTarget, 800_000_000);
+  await b.eval(`document.querySelector('${btn}').click(); 1`); await sleep(300);
+  await set('psLow', ''); await set('psTop', '');
+  await b.eval(`document.getElementById('psSave').click(); 1`); await sleep(900);
+  assert.equal(name in (await app.api('/api/config')).players, false, 'vlastní hodnoty smazány');
+});

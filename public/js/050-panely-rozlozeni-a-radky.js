@@ -101,16 +101,16 @@ function makeRow(v, r, p) {
     <td class="c hcol"><button class="ghost dohodit" data-act="dohodit" title="Pošle hráči rasovou armádu">Dohodit</button></td>
     <td class="c"><label class="sw"><input type="checkbox"><span></span></label></td>`;
   const nameTd = tr.children[0];
-  nameTd.innerHTML = '<span class="on"></span><span class="nm"></span><span class="tg"></span><span class="thl"><span class="thv" title="Práh, pod který klesne síla = alert. Klikni a nastav hráči vlastní (prázdné = výchozí rasy)"></span><input type="text" inputmode="numeric" class="num thin" hidden></span><span class="thl tpl"><span class="thv" title="Horní hranice pro auto-dohoz: dohazuje se, dokud síla nepřekročí. Klikni a nastav hráči vlastní (prázdné = výchozí z Nastavení → Dohoz)"></span><input type="text" inputmode="numeric" class="num thin" hidden></span>';
+  nameTd.innerHTML = '<span class="on"></span><span class="nm"></span><span class="tg"></span><span class="thl"><button type="button" class="pset" aria-haspopup="dialog"><i class="pgear">⚙</i><b class="pa" hidden></b><b class="pb" hidden></b></button></span>';
   nameTd.querySelector('.nm').textContent = p.name;
   nameTd.addEventListener('click', (e) => { if (!e.target.closest('.thl')) copyName(p.name); });
   if (v.isW) tr.children[1].textContent = r.name;
-  const input = nameTd.querySelector('input.thin'), sw = tr.querySelector('.sw input'), tpin = nameTd.querySelector('.tpl input.thin');
-  for (const el of [input, sw, tpin]) { el.dataset.name = p.name; el.dataset.race = r.id; }
-  input.dataset.kind = 'th'; sw.dataset.kind = 'watch'; tpin.dataset.kind = 'tp';
+  const sw = tr.querySelector('.sw input'), pset = nameTd.querySelector('.pset');
+  for (const el of [sw, pset]) { el.dataset.name = p.name; el.dataset.race = r.id; }
+  sw.dataset.kind = 'watch';
   const cell = (td) => ({ td, v: td.querySelector('.pv'), d: td.querySelector('.pd'), dd: td.querySelector('.pdd') });
   const hb = tr.querySelector('.dohodit'); hb.dataset.name = p.name;
-  return { tr, hb, nm: nameTd.querySelector('.nm'), on: nameTd.querySelector('.on'), tag: nameTd.querySelector('.tg'), thl: nameTd.querySelector('.thl'), thv: nameTd.querySelector('.thv'), tpl: nameTd.querySelector('.tpl'), tpv: nameTd.querySelector('.tpl .thv'), tpin, atks: tr.querySelector('.atks'), planets: cell(tr.children[v.isW ? 2 : 1]), pw: cell(tr.children[v.isW ? 3 : 2]), power: tr.children[v.isW ? 3 : 2], input, sw };
+  return { tr, hb, nm: nameTd.querySelector('.nm'), on: nameTd.querySelector('.on'), tag: nameTd.querySelector('.tg'), thl: nameTd.querySelector('.thl'), pset, psa: pset.querySelector('.pa'), psb: pset.querySelector('.pb'), atks: tr.querySelector('.atks'), planets: cell(tr.children[v.isW ? 2 : 1]), pw: cell(tr.children[v.isW ? 3 : 2]), power: tr.children[v.isW ? 3 : 2], sw };
 }
 
 /** Dohodit: pošle hráči rasovou armádu přes skript na stránce Jednotky → Rasová armáda a počká na výsledek. */
@@ -356,23 +356,19 @@ function updatePanel(id) {
       tgt ? `K dobytí: pod ${dots((pr.conquest ?? cfg.conquest).below)}, konec nad ${dots((pr.conquest ?? cfg.conquest).above)}` : '',
     ].filter(Boolean).join('\n');
     row.tr.classList.toggle('off', !p.watched);
-    const own = p.ownThreshold != null;
-    const thTxt = own ? short(p.ownThreshold) : '✎'; // vlastní práh žlutě s číslem; výchozí jen nenápadná tužka (číslo je v bublině a při najetí) // jen číslo (např. 100 mil), vlastní práh žlutě, globální modře; vysvětlení je v bublině
-    if (row.thv.textContent !== thTxt) row.thv.textContent = thTxt;
-    row.thv.title = own ? `Vlastní práh ${dots(p.ownThreshold)} (výchozí rasy ${dots(p.threshold)}). Klikni pro úpravu, prázdné = výchozí` : `Práh ${dots(p.threshold)} (výchozí rasy). Klikni a nastav hráči vlastní`;
-    row.thl.classList.toggle('own', own);
-    { // horní hranice pro auto-dohoz: vlastní zeleně s číslem, jinak nenápadná šipka (výchozí je v bublině)
-      const ownTop = p.ownTop != null, gTop = cfg.army?.auto?.topUpTarget ?? 0;
-      const tTxt = ownTop ? `↑ ${short(p.ownTop)}` : '↑';
-      if (row.tpv.textContent !== tTxt) row.tpv.textContent = tTxt;
-      row.tpv.title = ownTop ? `Vlastní horní hranice ${dots(p.ownTop)}${gTop ? ` (výchozí ${dots(gTop)})` : ''}. Klikni pro úpravu, prázdné = výchozí` : `Horní hranice pro auto-dohoz: ${gTop ? `${dots(gTop)} (výchozí z Nastavení → Dohoz)` : 'není nastavená'}. Klikni a nastav hráči vlastní`;
-      row.tpl.classList.toggle('own', ownTop);
-      row.tpin.placeholder = gTop ? dots(gTop) : 'např. 750 000 000';
+    { // tlačítko nastavení hráče: ⚙; vlastní dolní práh žlutě (↓), vlastní horní hranice dohozu zeleně (↑); vše popsané v bublině
+      const ownLow = p.ownThreshold != null, ownTop = p.ownTop != null;
+      const gTop = cfg.army?.auto?.topUpTarget ?? 0, defLow = pr.threshold ?? cfg.threshold;
+      row.psa.hidden = !ownLow; row.psb.hidden = !ownTop;
+      const aTxt = ownLow ? `↓ ${short(p.ownThreshold)}` : '', bTxt = ownTop ? `↑ ${short(p.ownTop)}` : '';
+      if (row.psa.textContent !== aTxt) row.psa.textContent = aTxt;
+      if (row.psb.textContent !== bTxt) row.psb.textContent = bTxt;
+      row.pset.classList.toggle('custom', ownLow || ownTop);
+      row.pset.title = ['Nastavení hráče (klikni pro úpravu)',
+        `↓ Dolní práh (alert): ${ownLow ? `${dots(p.ownThreshold)} – vlastní` : `${dots(defLow)} – výchozí`}${ownLow ? ` (výchozí ${dots(defLow)})` : ''}`,
+        `↑ Horní hranice auto-dohozu: ${ownTop ? `${dots(p.ownTop)} – vlastní${gTop ? ` (výchozí ${dots(gTop)})` : ''}` : gTop ? `${dots(gTop)} – výchozí z Nastavení → Dohoz` : 'není nastavená'}`].join('\n');
     }
-    row.input.placeholder = dots(p.threshold);
     if (!pending) { // ovládací prvky se synchronizují jen když se nic neukládá a uživatel v nich nepíše
-      if (document.activeElement !== row.input && row.input.value !== dots(p.ownThreshold)) row.input.value = dots(p.ownThreshold);
-      if (document.activeElement !== row.tpin && row.tpin.value !== dots(p.ownTop)) row.tpin.value = dots(p.ownTop);
       if (row.sw.checked !== p.watched) row.sw.checked = p.watched;
     }
   });

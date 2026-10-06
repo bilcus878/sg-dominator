@@ -127,29 +127,66 @@ $('board').addEventListener('input', (e) => {
   else if (e.target.classList.contains('rbelow')) { ps(id).below = e.target.checked; saveUi(); updatePanel(id); }
 });
 
-function editThreshold(thl, on) {
-  const inp = thl.querySelector('input.thin'), txt = thl.querySelector('.thv');
-  inp.hidden = !on; txt.hidden = on;
-  if (on) { inp.focus(); inp.select(); }
+/* ---------- Nastavení hráče: dolní práh + horní hranice auto-dohozu v jednom rozbalovacím okně ---------- */
+let psCtx = null; // { raceId, name } hráče, kterého okno právě upravuje
+function closePset() { $('psetPop').hidden = true; psCtx = null; }
+function openPset(btn) {
+  const raceId = btn.dataset.race, name = btn.dataset.name;
+  const r = raceOf(raceId), p = r?.players.find((x) => x.name === name);
+  if (!p) return;
+  psCtx = { raceId, name };
+  const defLow = r.threshold ?? cfg.threshold, gTop = cfg.army?.auto?.topUpTarget ?? 0, topMode = !!cfg.army?.auto?.topUp;
+  $('psName').textContent = name;
+  $('psRace').textContent = r.name;
+  $('psLow').value = dots(p.ownThreshold); $('psLow').placeholder = dots(defLow);
+  $('psTop').value = dots(p.ownTop); $('psTop').placeholder = gTop ? dots(gTop) : 'např. 750 000 000';
+  $('psLowHelp').textContent = `Když síla hráče klesne pod toto číslo, přijde alert (a spustí se auto-dohoz). Prázdné = výchozí práh ${dots(defLow)}.`;
+  $('psTopHelp').textContent = `Auto-dohoz dohazuje, dokud síla hráče nepřekročí toto číslo. Prázdné = výchozí ${gTop ? dots(gTop) : '(zatím nenastavená)'} z Nastavení → Dohoz.`
+    + (topMode ? '' : ' Pozor: auto-dohoz je teď v režimu „Jednou za pád“, horní hranice se použije až po přepnutí na „Až do horní hranice“.');
+  $('psErr').textContent = '';
+  const pop = $('psetPop'), rc = btn.getBoundingClientRect();
+  pop.hidden = false;
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  pop.style.left = `${Math.max(8, Math.min(rc.left, innerWidth - w - 8))}px`;
+  pop.style.top = `${rc.bottom + 6 + h > innerHeight ? Math.max(8, rc.top - h - 6) : rc.bottom + 6}px`;
+  $('psLow').focus(); $('psLow').select();
+}
+function savePset() {
+  if (!psCtx) return;
+  const low = undots($('psLow').value), top = undots($('psTop').value);
+  const r = raceOf(psCtx.raceId), p = r?.players.find((x) => x.name === psCtx.name);
+  const effLow = low ?? (r?.threshold ?? cfg.threshold);
+  if (top != null && top <= effLow) { $('psErr').textContent = `Horní hranice musí být vyšší než dolní práh (${dots(effLow)}).`; $('psTop').focus(); return; }
+  if (p) { p.ownThreshold = low; p.ownTop = top; } // lokálně hned
+  savePartial({ players: { [psCtx.name]: { threshold: low, topTarget: top } } });
+  closePset();
+  renderBoard();
 }
 $('board').addEventListener('click', (e) => {
-  const txt = e.target.closest('.thv');
-  if (txt) { e.stopPropagation(); editThreshold(txt.closest('.thl'), true); }
+  const b = e.target.closest('.pset');
+  if (!b) return;
+  e.stopPropagation();
+  if (!$('psetPop').hidden && psCtx && psCtx.name === b.dataset.name && psCtx.raceId === b.dataset.race) closePset(); else openPset(b);
 });
+$('psetPop').addEventListener('click', (e) => {
+  const reset = e.target.closest('[data-reset]');
+  if (reset) { $(reset.dataset.reset === 'low' ? 'psLow' : 'psTop').value = ''; return; }
+  if (e.target.closest('#psSave')) savePset();
+  else if (e.target.closest('#psClose')) closePset();
+});
+$('psetPop').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); savePset(); }
+  else if (e.key === 'Escape') closePset();
+});
+document.addEventListener('pointerdown', (e) => { if (!$('psetPop').hidden && !e.target.closest('#psetPop') && !e.target.closest('.pset')) closePset(); });
+document.addEventListener('scroll', (e) => { if (!$('psetPop').hidden && !e.target.closest?.('#psetPop')) closePset(); }, true);
+window.addEventListener('resize', closePset);
 $('board').addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && e.target.classList?.contains('rfilter')) { // Esc: smazat hledání a zavřít pole
     const id = e.target.closest('.rpanel').dataset.p, st = ps(id);
     st.filter = ''; st.searchOpen = false; e.target.value = ''; saveUi(); updatePanel(id); return;
   }
-  const inp = e.target.closest?.('input.thin'); if (!inp) return;
-  if (e.key === 'Enter') inp.blur();
-  else if (e.key === 'Escape') { inp.value = inp.dataset.prev ?? ''; inp.blur(); }
 });
-$('board').addEventListener('focusout', (e) => {
-  const inp = e.target.closest?.('input.thin'); if (!inp) return;
-  editThreshold(inp.closest('.thl'), false);
-});
-$('board').addEventListener('focusin', (e) => { const inp = e.target.closest?.('input.thin'); if (inp) inp.dataset.prev = inp.value; });
 $('board').addEventListener('change', (e) => {
   const t = e.target;
   const id = t.closest('.rpanel')?.dataset.p; if (!id) return;
@@ -190,14 +227,6 @@ $('board').addEventListener('change', (e) => {
     p.watched = want; // lokálně hned
     p.overridden = want !== (r.mode === 'all');
     savePartial({ players: { [name]: { watch: want === (r.mode === 'all') ? null : want } } });
-  } else if (kind === 'th') {
-    const v = undots(t.value);
-    p.ownThreshold = v;
-    savePartial({ players: { [name]: { threshold: v } } });
-  } else if (kind === 'tp') { // vlastní horní hranice pro auto-dohoz
-    const v = undots(t.value);
-    p.ownTop = v;
-    savePartial({ players: { [name]: { topTarget: v } } });
   }
 });
 

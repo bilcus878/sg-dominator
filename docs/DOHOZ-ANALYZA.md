@@ -78,7 +78,8 @@ políčka `jed1…`, sloupec „V armádě“ sedí s tím, co skript očekává
 1. po pádu pod práh počkat · 2. odstup mezi hráči · 3. pauza mezi dohozy téhož hráče · 4. znovu začít dohazovat téhož hráče
 (vše jako náhodné rozmezí od–do v sekundách).
 **Kolikrát dohazovat** (vzájemně se vylučují): *Jednou za pád pod práh* nebo *Až do horní hranice* (bez omezení počtu dohozů).
-Horní hranice je výchozí pro všechny hráče a u každého hráče jde nastavit zvlášť (klik na ↑ vedle prahu pod jménem).
+Horní hranice je výchozí pro všechny hráče a u každého hráče jde nastavit zvlášť: v tabulce hráčů tlačítko ⚙ vedle jména otevře okno
+s dolním prahem (alert) i horní hranicí (dohoz), každé pole je popsané a má tlačítko „výchozí“.
 Pojistka: nejvíc dohozů za hodinu (výchozí 200).
 Vypínač je na třech místech (hlavička DOHOZ, záhlaví panelu AUTO, nastavení) a všechny jsou propojené. Při selhání
 dohozu svítí vypínač v hlavičce červeně.
