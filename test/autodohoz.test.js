@@ -1050,3 +1050,33 @@ test('nový pád téhož hráče krátce po dohozu (útok ho srazí znovu) se do
   assert.equal(a.onAlert(alert('X', 'threshold', { threshold: 100, early: true }), auto, 5000).scheduled, true);
   a.tick(6400, io); assert.deepEqual(io.sent, ['X', 'X']);
 });
+
+test('zastaralá stránka armády: dohoz bez účinku -> stránka se obnoví a dohodí se znovu; po obnovení zabere', () => {
+  const state = { power: 60 };
+  const a = createAutoArmy({ rand: () => 0 });
+  let stale = true; let reloads = 0;
+  const sent = [];
+  const io = {
+    sent, stillBelow: () => true, power: () => state.power,
+    reloadPage: () => { reloads++; stale = false; }, // obnovení stránky opraví formulář
+    request: (name) => { sent.push(name); if (!stale) state.power += 800; return { ok: true }; }, // zastaralý formulář nic nepřidá
+  };
+  a.onAlert(alert('X'), TOP, 0);
+  const ev = run(a, io, 0, 60_000);
+  assert.equal(reloads, 1, 'stránka se obnovila právě jednou');
+  assert.equal(sent.length, 2, 'první dohoz bez účinku, druhý po obnovení');
+  assert.ok(ev.some((e) => e.type === 'done'), 'nakonec je hráč nad cílem');
+  assert.ok(!ev.some((e) => e.type === 'stall' || e.type === 'fail'));
+});
+
+test('zastaralá stránka armády: obnovuje se jen jednou na dohazování; když ani pak nic, skončí varováním', () => {
+  const state = { power: 60 };
+  const a = createAutoArmy({ rand: () => 0 });
+  let reloads = 0;
+  const io = { sent: [], stillBelow: () => true, power: () => state.power, reloadPage: () => { reloads++; }, request: (n) => { io.sent.push(n); return { ok: true }; } };
+  a.onAlert(alert('X'), TOP, 0);
+  const ev = run(a, io, 0, 90_000);
+  assert.equal(reloads, 1);
+  assert.equal(io.sent.length, 2);
+  assert.ok(ev.some((e) => e.type === 'stall' && e.notify));
+});

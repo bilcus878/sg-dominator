@@ -92,6 +92,8 @@ const autoArmyIo = {
     const r = army.status().req;
     return r && r.id === id ? { status: r.status, error: r.error } : null;
   },
+  /** Dohoz nezabral: stránka Rasová armáda se nechá obnovit (po odhlášení/přihlášení bývá zastaralá). */
+  reloadPage() { army.requestReload(); console.log('[dohodit] nezabralo: obnovuji stránku Rasová armáda'); wakeArmy(); },
   request(name) {
     const r = army.request(name);
     if (r.ok) { console.log(`[dohodit] auto: ${name}`); wakeArmy(); }
@@ -641,11 +643,12 @@ const routes = {
   'POST /api/unemp/stop': async () => { unempSummary(unemp.stop()); return [200, unemp.snapshot()]; },
   'POST /army/poll': async (req) => {
     if (!authOk(req)) return [401, { error: 'bad token' }];
+    const inst = String((await readJson(req).catch(() => ({}))).inst ?? '').slice(0, 32); // která kopie stránky se ptá (po obnovení stránky se změní)
     const end = Date.now() + (new URL(req.url, 'http://x').searchParams.get('short') ? 0 : 1000);
     army.waitStart();
     try {
       for (;;) {
-        const r = army.poll();
+        const r = army.poll(Date.now(), inst);
         if (r.action === 'send' || Date.now() >= end) return [200, r];
         await armyWait(end - Date.now());
       }
@@ -654,7 +657,7 @@ const routes = {
   'POST /army/report': async (req) => {
     if (!authOk(req)) return [401, { error: 'bad token' }];
     const body = await readJson(req);
-    army.report({ id: Number(body.id), ok: !!body.ok, error: body.error });
+    army.report({ id: Number(body.id), ok: !!body.ok, error: body.error, retry: !!body.retry });
     wakeArmy();
     console.log(`[dohodit] ${body.ok ? 'odesláno' : `neodesláno: ${String(body.error ?? '').slice(0, 120)}`}`);
     return [200, { ok: true }];

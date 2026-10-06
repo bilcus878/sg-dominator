@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Stargate dominator – rasová armáda
 // @namespace    sg-dominator
-// @version      2.1.1
-// @description  Na pokyn z aplikace (tlačítko Dohodit) vepíše jméno hráče do „Odeslat hráči“ a klikne na Odeslat; pak se vrátí zpět a znovu vyplní počty jednotek podle nastavení v aplikaci (Nastavení → Dohoz).
+// @version      2.2.0
+// @description  Na pokyn z aplikace (tlačítko Dohodit) vepíše jméno hráče do „Odeslat hráči“ a klikne na Odeslat; pak se vrátí zpět a znovu vyplní počty jednotek podle nastavení v aplikaci (Nastavení → Dohoz). Před odesláním ověří, že formulář není po odhlášení/přihlášení zastaralý (jinak stránku nejdřív obnoví), a obnoví se i na pokyn aplikace.
 // @match        https://stargate-game.cz/jednotky.php*
 // @match        https://www.stargate-game.cz/jednotky.php*
 // @grant        GM_xmlhttpRequest
@@ -15,6 +15,7 @@
   const SERVER = '__SERVER__';
   const TOKEN = '__TOKEN__';
 
+  const INST = Math.random().toString(36).slice(2, 10); // identifikuje tuto kopii stránky (po obnovení se změní)
   const rnd = (a, b) => a + Math.random() * (b - a);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const BACK_KEY = 'sgd-army-back'; // po odeslání: ze stránky s výsledkem zpět v prohlížeči
@@ -60,6 +61,23 @@
 
   const strip = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
   const toNum = (t) => { const m = String(t ?? '').replace(/[\s\u00a0]/g, '').match(/\d+/); return m ? Number(m[0]) : null; };
+  /**
+   * Je formulář po odhlášení a novém přihlášení zastaralý? Skrytý token ve formuláři je platný jen v jedné relaci; po novém přihlášení
+   * zůstane otevřená stránka se starým tokenem a odeslání by hra tiše odmítla. Porovná se token ve stránce s čerstvě staženou kopií.
+   * @returns {Promise<'ok'|'stale'|'loggedout'>}
+   */
+  async function formState() {
+    const own = form.querySelector('input[name="token"]')?.value ?? null;
+    try {
+      const r = await fetch(location.href, { credentials: 'same-origin', cache: 'no-store' });
+      if (!r.ok) return 'ok'; // výpadek / údržba není důvod nic dělat
+      const doc = new DOMParser().parseFromString(new TextDecoder('windows-1250').decode(await r.arrayBuffer()), 'text/html');
+      const f2 = doc.getElementById('hrac_jmeno')?.form;
+      if (!f2) return 'loggedout'; // z čerstvé stránky zmizel formulář: odhlášeno (nebo jiná stránka)
+      const fresh = f2.querySelector('input[name="token"]')?.value ?? null;
+      return own && fresh && own !== fresh ? 'stale' : 'ok';
+    } catch { return 'ok'; }
+  }
   const unitInputs = () => [...form.querySelectorAll('input[type="text"][name^="jed"]')];
   function setValue(el, value) {
     const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value')?.set;
@@ -110,11 +128,13 @@
   let busy = false;
   async function tick() {
     if (busy) return;
-    const ins = await post('/army/poll?short=1', {}); // krátký dotaz: server odpoví hned (dlouhé držení spojení zdržovalo posílání dat ze hry)
+    const ins = await post('/army/poll?short=1', { inst: INST }); // krátký dotaz: server odpoví hned (dlouhé držení spojení zdržovalo posílání dat ze hry)
     if (!ins) { await sleep(1000); return; } // server nedostupný: chvíli počkat
+    if (ins?.action === 'reload') { location.reload(); await sleep(5_000); return; } // pokyn z aplikace: dohoz nezabral, stránka je nejspíš zastaralá
     if (ins?.action !== 'send' || !ins.name) return;
     busy = true;
     try {
+      const stateP = formState(); // není stránka zastaralá? zjišťuje se souběžně s vyplňováním, vyhodnotí se těsně před odesláním
       if (!filledUnits().length) await fillFromConfig(false); // nic nevyplněno: vyplníme podle nastavení
       if (!filledUnits().length) { await post('/army/report', { id: ins.id, ok: false, error: 'nejsou vyplněné žádné jednotky (nastav je v aplikaci: Nastavení → Dohoz)' }); return; }
       nameInput.focus();
@@ -122,6 +142,9 @@
       nameInput.dispatchEvent(new Event('input', { bubbles: true }));
       nameInput.dispatchEvent(new Event('change', { bubbles: true }));
       await sleep(rnd(50, 130));
+      const fs = await stateP;
+      if (fs === 'stale') { await post('/army/report', { id: ins.id, ok: false, retry: true, error: 'stránka byla zastaralá, obnovuji' }); location.reload(); await sleep(5_000); return; }
+      if (fs === 'loggedout') { await post('/army/report', { id: ins.id, ok: false, error: 'hra je odhlášená (stránka Rasová armáda se nenačetla)' }); return; }
       const btn = form.querySelector('#odeslat') || form.querySelector('input[type="image"], input[type="submit"], button[type="submit"]');
       if (!btn) { await post('/army/report', { id: ins.id, ok: false, error: 'tlačítko Odeslat nenalezeno' }); return; }
       await post('/army/report', { id: ins.id, ok: true, units: filledUnits().length });

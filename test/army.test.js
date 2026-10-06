@@ -50,3 +50,33 @@ test('dohodit: skript čekající dlouhým dotazováním = stránka je otevřen�
   assert.equal(a.status(61_500).pageLive, true, 'právě se ozval');
   assert.equal(a.status(70_000).pageLive, false, 'po skončení čekání a 5 s ticha už ne');
 });
+
+test('obnovení stránky: nový dohoz čeká na obnovení, obnovit se má jen ta kopie stránky, která se ozvala první; požadavek vrácený skriptem se vydá znovu', () => {
+  const a = createArmy();
+  a.poll(0, 'stara');
+  assert.deepEqual(a.poll(1, 'stara'), { action: 'none' });
+  a.requestReload(100);
+  assert.match(a.request('Bob', 150).error, /^Ještě se dohazuje/, 'během obnovení se nic nezadává');
+  assert.deepEqual(a.poll(200, 'stara'), { action: 'reload' });
+  assert.deepEqual(a.poll(300, 'stara'), { action: 'reload' }, 'stará kopie ještě nestihla přejít');
+  assert.deepEqual(a.poll(900, 'nova'), { action: 'none' }, 'nová kopie = stránka je obnovená');
+  const r = a.request('Bob', 1000);
+  assert.equal(r.ok, true);
+  assert.equal(a.poll(1100, 'nova').action, 'send');
+  a.report({ id: r.id, ok: false, retry: true, error: 'zastaralá' }); // skript stránku obnovuje
+  assert.equal(a.status(1200).req.status, 'pending');
+  assert.equal(a.poll(1300, 'nova2').action, 'send', 'po obnovení se vyzvedne znovu');
+  a.report({ id: r.id, ok: false, retry: true });
+  a.poll(1400, 'nova3');
+  a.report({ id: r.id, ok: false, retry: true });
+  assert.equal(a.status(1500).req.status, 'error', 'po třetím vrácení se to vzdá (žádná nekonečná smyčka)');
+});
+
+test('obnovení stránky: když se stránka nevrátí, žádost propadne a normální chyba „otevři stránku“ platí', () => {
+  const a = createArmy();
+  a.poll(0, 'x');
+  a.requestReload(0);
+  assert.equal(a.poll(100, 'x').action, 'reload');
+  assert.equal(a.request('Bob', 20_000).ok, false); // stránka se 20 s neozvala
+  assert.match(a.request('Bob', 20_000).error, /^Otevři ve hře/);
+});

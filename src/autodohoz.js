@@ -37,6 +37,7 @@ export const AUTO_ARMY_DEFAULTS = {
 const GIVE_UP_MS = 30_000; // tak dlouho se po termínu zkouší, když je dohoz zaneprázdněný / stránka armády se načítá / chybí čerstvá data
 const PAGE_ALERT_GAP_MS = 10 * 60_000; // „stránka není otevřená“ se hlásí nejvýš jednou za 10 minut
 const BELOW_REASONS = new Set(['threshold', 'critical']); // pád pod práh (propad nad prahem a návrat se nedohazují)
+const NOGAIN_MS = 4_000; // dohoz odeslán, ale síla nevzrostla: stránka armády je nejspíš zastaralá (po odhlášení/přihlášení) – obnovit ji a dohodit znovu
 const STALL_MS = 15_000; // pojistka: síla po dohození do téhle doby nevzrostla = dohoz nezabírá, přestat (běžně síla naskočí hned)
 const GAIN_FRACTION = 0.001; // „síla vzrostla“ = o víc než 0,1 % cíle (filtr drobného přirozeného kolísání)
 const HOUR_MS = 3_600_000;
@@ -94,6 +95,7 @@ export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS, sta
   let lastDueAt = 0; // kdy byl naplánovaný poslední dohoz (kvůli rozestupu mezi hráči)
   const blockedUntil = new Map(); // jméno -> do kdy se po dohození znovu nezačíná dohazovat (náhodná doba z rozmezí cooldownMin–Max)
   const episodes = new Map(); // jméno -> { phase: 'rescue'|'topup', target, quiet, maxRounds, rounds, minSec, maxSec, gapMinSec, gapMaxSec, cool, limit, startedAt } (jen při dohazování po horní hranici)
+  const reloadTried = new Set(); // hráči, u kterých se po nezabraném dohozu už obnovovala stránka armády (jednou na dohazování)
   const watch = new Map(); // jméno -> { sentAt, powerAtSend, reqId }: čeká se na výsledek a účinek posledního dohozu (i bez horní hranice)
   const sentTimes = []; // kdy se dohazovalo (pro hodinovou pojistku)
   const recent = []; // poslední události pro UI
@@ -172,6 +174,7 @@ export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS, sta
   /** Dohazování hráče skončilo (cíl, nezabírá, max kol, selhání): úklid a událost. */
   function endEpisode(name, now, type, text, events, notify = false, message = '') {
     episodes.delete(name);
+    reloadTried.delete(name);
     watch.delete(name);
     note(now, type, name, text);
     events.push({ type, name, notify, text: message });
@@ -218,6 +221,7 @@ export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS, sta
       if (ep && p >= ep.target) {
         endEpisode(name, now, 'done', `${fmt(p)} po ${ep.rounds}× dohozu`, events, !(ep.quiet && ep.rounds <= 1), doneText(name, p, ep)); // jeden dohoz nad práh je běžná věc, zpráva až když bylo potřeba víc dohozů nebo šlo o horní hranici
       } else if (p > w.powerAtSend + gain) { // dohoz zabral
+        reloadTried.delete(name);
         if (!ep) { watch.delete(name); note(now, 'verified', name, `síla ${fmt(p)}`); continue; }
         if (ep.rounds >= ep.maxRounds) {
           endEpisode(name, now, 'max', `bezpečnostní strop ${ep.maxRounds} dohozů, síla ${fmt(p)}`, events, true, `⚠️ Auto-dohoz: ${name} je po ${ep.rounds} dohozech jen na ${fmt(p)} (cíl ${fmt(ep.target)}), dohazování se z bezpečnostních důvodů zastavilo.`);
@@ -232,6 +236,15 @@ export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS, sta
         const dueAt = dueFor(now, ep);
         queue.push({ name, dueAt, firstDueAt: dueAt, episode: ep, cool: ep.cool, limit: ep.limit, priority: ep.priority });
         note(now, 'plan', name, `${ep.phase === 'rescue' ? 'nad práh' : 'k hranici'}: kolo ${ep.rounds + 1} za ${Math.round((dueAt - now) / 100) / 10} s (síla ${fmt(p)})`);
+      } else if (age > NOGAIN_MS && !reloadTried.has(name) && io.reloadPage) {
+        // nezabralo: nejdřív se stránka Rasová armáda obnoví a až potom se znovu vyplní jednotky a hráč a odešle (jednou)
+        reloadTried.add(name);
+        io.reloadPage();
+        watch.delete(name);
+        if (ep) ep.rounds = Math.max(0, ep.rounds - 1);
+        const dueAt = now + Math.round(randRange(600, 1200));
+        queue.push({ name, dueAt, firstDueAt: dueAt, episode: ep, cool: [0, 0], limit: ep?.limit, priority: true });
+        note(now, 'reload', name, `síla nevzrostla za ${Math.round(age / 100) / 10} s: obnovuji stránku armády a dohazuji znovu`);
       } else if (age > STALL_MS) {
         endEpisode(name, now, 'stall', `síla ${fmt(p)} nevzrostla`, events, true, `⚠️ Auto-dohoz: ${name} – po dohození síla nevzrostla (${fmt(p)}), dohazování končí. Zkontroluj armádu a stránku Rasová armáda.`);
       }
