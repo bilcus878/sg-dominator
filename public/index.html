@@ -323,6 +323,9 @@
   .rbarwrap { position:relative; }
   .rbar { display:flex; align-items:center; gap:6px 8px; padding:0 12px 8px; margin:0; flex-wrap:wrap; }
   .rpanel .rbar input[type=search] { flex:1 1 110px; min-width:80px; max-width:200px; padding:4px 9px; font-size:13px; }
+  .rname { font-size:17px; font-weight:800; letter-spacing:.01em; } .rpanel[data-role=defend] .rname { color:var(--acc); text-shadow:0 0 14px rgba(224,184,76,.35); } .rpanel[data-role=attack] .rname { color:#9cc4ff; text-shadow:0 0 14px rgba(120,170,255,.3); }
+  .rage { font-size:11px; padding:0 8px; border-radius:99px; border:1px solid var(--line); color:var(--mut); font-variant-numeric:tabular-nums; min-width:46px; text-align:center; line-height:17px; } .rage.ok { color:var(--ok); border-color:#2c5a46; } .rage.warn { color:var(--acc); border-color:#6b5518; } .rage.bad { color:var(--bad); border-color:#6a3030; }
+  .rwatch { padding:0 8px; border-radius:99px; border:1px solid var(--line); line-height:17px; }
   .rbar .rcount { display:none; } .rbar .rwatch { font-size:12px; white-space:nowrap; }
   .chip { border:1px solid var(--line); border-radius:99px; background:var(--card2); padding:2px 10px; font-size:12px; color:var(--mut); white-space:nowrap; cursor:pointer; line-height:1.6; }
   label.chk.chip { display:inline-flex; gap:0; margin:0; } label.chk.chip input { display:none; }
@@ -332,7 +335,6 @@
   .rbody { max-height:max(220px, calc(100vh - 150px)); }
   @container rp (max-width: 700px) { .rmode button:not(.on) .mt { display:none; } .rinfo { display:none; } }
   @container rp (max-width: 600px) { .rmode button .mt { display:none; } .rmode button { padding:3px 8px; } .rrole .rt { display:none; } .rhead { gap:7px; } }
-  @container rp (max-width: 560px) { .rwatch { display:none; } }
 
   /* ===== zvukový poplach ===== */
   .sndwrap .ntmenu { width:340px; } .sndwrap #sndBtn.on { color:var(--fg); } .sndwrap #sndBtn .mute { display:none; } .sndwrap #sndBtn.off .mute { display:block; } .sndwrap #sndBtn.off .w1, .sndwrap #sndBtn.off .w2 { display:none; }
@@ -377,7 +379,7 @@
   .optgl { display:inline-flex; align-items:center; gap:8px; height:34px; padding:0 13px 0 9px; margin:0; background:var(--card2); border:1px solid var(--line); border-radius:9px; color:var(--mut); font-size:13px; cursor:pointer; user-select:none; }
   .optgl b { font-weight:700; letter-spacing:.03em; } .optgl.on { color:var(--fg); border-color:#2c5a46; } .optgl:hover { border-color:#3a4358; }
   .dstat { background:none; border:0; padding:0; gap:6px; margin-left:4px; }
-  .dstat::before { content:"DATA"; font-size:10px; letter-spacing:.12em; color:var(--mut); font-weight:700; margin-right:2px; }
+  .dstat::before { display:none; } .dstat:empty { display:none; }
   .dstat .dh { display:none; } .dstat.bad::before { color:var(--bad); } .dstat.ok::before { color:var(--ok); }
   .dsrc { background:var(--card2); height:26px; }
   #opDots:empty { display:none; }
@@ -779,13 +781,7 @@ function dataItem(label, at, extra = {}) {
 function renderData() {
   const box = $('dstat');
   if (!S.races) return;
-  const ids = (panels?.length ? panels : S.races.filter((r) => r.mode !== 'off').map((r) => r.id)).filter((id) => id !== WATCHED);
-  const items = [];
-  for (const id of ids) {
-    const r = S.races.find((x) => x.id === id);
-    if (!r) continue;
-    items.push(dataItem(r.name, r.at, { tip: `${r.name}: ${r.sources} ${r.sources === 1 ? 'okno' : 'oken'} se stránkou hráčů, ${(r.rate ?? 0).toFixed(1).replace('.', ',')} příjmů/s. Stáří = od posledních přijatých dat. Zelená do 3 s; když je červená, stránka této rasy ve hře není otevřená a viditelná (ne na pozadí).` }));
-  }
+  const items = []; // data ras jsou u názvu každého panelu (stáří v s); tady jen OP a to jen když je zapnuté
   const op = S.op;
   if (op && (op.enabled || op.dots.length)) {
     const n = op.dots.length;
@@ -793,11 +789,24 @@ function renderData() {
   }
   const bad = items.some((i) => i.cls === 'bad'), warn = items.some((i) => i.cls === 'warn');
   box.className = 'dstat ' + (bad ? 'bad' : warn ? '' : items.length ? 'ok' : '');
-  const head = !items.length ? 'Žádný sledovaný zdroj' : bad ? 'Pozor, chybí data' : warn ? 'Data zpožděná' : 'Data přicházejí';
-  const html = `<span class="dh">${head}:</span>` + items.map((i) => i.html).join('');
+  const html = items.length ? items.map((i) => i.html).join('') : '';
   if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
 }
-setInterval(() => { if (S.serverTime) renderData(); }, 250);
+/** Stáří dat u názvu každého panelu rasy: přepočítává se čtyřikrát za vteřinu (zelená do 3 s, žlutá do 10 s, červená dál). */
+function tickAges() {
+  if (!S.serverTime) return;
+  for (const [id, v] of view) {
+    if (v.isW) { v.age.hidden = true; continue; }
+    const r = raceOf(id), age = r?.at ? dAge(r.at) : null;
+    const cls = age == null ? '' : age < 3000 ? 'ok' : age < 10_000 ? 'warn' : 'bad';
+    const txt = age == null ? 'bez dat' : age >= 10_000 ? 'bez dat ' + dSec(age) : dSec(age);
+    if (v.age.dataset.c !== cls) { v.age.dataset.c = cls; v.age.className = 'rage ' + cls; }
+    if (v.age.textContent !== txt) v.age.textContent = txt;
+    const dot = 'dot' + (age == null ? '' : age < 3000 ? ' live' : ' stale');
+    if (v.dot.className !== dot) v.dot.className = dot;
+  }
+}
+setInterval(() => { if (S.serverTime) { renderData(); tickAges(); } }, 250);
 $('dstat').addEventListener('click', (e) => { if (e.target.closest('[data-go=op]')) { openDrawer(); document.querySelector('[data-tab="op"]').click(); } });
 
 /* ---------- nástěnka: každá rasa = vlastní panel ---------- */
@@ -859,7 +868,7 @@ function buildPanel(id) {
   root.innerHTML = `
     <div class="rhead">
       <span class="dot"></span>
-      <div class="rtitle"><b class="rname"></b><span class="muted rinfo"></span><span class="rwatch"></span></div>
+      <div class="rtitle"><b class="rname"></b><span class="rage" title="Jak čerstvá jsou data z hry (zelená do 3 s)"></span><span class="rwatch"></span><span class="muted rinfo" hidden></span></div>
       <span class="rfsum"></span>
       ${isW ? '' : `<div class="rmode" role="group" aria-label="Co hlídat">
         ${modeBtn.map(([m, ic, t]) => `<button data-act="mode" data-mode="${m}" title="${modeHint[m]}"><span class="mi">${ic}</span><span class="mt">${t}</span></button>`).join('')}
@@ -889,7 +898,7 @@ function buildPanel(id) {
     <div class="rgrip s" data-dir="s" title="Táhni pro změnu výšky (dvojklik = výchozí)"></div>
     <div class="rgrip se" data-dir="se" title="Táhni pro změnu velikosti (dvojklik = výchozí)"></div>`;
   const q = (s) => root.querySelector(s);
-  const v = { root, isW, rows: new Map(), body: q('.rbody'), fsum: q('.rfsum'), foldBtn: q('[data-act=fold]'), dot: q('.dot'), name: q('.rname'), info: q('.rinfo'), th: q('.rth'), crit: q('.rcrit'),
+  const v = { root, isW, rows: new Map(), body: q('.rbody'), fsum: q('.rfsum'), foldBtn: q('[data-act=fold]'), dot: q('.dot'), name: q('.rname'), age: q('.rage'), info: q('.rinfo'), th: q('.rth'), crit: q('.rcrit'),
     watchTxt: q('.rwatch'), cfgBtn: q('.rcfgbtn'), cfgBox: q('.rcfg'), roleBtn: q('.rrole'), belowTxt: q('.rbelowtxt'),
     filter: q('.rfilter'), searchBtn: q('.srch'), nameLbl: q('.nlbl'), below: q('.rbelow'), count: q('.rcount'), tbody: q('tbody'), empty: q('.rempty'), sortHeads: [...root.querySelectorAll('th[data-act=sort]')], ddBtn: q('.ddbtn') };
   v.filter.value = ps(id).filter;
@@ -1033,9 +1042,10 @@ function updatePanel(id) {
 
     const total = r ? r.players.length : 0;
     const w = r ? r.players.filter((p) => p.watched).length : 0;
-    v.watchTxt.innerHTML = mode === 'off' ? '· nic se nehlídá'
-      : mode === 'selected' && !w ? '· zapni hráče vpravo'
-      : `· hlídá <b>${w}</b>/${total}${attack ? ` · 🎯 <b>${r.players.filter((p) => p.target).length}</b>` : ''}`;
+    v.watchTxt.innerHTML = mode === 'off' ? 'nehlídá se'
+      : mode === 'selected' && !w ? 'zapni hráče vpravo'
+      : `<b>${w}</b>/${total}${attack && r.players.some((p) => p.target) ? ` · 🎯 <b>${r.players.filter((p) => p.target).length}</b>` : ''}`;
+    v.watchTxt.title = mode === 'off' ? 'Nic se nehlídá' : `Hlídá se ${w} z ${total} hráčů${attack ? `, k dobytí ${r.players.filter((p) => p.target).length}` : ''}`;
     const th = r?.threshold ?? cfg.threshold;
     const pct = r?.criticalPct ?? cfg.criticalPct;
     v.cfgBtn.textContent = attack ? `⚙ 🎯 <${short(cfg.conquest.below)} / >${short(cfg.conquest.above)}` : `⚙ ${short(th)}${pct ? ` · 🆘${pct}%` : ''}`;
@@ -1626,7 +1636,7 @@ ntMenu.addEventListener('change', (e) => {
 $('notifyMaster').onchange = () => { cfg.notify = $('notifyMaster').checked; ntMenu.classList.toggle('chatoff', !cfg.notify); renderBell(); savePartial({ notify: $('notifyMaster').checked }); };
 
 function render() {
-  renderData(); renderBoard(); renderAlerts(); renderOp(); checkAlarms();
+  renderData(); renderBoard(); tickAges(); renderAlerts(); renderOp(); checkAlarms();
 }
 // živý stav: server ho posílá sám hned po příjmu dat (SSE); dotazování po vteřině jen jako záloha, když proud nejde
 let lastPush = 0, renderQueued = false;
