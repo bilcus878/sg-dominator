@@ -510,9 +510,10 @@
   .rbody thead th[aria-sort=ascending] .sarrow, .rbody thead th[aria-sort=descending] .sarrow { color:var(--acc); }
 
   /* ===== jméno ve dvou řádcích: nahoře jméno (menší), pod ním přepočty (⟳, 💰) a ⚙ nastavení hráče; řádky jsou vyšší ===== */
-  td.pname .nl1 { display:flex; align-items:center; white-space:nowrap; padding-top:21px; } /* stejně vysoká „zátěž“ nad jménem jako řádek pod ním (18 + 3 px): jméno je přesně uprostřed řádku, na úrovni tlačítka Dohodit */
-  td.pname .nl2 { display:flex; align-items:center; gap:9px; margin-top:3px; padding-left:13px; min-height:18px; white-space:nowrap; font-size:11px; color:var(--mut); }
+  td.pname .nl1 { display:flex; align-items:center; white-space:nowrap; } /* jméno je jediný obsah buňky v toku, proto je vždy přesně uprostřed řádku (jako čísla a tlačítko Dohodit) */
+  td.pname .nl2 { display:flex; align-items:center; gap:9px; height:14px; margin:0 0 -14px; line-height:14px; padding-left:13px; white-space:nowrap; font-size:calc(var(--tfs) * .74); color:var(--mut); } /* přepočty a ⚙ visí pod jménem a řádek nezvětšují (záporný spodní okraj) */
   td.pname .nl2 .rcl, td.pname .nl2 .ecl { margin:0; } td.pname .nl2 .thl { margin:0; }
-  .rpanel td.pname .nm { font-size:calc(var(--tfs) * .9); }
-  .rpanel .rbody tbody tr { height:calc(var(--tfs) * 3.5); }
+  .rpanel td.pname .nm { font-size:var(--tfs); }
+  .rpanel .rbody tbody tr { height:calc(var(--tfs) * 3.3); }
+  .rpanel .rbody thead th { font-size:calc(var(--tfs) * .8); }
   .rpanel .pset { padding:0 6px; font-size:12px; }
