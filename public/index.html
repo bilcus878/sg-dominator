@@ -107,6 +107,13 @@
           <div class="bpreview" id="bPreview"></div>
         </div>
         <div class="card">
+          <div class="card-head"><h2>👥 Nezaměstnaní</h2></div>
+          <p class="muted" style="margin-top:0">Doplní nezaměstnané na planety, kterým chybí lidé (červená čísla v Obchod → Nezaměstnaní): seřadí seznam, otevře poslední planetu, klikne na Přesunout a vrátí se zpět – dokud někde chybí lidé. Když dojdou nezaměstnaní („zbývá“ 0 nebo nestačí na celou planetu), skončí. Potřebuje otevřenou stránku <b>Obchod → Nezaměstnaní</b> a skript Nezaměstnaní.</p>
+          <div class="brun"><button id="uStart">▶ Doplnit nezaměstnané</button><button class="ghost" id="uStop">■ Zastavit</button></div>
+          <div class="muted" id="uState" style="margin-top:6px">nečinné</div>
+          <div class="muted" id="uLog" style="margin-top:6px;max-height:160px;overflow:auto;font-size:12px"></div>
+        </div>
+        <div class="card">
           <div class="card-head"><h2>Chování</h2></div>
           <div class="bopt"><div><b>Tempo</b><small>Rychlejší = méně pauz, ale víc to vypadá jako stroj.</small></div>
             <div class="seg" id="bPace"><button data-v="0.4">turbo</button><button data-v="0.7">rychlé</button><button data-v="1">normální</button><button data-v="1.6">pomalé</button></div></div>
@@ -397,5 +404,6 @@
 <script src="/js/150-skripty-tampermonkey.js"></script>
 <script src="/js/160-navigace.js"></script>
 <script src="/js/170-staveni.js"></script>
+<script src="/js/180-nezamestnani.js"></script>
 </body>
 </html>

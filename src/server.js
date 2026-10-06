@@ -16,6 +16,7 @@ import { BUILDINGS, createBuildRun } from './build.js';
 import { createTelescope } from './telescope.js';
 import { createConquest, CONQUEST_DEFAULTS } from './conquest.js';
 import { createArmy } from './army.js';
+import { createUnemp } from './unemp.js';
 import { createAutoArmy } from './autodohoz.js';
 import { mergeSeenUnits, sanitizeReport, sanitizeSeenUnits, unitsFor, ATTACK_TYPES } from './attack.js';
 
@@ -429,6 +430,10 @@ function watchdogTick(now = Date.now()) {
   }
 }
 setInterval(watchdogTick, 5000);
+// doplnění nezaměstnaných na planety (Obchod → Nezaměstnaní); zprávy jen do servisního chatu
+const unemp = createUnemp();
+const unempSummary = (s) => { if (s) { console.log(`[nezaměstnaní] ${s}`); sendService(cfg, s); } };
+setInterval(() => unempSummary(unemp.staleCheck()), 10_000);
 setInterval(() => { if (build.staleCheck()) { console.log('[stavění] skript přestal hlásit'); sendService(cfg, '⚠️ Stavění: skript přestal hlásit (zavřená karta nebo odhlášení?)'); } }, 10_000);
 
 /** Hlášení ze stránky stavby.php -> instrukce, co dělat dál. */
@@ -477,6 +482,15 @@ const routes = {
   },
   // skript se ptá, jestli má něco odeslat. ?short=1 (skript 2.1.1+) odpoví hned; bez něj (starší skript 2.1.0 ve smyčce) server počká max 1 s na pokyn,
   // aby smyčka nebyla horká. Dlouhé držení spojení (20 s) zdržovalo ostatní dotazy z prohlížeče, hlavně posílání dat ze hry.
+  'POST /unemp/report': async (req) => {
+    if (!authOk(req)) return [401, { error: 'bad token' }];
+    const r = unemp.report(await readJson(req));
+    unempSummary(r.summary);
+    return [200, { action: r.action, name: r.name }];
+  },
+  'GET /api/unemp': async () => [200, unemp.snapshot()],
+  'POST /api/unemp/start': async () => { unemp.start(); return [200, unemp.snapshot()]; },
+  'POST /api/unemp/stop': async () => { unempSummary(unemp.stop()); return [200, unemp.snapshot()]; },
   'POST /army/poll': async (req) => {
     if (!authOk(req)) return [401, { error: 'bad token' }];
     const end = Date.now() + (new URL(req.url, 'http://x').searchParams.get('short') ? 0 : 1000);
@@ -610,7 +624,7 @@ button.ghost{background:transparent;color:#e7e9ee;border:1px solid #272d3b}.mute
 <p class="muted">Kód už obsahuje tvůj token a adresu serveru, proto ho kopíruj odsud, ne ze souboru ve složce. Chrome musí mít v <code>chrome://extensions</code> u Tampermonkey povolené „Uživatelské skripty“ (Allow user scripts).</p></div>
 <div id="list"></div>
 <script>
-const S=[['Rasová armáda','/armada.user.js','Tlačítko Dohodit: vepíše jméno hráče a odešle rasovou armádu.'],['Stavění','/stavby.user.js','Vyplňuje a staví na planetách.'],['Mapa (OP, bdělost, teleskop)','/mapa.user.js','Hlídá OP, potvrzuje bdělost a zapíná teleskop.'],['Síla hráčů','/userscript.user.js','Posílá sílu hráčů do hlídání.'],['Útok (D)','/utok.user.js','Vyplní dobývací útok: jednotky podle nastavení a náhodnou planetu cíle.'],['Přihlášení','/prihlaseni.user.js','Po odhlášení ze hry (každé ~3 h) se samo přihlásí a obnoví karty; v době údržby 3:00–3:31 počká.']];
+const S=[['Nezaměstnaní','/nezamestnani.user.js','Doplní nezaměstnané na planety, kterým chybí lidé (tlačítko na kartě Stavění).'],['Rasová armáda','/armada.user.js','Tlačítko Dohodit: vepíše jméno hráče a odešle rasovou armádu.'],['Stavění','/stavby.user.js','Vyplňuje a staví na planetách.'],['Mapa (OP, bdělost, teleskop)','/mapa.user.js','Hlídá OP, potvrzuje bdělost a zapíná teleskop.'],['Síla hráčů','/userscript.user.js','Posílá sílu hráčů do hlídání.'],['Útok (D)','/utok.user.js','Vyplní dobývací útok: jednotky podle nastavení a náhodnou planetu cíle.'],['Přihlášení','/prihlaseni.user.js','Po odhlášení ze hry (každé ~3 h) se samo přihlásí a obnoví karty; v době údržby 3:00–3:31 počká.']];
 const el=document.getElementById('list');
 for(const [name,path,desc] of S){const d=document.createElement('div');d.className='card';
  d.innerHTML='<b></b> <span class="muted"></span><div class="v muted" style="margin:6px 0"></div><a class="btn"></a><button class="copy">Zkopírovat kód</button><button class="ghost show">Zobrazit kód</button><span class="msg ok"></span><textarea hidden readonly style="width:100%;height:200px;margin-top:8px;background:#10141b;color:#e7e9ee;border:1px solid #272d3b;border-radius:6px"></textarea>';
@@ -681,7 +695,7 @@ const server = createServer(async (req, res) => {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
       return res.end(INSTALL_PAGE);
     }
-    const scripts = { '/userscript.user.js': 'stargate-notifikator.user.js', '/mapa.user.js': 'stargate-mapa.user.js', '/stavby.user.js': 'stargate-stavby.user.js', '/armada.user.js': 'stargate-armada.user.js', '/utok.user.js': 'stargate-utok.user.js', '/prihlaseni.user.js': 'stargate-prihlaseni.user.js' };
+    const scripts = { '/userscript.user.js': 'stargate-notifikator.user.js', '/mapa.user.js': 'stargate-mapa.user.js', '/stavby.user.js': 'stargate-stavby.user.js', '/armada.user.js': 'stargate-armada.user.js', '/utok.user.js': 'stargate-utok.user.js', '/prihlaseni.user.js': 'stargate-prihlaseni.user.js', '/nezamestnani.user.js': 'stargate-nezamestnani.user.js' };
     if (req.method === 'GET' && scripts[path]) {
       return await serveFile(res, pub(`userscript/${scripts[path]}`), 'text/javascript', (s) =>
         s.replace('__TOKEN__', cfg.token).replace('__SERVER__', `http://127.0.0.1:${cfg.port}`),

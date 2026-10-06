@@ -7,6 +7,7 @@
     ['Rasová armáda', '/armada.user.js', 'tlačítko Dohodit u našich hráčů'],
     ['Útok (D)', '/utok.user.js', 'vyplní dobývací útok po kliknutí na D'],
     ['Přihlášení', '/prihlaseni.user.js', 'po odhlášení ze hry se samo přihlásí a obnoví karty'],
+    ['Nezaměstnaní', '/nezamestnani.user.js', 'doplní nezaměstnané na planety, kterým chybí lidé'],
   ];
   let loaded = false;
   async function loadScripts() {
