@@ -347,7 +347,7 @@ function updatePanel(id) {
     ].filter(Boolean).join('\n');
     row.tr.classList.toggle('off', !p.watched);
     const own = p.ownThreshold != null;
-    const thTxt = own ? short(p.ownThreshold) : '✎ ' + short(p.threshold); // jen číslo (např. 100 mil), vlastní práh žlutě, globální modře; vysvětlení je v bublině
+    const thTxt = own ? short(p.ownThreshold) : '✎'; // vlastní práh žlutě s číslem; výchozí jen nenápadná tužka (číslo je v bublině a při najetí) // jen číslo (např. 100 mil), vlastní práh žlutě, globální modře; vysvětlení je v bublině
     if (row.thv.textContent !== thTxt) row.thv.textContent = thTxt;
     row.thv.title = own ? `Vlastní práh ${dots(p.ownThreshold)} (výchozí rasy ${dots(p.threshold)}). Klikni pro úpravu, prázdné = výchozí` : `Práh ${dots(p.threshold)} (výchozí rasy). Klikni a nastav hráči vlastní`;
     row.thl.classList.toggle('own', own);

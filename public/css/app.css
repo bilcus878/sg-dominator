@@ -439,7 +439,7 @@
   .rpanel .pnum .pd { position:absolute; right:0; top:100%; margin-top:-3px; height:12px; line-height:12px; white-space:nowrap; }
   .pcw { align-items:center; }
   /* hranice prahu: u hráče jen vlastní (žlutě); výchozí se ukáže až při najetí na řádek */
-  .thl:not(.own) .thv { opacity:0; } tr:hover .thl:not(.own) .thv, .thl .thv:focus-visible { opacity:.9; }
+  .thl:not(.own) .thv { opacity:.38; padding:0 6px; } tr:hover .thl:not(.own) .thv, .thl .thv:focus-visible { opacity:1; border-color:rgba(127,166,214,.6); }
   /* Dohodit u každého hráče, ale tiše: výrazné jen při najetí na řádek a když je hráč pod prahem */
   .rpanel .dohodit { background:transparent; border-color:transparent; color:var(--mut); }
   .rpanel tr:hover .dohodit, .rpanel .dohodit:focus-visible { background:var(--card2); border-color:var(--line); color:var(--fg); }
