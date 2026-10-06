@@ -5,7 +5,8 @@
  *
  * Dohazování až po horní hranici (topUp): jeden dohoz často nestačí (jednotky dají třeba 150 mil. a hráč potřebuje
  * dostat nad 700 mil.), proto bot po každém dohození počká, až se síla hráče ukáže v datech, a když je pořád pod horní
- * hranicí a síla vzrostla, po náhodné prodlevě dohodí znovu. Zastaví se, jakmile hráč hranici překoná, nebo když
+ * hranicí a síla vzrostla, po náhodné prodlevě dohodí znovu. Sílu sleduje živě: další kolo naplánuje hned, jakmile se po
+ * dohozu v datech zvedne (žádná pevná čekací doba), a dohazování ukončí jen když do STALL_MS nevzroste vůbec. Zastaví se, jakmile hráč hranici překoná, nebo když
  * dohoz nezabírá (síla nevzrostla) či dojde nejvyšší počet kol, ať se jednotky neposílají donekonečna.
  *
  * Pojistka při víc hráčích: nejdřív se každý hráč pod prahem dostane NAD PRÁH (záchrana, jeden po druhém), a teprve když
@@ -21,8 +22,7 @@ export const AUTO_ARMY_DEFAULTS = {
 const GIVE_UP_MS = 30_000; // tak dlouho se po termínu zkouší, když je dohoz zaneprázdněný, pak se hráč vzdá
 const PAGE_ALERT_GAP_MS = 10 * 60_000; // „stránka není otevřená“ se hlásí nejvýš jednou za 10 minut
 const BELOW_REASONS = new Set(['threshold', 'critical']); // pád pod práh (propad nad prahem a návrat se nedohazují)
-const SETTLE_MS = 4_000; // po dohození tak dlouho nečekat na účinek (data ze hry se obnovují po vteřině)
-const STALL_MS = 30_000; // síla po dohození do téhle doby nevzrostla: dohoz nezabírá, přestat
+const STALL_MS = 15_000; // pojistka: síla po dohození do téhle doby nevzrostla = dohoz nezabírá, přestat (běžně síla naskočí hned)
 
 /** Ověří a sjednotí nastavení auto-dohozu z UI. Čísla mimo meze se ořežou, max nikdy pod min. */
 export function sanitizeAutoArmy(cur, body) {
@@ -107,7 +107,6 @@ export function createAutoArmy({ rand = Math.random } = {}) {
       const ep = episodes.get(name);
       if (!ep) { watch.delete(name); continue; }
       const age = now - w.sentAt;
-      if (age < SETTLE_MS) continue;
       const p = io.power?.(name);
       if (p == null) {
         if (age > STALL_MS) endEpisode(name, now, 'stall', 'nejsou data o síle', events, true, `⚠️ Auto-dohoz: ${name} – nejsou čerstvá data o síle, dohazování končí po ${ep.rounds}. dohozu.`);

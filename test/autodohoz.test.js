@@ -196,19 +196,34 @@ test('horní hranice: dohazuje opakovaně, dokud síla nepřekoná hranici, pak 
   assert.equal(run(a, io, 60_500, 90_000).length, 0); // nic dalšího se nedohazuje
 });
 
-test('horní hranice: mezi koly se čeká na účinek (nedohazuje se naslepo)', () => {
+test('horní hranice: další kolo hned, jak síla naskočí (bez pevného čekání)', () => {
   const state = { power: 60 };
-  const a = createAutoArmy({ rand: () => 0 });
-  const io = mkTopIo(state, { boost: 200 });
+  const a = createAutoArmy({ rand: () => 0 }); // prodleva mezi koly 1 s
+  const io = mkTopIo(state, { boost: 200 }); // síla naskočí okamžitě po dohozu
   a.onAlert(alert('X'), TOP, 0);
   a.tick(1000, io); // 1. dohoz
   assert.equal(io.sent.length, 1);
-  a.tick(3000, io); // ještě není čas vyhodnotit účinek
-  a.tick(4900, io);
+  a.tick(1300, io); // účinek je vidět hned -> naplánuje se další kolo za 1 s
   assert.equal(io.sent.length, 1);
-  a.tick(5000, io); // účinek se vyhodnotí, naplánuje se další kolo
-  a.tick(6100, io);
-  assert.equal(io.sent.length, 2);
+  a.tick(2200, io);
+  assert.equal(io.sent.length, 1);
+  a.tick(2300, io);
+  assert.equal(io.sent.length, 2); // 1,3 s po prvním dohozu + prodleva, žádných 4 s navíc
+});
+
+test('horní hranice: dokud se síla po dohozu neobjeví v datech, nedohazuje se naslepo', () => {
+  const state = { power: 60, pending: 0 };
+  const a = createAutoArmy({ rand: () => 0 });
+  const sent = [];
+  const io = { stillBelow: () => true, power: () => state.power, request: (n) => { sent.push(n); state.pending = 200; return { ok: true }; } };
+  a.onAlert(alert('X'), TOP, 0);
+  a.tick(1000, io); // dohoz odešel, ale data se ještě nezměnila
+  for (let t = 1500; t <= 6000; t += 500) a.tick(t, io);
+  assert.equal(sent.length, 1, 'bez viditelného účinku se druhý dohoz poslat nesmí');
+  state.power += state.pending; // síla naskočila
+  a.tick(6500, io);
+  a.tick(7600, io);
+  assert.equal(sent.length, 2);
 });
 
 test('horní hranice: síla po dohozu nevzrostla -> dohoz nezabírá, skončí varováním a neposílá dál', () => {
@@ -355,6 +370,6 @@ test('snapshot ukazuje fázi hráče (záchrana / k hranici)', () => {
   const io = mkMulti({ Bob: 50 }, { Bob: 200 });
   a.onAlert(alert('Bob'), TWO, 0);
   assert.equal(a.snapshot(0).topping[0].phase, 'rescue');
-  run(a, io, 0, 12_000);
-  assert.equal(a.snapshot(12_000).topping[0].phase, 'topup');
+  run(a, io, 0, 1500); // po prvním dohozu je hráč nad prahem a dál se dohazuje jen k hranici
+  assert.equal(a.snapshot(1500).topping[0].phase, 'topup');
 });
