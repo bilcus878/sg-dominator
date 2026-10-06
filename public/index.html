@@ -181,7 +181,7 @@
   /* sloupec: sbalené panely se řadí nad následující rozbalený panel a ten se jim zařadí POD ně */
   .bcol { display:flex; flex-direction:column; gap:12px; align-items:stretch; flex:0 0 auto; max-width:100%; }
   .bcol .rpanel.folded { width:auto !important; min-width:320px; }
-  .rpanel { padding:0; overflow:hidden; display:flex; flex-direction:column; position:relative; width:520px; max-width:100%; flex:0 0 auto; }
+  .rpanel { padding:0; overflow:hidden; display:flex; flex-direction:column; position:relative; width:600px; max-width:100%; flex:0 0 auto; }
   /* sbalení panelu: zůstane jen hlavička se souhrnem */
   .rfsum { display:none; font-size:12px; color:var(--mut); white-space:nowrap; } .rpanel.folded .rfsum { display:inline; } .rfsum.hot { color:var(--acc); font-weight:600; }
   .rpanel.folded > :not(.rhead) { display:none; } .rpanel.folded .rhead { padding-bottom:12px; }
@@ -412,24 +412,24 @@
   @media (max-width:1000px) { .dstat::before { display:none; } .brand b { display:none; } }
   @media (max-width:640px) { header .bar { gap:6px; padding:8px 8px; } .hbtn .lbl { display:none; } .navbtn { padding:5px 8px; } .logo { display:none; } .optgl { padding:0 9px 0 6px; } }
 
-  /* ===== kompaktní vzhled panelů: střední velikost (čitelné, ale hutné) ===== */
-  .rpanel .rhead { padding:7px 11px 6px; gap:8px; }
-  .rpanel .rname { font-size:16px; }
-  .rpanel .rage, .rpanel .rwatch { font-size:11.5px; line-height:17px; padding:0 7px; min-width:0; }
-  .rpanel .rmode { padding:2px; } .rpanel .rmode button { padding:3px 8px; font-size:12px; } .rpanel .rmode button .mi { font-size:13px; }
-  .rpanel .chip { font-size:12px; padding:0 9px; line-height:1.7; } .rpanel .icon { padding:2px 7px; }
-  .rpanel .rbody thead th { font-size:10.5px; padding:6px 6px; letter-spacing:.06em; }
-  .rpanel .rbody td, .rpanel .rbody th { padding:3px 7px; }
-  .rpanel .rbody table { font-size:14.5px; }
-  .rpanel .pnum .pv { line-height:18px; } .rpanel .pd { height:12px; line-height:12px; font-size:11px; } .rpanel .pdd { line-height:18px; font-size:11.5px; }
-  .rpanel .thl { font-size:11px; line-height:14px; margin-left:6px; } .rpanel .thl .thv { padding:0 7px; }
-  .rpanel .dohodit { padding:3px 9px; font-size:12px; } .rpanel tr.below .dohodit { padding:4px 10px; }
-  .rpanel .rbody .sw { width:31px; height:18px; } .rpanel .rbody .sw span::before { width:12px; height:12px; left:3px; top:3px; } .rpanel .rbody .sw input:checked + span::before { transform:translateX(13px); }
-  .rpanel a.atk { min-width:18px; height:18px; line-height:18px; font-size:11px; } .rpanel .atks { gap:2px; }
-  .rpanel td.pname .on { width:7px; height:7px; margin-right:5px; } .rpanel .rbody th.thname { padding-left:19px; }
-  .rpanel .mini { font-size:11px; line-height:15px; padding:0 5px; }
-  .rpanel .pdd, .rpanel .ddslot { width:42px; padding-left:18px; } .rpanel .ddslot .mini { width:24px; padding:0; }
-  .rpanel .rbody td.n, .rpanel .rbody th.n { padding-right:22px; } .rpanel .rbody td.pc, .rpanel .rbody th.pc { padding-right:6px; }
+  /* ===== vzhled panelů: větší střední velikost ===== */
+  .rpanel .rhead { padding:8px 12px 7px; gap:9px; }
+  .rpanel .rname { font-size:17.5px; }
+  .rpanel .rage, .rpanel .rwatch { font-size:12.5px; line-height:19px; padding:0 8px; min-width:0; }
+  .rpanel .rmode { padding:2px; } .rpanel .rmode button { padding:4px 10px; font-size:13px; } .rpanel .rmode button .mi { font-size:14px; }
+  .rpanel .chip { font-size:13px; padding:1px 10px; line-height:1.7; } .rpanel .icon { padding:3px 8px; font-size:13px; }
+  .rpanel .rbody thead th { font-size:11.5px; padding:7px 6px; letter-spacing:.06em; }
+  .rpanel .rbody td, .rpanel .rbody th { padding:4px 8px; }
+  .rpanel .rbody table { font-size:16px; }
+  .rpanel .pnum .pv { line-height:20px; } .rpanel .pd { height:13px; line-height:13px; font-size:12px; } .rpanel .pdd { line-height:20px; font-size:12.5px; }
+  .rpanel .thl { font-size:12px; line-height:15px; margin-left:7px; } .rpanel .thl .thv { padding:0 8px; }
+  .rpanel .dohodit { padding:4px 11px; font-size:13px; } .rpanel tr.below .dohodit { padding:5px 12px; }
+  .rpanel .rbody .sw { width:34px; height:19px; } .rpanel .rbody .sw span::before { width:13px; height:13px; left:3px; top:3px; } .rpanel .rbody .sw input:checked + span::before { transform:translateX(15px); }
+  .rpanel a.atk { min-width:20px; height:20px; line-height:20px; font-size:12px; } .rpanel .atks { gap:3px; }
+  .rpanel td.pname .on { width:8px; height:8px; margin-right:5px; } .rpanel .rbody th.thname { padding-left:21px; }
+  .rpanel .mini { font-size:12px; line-height:16px; padding:0 6px; }
+  .rpanel .pdd, .rpanel .ddslot { width:46px; padding-left:20px; } .rpanel .ddslot .mini { width:26px; padding:0; }
+  .rpanel .rbody td.n, .rpanel .rbody th.n { padding-right:24px; } .rpanel .rbody td.pc, .rpanel .rbody th.pc { padding-right:6px; }
 </style>
 </head>
 <body>
@@ -874,7 +874,7 @@ function short(n) {
 const monKey = () => `${screen.width}x${screen.height}@${screen.availLeft ?? 0},${screen.availTop ?? 0}`;
 const readLayouts = () => loadJson('layouts', {});
 let layouts = readLayouts();
-const lay = () => (layouts[monKey()] ??= { defW: 520, defH: 0, panels: {} });
+const lay = () => (layouts[monKey()] ??= { defW: 600, defH: 0, panels: {} });
 const lp = (id) => (lay().panels[id] ??= {});
 /** Uloží jen klíč tohoto monitoru; ostatní se čtou znovu, ať okno na jiném monitoru nepřepíše cizí změny. */
 function saveLayouts() {
