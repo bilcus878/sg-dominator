@@ -314,10 +314,10 @@
       </div>
       <div class="chan" style="border-color:var(--acc)">
         <div class="chan-head"><span><b>Profil nastavení</b></span></div>
-        <p class="muted" style="margin-top:0">Každý si vytvoří svůj profil. Celé nastavení aplikace (prahy, rasy, alerty, dohoz, útok, přihlášení, přepočty a vzhled) se uloží do souboru <code>profiles/&lt;jméno&gt;.json</code> ve složce projektu, takže se s commitem a pushem přenese na druhý počítač. Tam po pullu aplikace novější profil sama načte.</p>
+        <p class="muted" style="margin-top:0">Vyber svůj profil (Jarmil nebo Čmajz). Celé nastavení aplikace (prahy, rasy, alerty, dohoz, útok, přihlášení, přepočty a vzhled) se uloží do souboru <code>profiles/&lt;jméno&gt;.json</code> ve složce projektu, takže se s commitem a pushem přenese na druhý počítač. Tam po pullu aplikace novější profil sama načte.</p>
         <p class="muted"><b>Do profilu nejde nic tajného:</b> token aplikace, token Telegram bota, webhook Discordu, heslo do hry ani port. Ty zůstávají na každém počítači zvlášť a zadáš je tam jednou. Profil je ale čitelný soubor v repozitáři (prahy, názvy hráčů, ID chatů).</p>
-        <label for="profName">Jméno profilu</label>
-        <input type="text" id="profName" list="profList" maxlength="32" placeholder="např. bilcus (písmena, číslice, _ a -)" autocomplete="off"><datalist id="profList"></datalist>
+        <label for="profName">Profil</label>
+        <select id="profName"></select>
         <label class="swrow"><span class="sw"><input type="checkbox" id="profAutoSave"><span></span></span> Průběžně ukládat změny do profilu (před pushem je vždy aktuální)</label>
         <label class="swrow"><span class="sw"><input type="checkbox" id="profAutoLoad"><span></span></span> Po pullu automaticky načíst novější profil (při startu a každou minutu)</label>
         <p id="profStatus" class="muted" style="margin:8px 0"></p>

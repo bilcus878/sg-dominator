@@ -10,6 +10,8 @@ import { join } from 'node:path';
 export const PROFILE_FORMAT = 1;
 export const UI_KEYS = ['panels', 'pstate', 'uicfg']; // vzhled rozhraní z prohlížeče (pořadí panelů, filtry, velikost…); rozložení oken je pro každou obrazovku jiné, proto se nepřenáší
 
+/** Výchozí profily (id = název souboru bez diakritiky, label = jak se ukáže v nabídce). */
+export const DEFAULT_PROFILES = [{ id: 'jarmil', label: 'Jarmil' }, { id: 'cmajz', label: 'Čmajz' }];
 export const validName = (n) => typeof n === 'string' && /^[A-Za-z0-9_-]{1,32}$/.test(n);
 const clone = (o) => JSON.parse(JSON.stringify(o));
 

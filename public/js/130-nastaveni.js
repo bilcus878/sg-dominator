@@ -116,11 +116,14 @@ let profInfo = null;
 function renderProfile(p) {
   profInfo = p ?? S?.profile ?? profInfo;
   const v = profInfo; if (!v || !$('profStatus')) return;
-  if (document.activeElement !== $('profName')) $('profName').value = v.name ?? '';
+  if (v.profiles && document.activeElement !== $('profName')) {
+    const sel = $('profName'), want = v.name ?? '';
+    sel.innerHTML = '<option value="">(žádný – nic se neukládá)</option>' + v.profiles.map((x) => '<option value="' + esc(x.name) + '">' + esc(x.label ?? x.name) + (x.savedAt ? ' – uloženo ' + fmtT(x.savedAt) : '') + '</option>').join('');
+    sel.value = want;
+  }
   if (v.autoSave !== undefined) { if (document.activeElement !== $('profAutoSave')) $('profAutoSave').checked = v.autoSave; if (document.activeElement !== $('profAutoLoad')) $('profAutoLoad').checked = v.autoLoad; }
-  if (v.profiles) $('profList').innerHTML = v.profiles.map((x) => '<option value="' + esc(x.name) + '">').join('');
-  $('profStatus').textContent = !v.name ? 'Profil není vybraný: zadej jméno a ulož.'
-    : `Profil „${v.name}“: tento počítač je synchronizovaný k ${fmtT(v.syncedAt)}; v souboru je verze z ${fmtT(v.fileAt)}.`;
+  $('profStatus').textContent = !v.name ? 'Profil není vybraný: vyber ho v nabídce a ulož.'
+    : `Profil „${(v.profiles?.find((x) => x.name === v.name)?.label) ?? v.name}“: tento počítač je synchronizovaný k ${fmtT(v.syncedAt)}; v souboru je verze z ${fmtT(v.fileAt)}.`;
   const w = $('profWarn'); w.hidden = !v.conflict; w.textContent = v.conflict ? 'V profilu je novější nastavení z jiného počítače. Klikni „Načíst z profilu“, nebo ho přepiš tlačítkem „Uložit do profilu teď“.' : '';
 }
 async function profPut(body) { try { renderProfile(await api('/api/profile', 'PUT', body)); } catch (e) { toast(e.message, true); } }

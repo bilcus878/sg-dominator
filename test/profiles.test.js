@@ -54,3 +54,9 @@ test('profil: jména a vzhled z prohlížeče se ošetří', () => {
   assert.equal(cleanUi(null), null);
   assert.equal(cleanUi({ panels: { x: 'a'.repeat(300_000) } }), null);
 });
+
+import { DEFAULT_PROFILES } from '../src/profiles.js';
+test('výchozí profily: Jarmil a Čmajz, názvy souborů bez diakritiky', () => {
+  assert.deepEqual(DEFAULT_PROFILES.map((d) => d.label), ['Jarmil', 'Čmajz']);
+  for (const d of DEFAULT_PROFILES) assert.ok(validName(d.id), d.id);
+});

@@ -22,7 +22,7 @@ import { createUnemp } from './unemp.js';
 import { createRecalc } from './recalc.js';
 import { createEcon } from './econ.js';
 import { createAutoArmy } from './autodohoz.js';
-import { validName, buildProfile, mergeProfileConfig, sameContent, readProfile, writeProfile, listProfiles, cleanUi } from './profiles.js';
+import { DEFAULT_PROFILES, validName, buildProfile, mergeProfileConfig, sameContent, readProfile, writeProfile, listProfiles, cleanUi } from './profiles.js';
 import { mergeSeenUnits, sanitizeReport, sanitizeSeenUnits, unitsFor, ATTACK_TYPES } from './attack.js';
 
 // data bydlela dřív ve složce projektu (Dropbox); při prvním spuštění se přesunou mimo ni
@@ -526,12 +526,20 @@ function persistProfState() {
   try { mkdirSync(DATA_DIR, { recursive: true }); writeFileSync(`${PROFILE_STATE_PATH}.tmp`, JSON.stringify({ name: prof.name, autoSave: prof.autoSave, autoLoad: prof.autoLoad, syncedAt: prof.syncedAt })); renameSync(`${PROFILE_STATE_PATH}.tmp`, PROFILE_STATE_PATH); }
   catch (e) { console.error('stav profilu se neuložil:', e.message); }
 }
+/** Nabídka profilů: výchozí dva + další soubory ve složce profiles (a aktuálně vybraný). */
+function profileChoices() {
+  const files = new Map(listProfiles(PROFILES_DIR).map((f) => [f.name, f]));
+  const out = DEFAULT_PROFILES.map((d) => ({ name: d.id, label: d.label, savedAt: files.get(d.id)?.savedAt ?? 0, savedBy: files.get(d.id)?.savedBy ?? '' }));
+  for (const f of files.values()) if (!out.some((o) => o.name === f.name)) out.push({ ...f, label: f.name });
+  if (prof.name && !out.some((o) => o.name === prof.name)) out.push({ name: prof.name, label: prof.name, savedAt: 0, savedBy: '' });
+  return out;
+}
 function profileView() {
   return { name: prof.name, autoSave: prof.autoSave, autoLoad: prof.autoLoad, syncedAt: prof.syncedAt, fileAt: profRt.fileAt, conflict: profRt.conflict, uiRev: profRt.uiRev, msg: profRt.msg };
 }
 /** Uloží nastavení do souboru profilu. Když je v repozitáři novější verze (po pullu), nepřepíše ji (conflict), pokud nejde o force. */
 function profileSaveNow(force = false) {
-  if (!validName(prof.name)) return { ok: false, error: 'Nejdřív zadej jméno profilu' };
+  if (!validName(prof.name)) return { ok: false, error: 'Nejdřív vyber profil' };
   const file = readProfile(PROFILES_DIR, prof.name);
   profRt.fileAt = file?.savedAt ?? 0;
   if (file && file.savedAt > prof.syncedAt && !force) { profRt.conflict = true; profRt.msg = 'V profilu je novější nastavení (z jiného počítače). Načti ho, nebo ho přepiš.'; pushState(); return { ok: false, conflict: true }; }
@@ -574,19 +582,19 @@ setTimeout(profilePoll, 1500);
 setInterval(profilePoll, 60_000);
 
 const routes = {
-  'GET /api/profile': async () => [200, { ...profileView(), profiles: listProfiles(PROFILES_DIR) }],
+  'GET /api/profile': async () => [200, { ...profileView(), profiles: profileChoices() }],
   'PUT /api/profile': async (req) => {
     const b = await readJson(req);
     if ('name' in b) { if (b.name !== '' && !validName(b.name)) return [400, { error: 'Neplatné jméno profilu (písmena, číslice, _ a -, nejvýš 32 znaků)' }]; if (b.name !== prof.name) { prof.name = b.name; prof.syncedAt = 0; profRt.conflict = false; profRt.msg = ''; } }
     if ('autoSave' in b) prof.autoSave = !!b.autoSave;
     if ('autoLoad' in b) prof.autoLoad = !!b.autoLoad;
     persistProfState(); pushState();
-    return [200, { ...profileView(), profiles: listProfiles(PROFILES_DIR) }];
+    return [200, { ...profileView(), profiles: profileChoices() }];
   },
   'POST /api/profile/save': async (req) => {
     const b = await readJson(req).catch(() => ({}));
     const r = profileSaveNow(!!b.force);
-    return [r.ok || r.conflict ? 200 : 400, { ...r, ...profileView(), profiles: listProfiles(PROFILES_DIR) }];
+    return [r.ok || r.conflict ? 200 : 400, { ...r, ...profileView(), profiles: profileChoices() }];
   },
   'POST /api/profile/load': async () => {
     const r = profileLoadNow();
