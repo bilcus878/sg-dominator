@@ -24,7 +24,7 @@ const MAX_FAILED_IN_ROW = 5; // tolik planet po sobě bez úspěchu = nejspíš 
 const NO_BUILD_TAGS = new Set(['CP', 'DP', 'PP']);
 const MAX_GOTO_TRIES = 3; // tolikrát se zkusí přejít na planetu, než se přeskočí
 /** Nejstarší verze skriptu stavění, se kterou se smí stavět (starší neumí poznat neobyvatelné planety). */
-export const MIN_SCRIPT = '1.4.0';
+export const MIN_SCRIPT = '1.4.2'; // 1.4.2: pojistka na naquadah
 /** a < b podle čísel verze („1.3.2“ < „1.4.0“); chybějící verze se nekontroluje (řeší ji příznak uninhabitable). */
 const olderThan = (a, b) => {
   if (typeof a !== 'string' || !a) return false;
@@ -358,6 +358,13 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
     if (rep.phase === 'ping') return { action: 'ok' };
     if (rep.scriptError) { fail(`chyba skriptu v prohlížeči: ${String(rep.scriptError).slice(0, 160)}`, now); return { action: 'idle' }; }
     if (rep.error) { fail(`stránka stavění vypadá jinak, než čekám (${String(rep.error).slice(0, 80)})`, now); return { action: 'idle' }; }
+
+    if (rep.phase === 'nofunds') { // skript nekliknul na Postavit: vyplněné stavby stojí víc, než je naquadahu
+      const fmtKg = (n) => Math.round(Number(n) || 0).toLocaleString('cs-CZ');
+      const msg = `došel naquadah na ${String(rep.planet ?? '?').slice(0, 40)}: stavby stojí ${fmtKg(rep.cost)} kg, k dispozici je ${fmtKg(rep.naquadah)} kg – stavění zastaveno`;
+      fail(msg, now);
+      return { action: 'idle', message: `Stavění zastaveno: ${msg}` };
+    }
 
     if (rep.phase === 'goto-failed') {
       const head = run.queue?.[0];

@@ -461,5 +461,26 @@ test('zastaralý skript stavění: hláška jde do skriptu na stránce a do noti
   assert.match(r2.message, /1\.3\.9/);
   assert.equal(sent.filter((t) => /Zastaralý skript/.test(t)).length, 2);
   run.start(c, 20);
-  assert.notEqual(run.report(rep('1', { phase: 'load', ver: '1.4.1' }), c, 21).action, 'idle'); // nová verze jede
+  assert.notEqual(run.report(rep('1', { phase: 'load', ver: '1.4.2' }), c, 21).action, 'idle'); // nová verze jede
+});
+
+test('málo naquadahu: skript nahlásí nofunds, stavění se zastaví a hláška jde do skriptu (zpráva jen do notify = servisní chat)', () => {
+  const sent = [];
+  const run = createBuildRun({ notify: (t) => sent.push(t) });
+  const c = cfg({ plan: { bs: { mode: 'target', n: 1000 } } });
+  run.start(c, 0);
+  const r = run.report(rep('1', { phase: 'nofunds', cost: 5_045_000, naquadah: 38_568_299, ver: '1.4.2' }), c, 1);
+  assert.equal(r.action, 'idle');
+  assert.match(r.message, /došel naquadah/);
+  assert.equal(run.snapshot().status, 'error');
+  assert.equal(sent.filter((t) => /došel naquadah/.test(t)).length, 1);
+});
+
+test('skript stavění starší než 1.4.2 (bez pojistky na naquadah) se nespustí', () => {
+  const run = mkRun();
+  const c = cfg({ plan: { bs: { mode: 'target', n: 1000 } } });
+  run.start(c, 0);
+  const r = run.report(rep('1', { phase: 'load', ver: '1.4.1' }), c, 1);
+  assert.equal(r.action, 'idle');
+  assert.match(r.message, /Zastaralý skript/);
 });

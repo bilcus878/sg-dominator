@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – stavění
 // @namespace    sg-dominator
-// @version      1.4.1
+// @version      1.4.2
 // @description  Na pokyn z aplikace vyplní počty staveb, klikne na Postavit a přejde na další planetu klikem v tabulce planet (pomalu a nepravidelně, jako člověk)
 // @match        https://stargate-game.cz/stavby.php*
 // @match        https://www.stargate-game.cz/stavby.php*
@@ -30,7 +30,7 @@
   const pause = (ms) => sleep(Math.max(40, ms * (1 + gauss() * 0.3)) + (Math.random() < 0.06 ? rnd(1500, 4500) * Math.min(1, tempo) : 0));
 
   // ---------- komunikace se serverem ----------
-  const VERSION = '1.4.1'; // stejné jako @version; server podle ní pozná zastaralý skript
+  const VERSION = '1.4.2'; // stejné jako @version; server podle ní pozná zastaralý skript
 
   /** Hláška přímo na stránce (např. zastaralý skript). Stejný text se neopakuje; křížek ji zavře. */
   let bannerText = '';
@@ -71,6 +71,26 @@
     return d ? Number(d) : NaN;
   };
   const submitBtn = () => document.querySelector('input[name="postavit"]');
+
+  /** Kolik naquadahu je k dispozici („Máš k dispozici 47 649 299 kg naquadahu“); nenalezeno -> null. */
+  function naquadah() {
+    const m = (document.body.innerText || '').match(/Máš k dispozici\s*([\d\s ]+)\s*kg naquadahu/i);
+    return m ? num(m[1]) : null;
+  }
+  /** Cena vyplněných staveb: (vyplněno − postaveno) × cena za kus z `.cena`. Neznámá cena -> null (pojistka se neuplatní). */
+  function buildCost() {
+    let sum = 0;
+    for (const id of IDS) {
+      const inp = document.getElementById(id);
+      if (!inp) continue;
+      const add = num(inp.value) - num(inp.defaultValue);
+      if (!(add > 0)) continue; // nic nového (bourat se nezkouší)
+      const price = num(inp.closest('.stavba')?.querySelector('.cena')?.textContent);
+      if (!Number.isFinite(price)) return null;
+      sum += add * price;
+    }
+    return sum;
+  }
 
   /** Spokojenost pod názvem planety: '+ 10%' -> 10, '- 50%' -> -50, '~' -> 0; nerozpoznané -> null. */
   function readSatisfaction() {
@@ -282,6 +302,11 @@
       await pause(rnd(1200, 3500) * speed); // zkontroluje, co napsal
       if (!(await stillActive()) || isUninhabitable()) return null;
       if (ins.dry) return await post('/build/report', { phase: 'filled', ...readPage() });
+      // pojistka: na vyplněné stavby musí být dost naquadahu, jinak nic neodeslat a stavění zastavit
+      const nq = naquadah(), cost = buildCost();
+      if (nq !== null && cost !== null && cost > nq) {
+        return await post('/build/report', { phase: 'nofunds', cost, naquadah: nq, ...readPage() });
+      }
       holdUntil = Date.now() + 25000;
       await clickEl(submitBtn(), speed); // stránka se přenačte, další fázi řeší nové načtení
       return null;
