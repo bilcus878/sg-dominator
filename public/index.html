@@ -53,6 +53,7 @@
         <div class="alrow"><span class="alname">↩️ Už není k dobytí</span><label class="sw c1"><input type="checkbox" data-nt="released"><span></span></label><label class="sw c2"><input type="checkbox" data-snd="released"><span></span></label></div>
         <div class="alrow"><span class="alname">🟠 OP na mapě<small>rychlé pípání (jen když je zapnuté OP)</small></span><label class="sw c1"><input type="checkbox" data-nt="op"><span></span></label><label class="sw c2"><input type="checkbox" data-snd="op"><span></span></label></div>
         <div class="alrow"><span class="alname">🛠 Systémové zprávy<small>výpadek dat, bdělost, teleskop, stavění</small></span><label class="sw c1"><input type="checkbox" data-nt="service"><span></span></label><label class="sw c2"><input type="checkbox" data-snd="service"><span></span></label></div>
+        <div class="alrow"><span class="alname">🤖 Auto-dohoz proběhl<small>zpráva do servisního chatu po každém dohozu</small></span><label class="sw c1"><input type="checkbox" data-nt="dohoz"><span></span></label><span class="sw c2"></span></div>
         <div class="sndtest"><button type="button" class="ghost" data-test="threshold">Zkouška: poplach</button><button type="button" class="ghost" data-test="critical">Kritický</button><button type="button" class="ghost" data-test="op">OP</button><button type="button" class="ghost" data-test="recovered">Návrat</button></div>
         <div class="ntchan" id="ntChan"></div>
       </div>
@@ -368,6 +369,7 @@
       </div>
       <p class="muted">Uložené tokeny se z bezpečnostních důvodů znovu nezobrazují. Prázdné pole = ponechat uložené.</p>
       <button class="ghost" id="test">Poslat testovací zprávu</button>
+      <button class="ghost" id="testSvc">Test do servisního chatu</button>
       <span class="muted"> (použije uložené nastavení)</span>
     </div>
   </div>

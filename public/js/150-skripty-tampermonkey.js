@@ -90,9 +90,16 @@ $('clearRaces').onclick = async () => {
     renderChips(); toast('Rasy vymazány'); closeDrawer(); refresh();
   } catch (e) { toast('Vymazání selhalo: ' + e.message, true); }
 };
+$('testSvc').onclick = async () => {
+  try {
+    const r = await api('/api/test', 'POST', { target: 'service' });
+    r.total === 0 ? toast('Servisní chat není nastavený (vyplň jeho ID a ulož)', true)
+      : toast(r.sent ? 'Testovací zpráva odeslána do servisního chatu' : 'Do servisního chatu se nepodařilo odeslat (zkontroluj ID a že je v něm bot)', !r.sent);
+  } catch (e) { toast(e.message, true); }
+};
 $('test').onclick = async () => {
   try {
-    const r = await api('/api/test', 'POST');
+    const r = await api('/api/test', 'POST', { target: 'main' });
     r.total === 0 ? toast('Žádný kanál není zapnutý a nastavený', true)
       : toast(`Odesláno ${r.sent}/${r.total}`, r.sent < r.total);
   } catch (e) { toast(e.message, true); }

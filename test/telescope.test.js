@@ -5,9 +5,10 @@ import { sanitizeUpdate, DEFAULTS } from '../src/config.js';
 
 const op = (v = {}, t = {}) => ({ vigilance: { ...VIGILANCE_DEFAULTS, ...v }, telescope: { ...TELESCOPE_DEFAULTS, ...t } });
 const MIN = 60_000;
+const withOp = (tele) => { tele.opAppeared(op({}, { restEnabled: false }), 0); return tele; }; // první vlna OP už byla (šetření bdělosti je povolené)
 
 test('bdělost: jednou za skipMin–skipMax potvrzení se tlačítko záměrně vynechá', () => {
-  const tele = createTelescope({ rand: () => 0.5 }); // randInt(2,4) = 3
+  const tele = withOp(createTelescope({ rand: () => 0.5 })); // randInt(2,4) = 3
   const v = { skipMin: 2, skipMax: 4 };
   const seq = Array.from({ length: 9 }, () => tele.vigilanceSeen({ ...VIGILANCE_DEFAULTS, ...v }).action);
   assert.deepEqual(seq, ['click', 'click', 'click', 'skip', 'click', 'click', 'click', 'skip', 'click']);
@@ -15,7 +16,7 @@ test('bdělost: jednou za skipMin–skipMax potvrzení se tlačítko záměrně 
 });
 
 test('bdělost: rozestup mezi vynecháními je v zadaném rozmezí a vypnutí vždy potvrzuje', () => {
-  const tele = createTelescope();
+  const tele = withOp(createTelescope());
   const v = { ...VIGILANCE_DEFAULTS, skipMin: 5, skipMax: 10 };
   let since = 0;
   const gaps = [];
@@ -29,7 +30,7 @@ test('bdělost: rozestup mezi vynecháními je v zadaném rozmezí a vypnutí v�
 });
 
 test('teleskop: zastavený se po lidské prodlevě aktivuje, aktivní nic nedělá', () => {
-  const tele = createTelescope({ rand: () => 0.5 });
+  const tele = withOp(createTelescope({ rand: () => 0.5 }));
   assert.deepEqual(tele.telescopeState({ state: 'active', remainingSec: 5000 }, op()), { action: 'none' });
   const r = tele.telescopeState({ state: 'stopped', remainingSec: 5000 }, op({}, { reactMinSec: 10, reactMaxSec: 20 }), 0);
   assert.equal(r.action, 'activate');
@@ -38,7 +39,7 @@ test('teleskop: zastavený se po lidské prodlevě aktivuje, aktivní nic neděl
 });
 
 test('po vynechané bdělosti se zastavený teleskop nechá vypnutý a pak se zapne', () => {
-  const tele = createTelescope({ rand: () => 0.5 });
+  const tele = withOp(createTelescope({ rand: () => 0.5 }));
   const cfg = op({ skipMin: 1, skipMax: 1, downMin: 4, downMax: 6 }); // pauza 5 min
   assert.equal(tele.vigilanceSeen(cfg.vigilance).action, 'click');
   assert.equal(tele.vigilanceSeen(cfg.vigilance).action, 'skip');
@@ -53,12 +54,12 @@ test('po vynechané bdělosti se zastavený teleskop nechá vypnutý a pak se za
 });
 
 test('běžné zastavení (bez vynechání) se zapne bez dlouhé pauzy', () => {
-  const tele = createTelescope({ rand: () => 0.5 });
+  const tele = withOp(createTelescope({ rand: () => 0.5 }));
   assert.equal(tele.telescopeState({ state: 'stopped', remainingSec: 900 }, op(), 0).action, 'activate');
 });
 
 test('potvrzená bdělost ruší čekající pauzu (kdyby ji hra po vynechání nezastavila)', () => {
-  const tele = createTelescope({ rand: () => 0.5 });
+  const tele = withOp(createTelescope({ rand: () => 0.5 }));
   const cfg = op({ skipMin: 1, skipMax: 1 });
   tele.vigilanceSeen(cfg.vigilance);
   assert.equal(tele.vigilanceSeen(cfg.vigilance).action, 'skip');
@@ -67,14 +68,14 @@ test('potvrzená bdělost ruší čekající pauzu (kdyby ji hra po vynechání 
 });
 
 test('teleskop bez zbývajícího času: nezkouší se a upozorní se jednou; po aktivním stavu znovu', () => {
-  const tele = createTelescope();
+  const tele = withOp(createTelescope());
   const stopped = { state: 'stopped', remainingSec: 0 };
   assert.deepEqual(tele.telescopeState(stopped, op()), { action: 'none', alert: 'zero' });
   assert.deepEqual(tele.telescopeState(stopped, op()), { action: 'none' });
 });
 
 test('3 neúspěšné aktivace za sebou: alert a půlhodinová pauza; úspěch počítadlo vynuluje', () => {
-  const tele = createTelescope({ rand: () => 0.5 });
+  const tele = withOp(createTelescope({ rand: () => 0.5 }));
   const stopped = { state: 'stopped', remainingSec: 900 };
   assert.deepEqual(tele.attempt(0), {});
   assert.deepEqual(tele.attempt(1), {});
@@ -82,7 +83,7 @@ test('3 neúspěšné aktivace za sebou: alert a půlhodinová pauza; úspěch p
   assert.equal(tele.telescopeState(stopped, op(), 10 * MIN).action, 'none'); // blokováno
   assert.equal(tele.telescopeState(stopped, op(), 31 * MIN).action, 'activate'); // po 30 minutách znovu
 
-  const t2 = createTelescope({ rand: () => 0.5 });
+  const t2 = withOp(createTelescope({ rand: () => 0.5 }));
   t2.attempt(0); t2.attempt(1);
   t2.telescopeState({ state: 'active', remainingSec: 900 }, op(), 5); // aktivace se povedla
   assert.deepEqual(t2.attempt(6), {});
@@ -145,4 +146,14 @@ test('šetření po OP: někdy (podle šance) teleskop nechá běžet; vypnuté 
   assert.deepEqual(tele.telescopeState({ state: 'active', remainingSec: 5000 }, op(), 120_000), { action: 'none' });
   const off = createTelescope({ rand: () => 0 });
   assert.equal(off.opAppeared(op({}, { restEnabled: false }), 0).rest, false);
+});
+
+test('než se po zapnutí hlídání objeví první vlna OP, bdělost se nevynechává (teleskop se nešetří); po ní ano; vypnutí to vrátí na začátek', () => {
+  const tele = createTelescope({ rand: () => 0 });
+  const v = { skipMin: 0, skipMax: 0 };
+  for (let i = 0; i < 5; i++) assert.equal(tele.vigilanceSeen(v).action, 'click');
+  tele.opAppeared(op(), 0);
+  assert.equal(tele.vigilanceSeen(v).action, 'skip');
+  tele.resetOp();
+  assert.equal(tele.vigilanceSeen(v).action, 'click');
 });

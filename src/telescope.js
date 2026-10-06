@@ -33,6 +33,7 @@ export function createTelescope({ rand = Math.random } = {}) {
     restUntil: 0, // do kdy nechat teleskop po OP vypnutý
     restDeadline: 0, // nejpozději kdy musí znovu jet (OP + 5 min − rezerva)
     rested: 0,
+    opSeen: false, // od zapnutí hlídání OP se už objevila první vlna OP (dřív se teleskop nešetří ani se záměrně nevynechává bdělost)
   };
   const randInt = (a, b) => a + Math.floor(rand() * (b - a + 1));
   const randRange = (a, b) => a + rand() * (b - a);
@@ -42,7 +43,7 @@ export function createTelescope({ rand = Math.random } = {}) {
   /** Objevilo se tlačítko bdělosti: potvrdit, nebo (jednou za skipMin–skipMax potvrzení) záměrně vynechat? */
   function vigilanceSeen(vCfg) {
     const v = cfgV(vCfg);
-    if (!v.skipEnabled) return { action: 'click' };
+    if (!st.opSeen || !v.skipEnabled) return { action: 'click' };
     if (st.untilSkip === null) st.untilSkip = randInt(v.skipMin, v.skipMax);
     if (st.untilSkip <= 0) {
       st.skipPending = true;
@@ -59,6 +60,7 @@ export function createTelescope({ rand = Math.random } = {}) {
    * @returns {{rest:boolean, stopAt?:number, restUntil?:number}}
    */
   function opAppeared(opCfg, now = Date.now()) {
+    st.opSeen = true;
     const t = cfgT(opCfg?.telescope);
     if (!t.auto || !t.restEnabled) return { rest: false };
     if (st.restUntil > now) return { rest: false }; // už se šetří
@@ -123,12 +125,15 @@ export function createTelescope({ rand = Math.random } = {}) {
     return {};
   }
 
+  /** Hlídání OP je vypnuté: po dalším zapnutí se zase čeká na první vlnu OP. */
+  function resetOp() { st.opSeen = false; }
+
   /** Když je OP vypnuté, bot nic nedělá, ale stav teleskopu se pro UI zapamatuje. */
   function noteState(state) {
     st.state = state;
   }
 
-  const snapshot = () => ({ state: st.state, untilSkip: st.untilSkip, skipped: st.skipped, downUntil: st.downUntil, blockedUntil: st.blockedUntil, stopAt: st.stopAt, restUntil: st.restUntil, rested: st.rested });
+  const snapshot = () => ({ state: st.state, untilSkip: st.untilSkip, skipped: st.skipped, downUntil: st.downUntil, blockedUntil: st.blockedUntil, stopAt: st.stopAt, restUntil: st.restUntil, rested: st.rested, opSeen: st.opSeen });
 
-  return { vigilanceSeen, vigilanceClicked, opAppeared, telescopeState, attempt, noteState, snapshot };
+  return { vigilanceSeen, vigilanceClicked, opAppeared, telescopeState, attempt, noteState, snapshot, resetOp };
 }

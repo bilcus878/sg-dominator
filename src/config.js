@@ -8,8 +8,8 @@ import { VIGILANCE_DEFAULTS, TELESCOPE_DEFAULTS } from './telescope.js';
 import { CONQUEST_DEFAULTS } from './conquest.js';
 import { ATTACK_DEFAULTS, sanitizeAttack, ARMY_DEFAULTS, sanitizeArmy } from './attack.js';
 
-/** Druhy upozornění, které jdou zapnout/vypnout zvlášť (notifyTypes). Klíč = a.reason alertu; service = všechny systémové zprávy. */
-export const NOTIFY_KINDS = ['threshold', 'drop', 'critical', 'recovered', 'target', 'released', 'op', 'service'];
+/** Druhy upozornění, které jdou zapnout/vypnout zvlášť (notifyTypes). Klíč = a.reason alertu; service = všechny systémové zprávy; dohoz = zpráva do servisního chatu, že auto-dohoz proběhl. */
+export const NOTIFY_KINDS = ['threshold', 'drop', 'critical', 'recovered', 'target', 'released', 'op', 'service', 'dohoz'];
 
 /**
  * Datová složka (config s tajnými tokeny + databáze). Záměrně MIMO složku projektu,

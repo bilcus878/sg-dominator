@@ -128,7 +128,8 @@ setInterval(() => {
       saveConfig(cfg);
       pushState();
     }
-    if (ev.notify && ev.text) sendDohoz(ev.text);
+    if (ev.type === 'done') { if (ev.text && notifyOn(cfg, 'dohoz')) sendDohoz(ev.text); } // hotový dohoz: zpráva podle přepínače „Auto-dohoz proběhl“ (i po jediném dohozu)
+    else if (ev.notify && ev.text) sendDohoz(ev.text);
   }
 }, 100);
 const armyWait = (ms) => new Promise((ok) => { const t = setTimeout(ok, Math.max(0, ms)); armyWaiters.push(() => { clearTimeout(t); ok(); }); });
@@ -343,11 +344,12 @@ async function handleIngestOp(req) {
   const now = Date.now();
   opLastAt = now;
   // tracker běží i při vypnutém alertu (silent), ať se po zapnutí nehlásí staré tečky
+  if (!cfg.op.enabled) tele.resetOp();
   const { fresh, repeats } = op.update(sectors, now, { repeatMs: cfg.op.repeatSec * 1000, silent: !cfg.op.enabled });
   // jedna souhrnná zpráva za celou mapu (počet OP + sektory), ne zpráva za každý sektor
-  if (fresh.length && cfg.op.enabled) {
+  if (fresh.length && cfg.op.enabled) { // šetření teleskopu až po prvním OP, které se po zapnutí hlídání objeví (do té doby teleskop jede a čeká)
     const r = tele.opAppeared(cfg.op, now);
-    if (r.rest) console.log(`[teleskop] šetření po OP: zastavím za ${Math.round((r.stopAt - now) / 1000)} s, zapnu zpět za ${Math.round((r.restUntil - now) / 1000)} s`);
+    if (r.rest) console.log("[teleskop] šetření po OP: zastavím za "+Math.round((r.stopAt - now) / 1000)+" s, zapnu zpět za "+Math.round((r.restUntil - now) / 1000)+" s");
     else console.log('[teleskop] šetření po OP tentokrát ne, teleskop jede dál');
   }
   const notify = fresh.length > 0 || repeats.length > 0;
@@ -373,7 +375,7 @@ async function handleVigilance(req) {
   const body = await readJson(req);
   const now = Date.now();
   if (body.event === 'seen') {
-    if (!cfg.op.enabled) return [200, { ok: true, action: 'ignore' }]; // OP vypnuto: bot nic nepotvrzuje
+    if (!cfg.op.enabled) { tele.resetOp(); return [200, { ok: true, action: 'ignore' }]; } // OP vypnuto: bot nic nepotvrzuje
     const d = tele.vigilanceSeen(cfg.op.vigilance); // občas záměrně vynechat, ať to nevypadá jako stroj
     if (d.action === 'skip') {
       vig.pending = false;
@@ -411,8 +413,8 @@ async function handleTelescope(req) {
   if (body.event !== 'state') return [400, { error: 'invalid event' }];
   const remaining = Number.isFinite(Number(body.remainingSec)) && body.remainingSec !== null ? Number(body.remainingSec) : null;
   const state = body.state === 'stopped' ? 'stopped' : 'active';
-  if (!cfg.op.enabled) { tele.noteState(state); return [200, { action: 'none' }]; } // OP vypnuto: teleskop se nezapíná
-  const r = tele.telescopeState({ state, remainingSec: remaining }, cfg.op, now);
+  if (!cfg.op.enabled) { tele.resetOp(); tele.noteState(state); return [200, { action: 'none' }]; } // OP vypnuto: teleskop se nezapíná
+  const r = tele.telescopeState({ state, remainingSec: remaining }, cfg.op, now, { opLit: op.current(now).length });
   if (r.action === 'stop') console.log('[teleskop] šetření po OP: zastavuji');
   if (state !== teleLast) { teleLast = state; console.log(`[teleskop] ${state === 'active' ? 'aktivní' : 'zastavený'}`); }
   if (r.alert === 'zero') { console.log('[teleskop] nezbývá žádný čas'); sendService(cfg, '⚠️ Teleskop je zastavený a nezbývá mu žádný čas, nelze ho aktivovat.'); }
@@ -646,10 +648,13 @@ const routes = {
       return [400, { error: e.message }];
     }
   },
-  'POST /api/test': async () => {
+  'POST /api/test': async (req) => {
+    const body = await readJson(req).catch(() => ({}));
+    const only = body?.target; // 'main' | 'service' | (nic = oba)
+    const noop = { sent: 0, total: 0 };
     const [main, service] = await Promise.all([
-      sendText({ ...cfg, notify: true }, '✅ Stargate dominator: testovací zpráva'), // test jde i při vypnutém hlavním vypínači
-      sendService({ ...cfg, notify: true }, 'Stargate dominator: testovací zpráva do servisního chatu'),
+      only === 'service' ? noop : sendText({ ...cfg, notify: true }, '✅ Stargate dominator: testovací zpráva'), // test jde i při vypnutém hlavním vypínači
+      only === 'main' ? noop : sendService({ ...cfg, notify: true, notifyTypes: {} }, 'Stargate dominator: testovací zpráva do servisního chatu'),
     ]);
     return [200, { sent: main.sent + service.sent, total: main.total + service.total, service }];
   },
