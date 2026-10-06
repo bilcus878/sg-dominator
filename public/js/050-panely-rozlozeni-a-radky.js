@@ -70,8 +70,24 @@ function buildPanel(id) {
     filter: q('.rfilter'), searchBtn: q('.srch'), nameLbl: q('.nlbl'), below: q('.rbelow'), count: q('.rcount'), tbody: q('tbody'), empty: q('.rempty'), sortHeads: [...root.querySelectorAll('th[data-act=sort]')], ddBtn: q('.ddbtn') };
   v.filter.value = ps(id).filter;
   v.below.checked = ps(id).below;
+  // zkracování tabulky podle skutečné potřeby: při změně šířky panelu přepočítat, co se ještě vejde
+  if (window.ResizeObserver) new ResizeObserver(() => scheduleFit(v)).observe(v.body);
   return v;
 }
+
+/** Fáze zkrácení tabulky (data-fit="s1 s2 …"): přidává se jedna po druhé, dokud se tabulka nevejde do šířky; vždy se počítá znovu od nuly. */
+const FIT_STAGES = ['s1', 's2', 's3', 's4', 's5'];
+function fitPanel(v) {
+  v.fitQueued = false;
+  if (!v.root.isConnected || v.root.classList.contains('folded')) return;
+  const cur = [];
+  v.root.dataset.fit = '';
+  for (const st of FIT_STAGES) {
+    if (v.body.scrollWidth <= v.body.clientWidth + 1) break;
+    cur.push(st); v.root.dataset.fit = cur.join(' ');
+  }
+}
+function scheduleFit(v) { if (v.fitQueued) return; v.fitQueued = true; requestAnimationFrame(() => fitPanel(v)); }
 
 function makeRow(v, r, p) {
   const tr = document.createElement('tr');
@@ -351,6 +367,7 @@ function updatePanel(id) {
   for (const [key, row] of v.rows) if (!seen.has(key)) { row.tr.remove(); v.rows.delete(key); }
   if (moved && first) flipRows(v.rows, first);
   v.count.textContent = out.length === items.length ? `${items.length} hráčů` : `${out.length} z ${items.length}`;
+  scheduleFit(v);
   v.empty.hidden = out.length > 0;
   v.empty.textContent = v.isW && !items.length ? 'Zatím nic nehlídáš. V panelu rasy zvol „Celou rasu“ nebo zapni jednotlivé hráče.'
     : !items.length ? 'Čekám na data z okna s touto rasou.' : 'Nic neodpovídá filtru.';

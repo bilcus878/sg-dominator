@@ -103,6 +103,13 @@ test('sbalený panel ukazuje název a nabídka ⋮ se ukáže celá (neuřízne 
   await b.eval(`document.body.click(); document.querySelector('${P} [data-act=fold]').click(); 1`); await sleep(400);
 });
 
+test('široký panel nic nezkracuje: tužka prahu i sloupec ± zůstávají, dokud je místo', { skip }, async () => {
+  await b.eval(`document.querySelector('${P}').style.width = '720px'; 1`); await sleep(600);
+  const w = await b.eval(`(() => { const p = document.querySelector('${P}'); return { fit: p.dataset.fit, tuzka: getComputedStyle(p.querySelector('.thl')).display, slot: getComputedStyle(p.querySelector('.ddslot')).display }; })()`);
+  assert.equal(w.fit, ''); assert.notEqual(w.tuzka, 'none'); assert.notEqual(w.slot, 'none');
+  await b.eval(`document.querySelector('${P}').style.width = ''; 1`);
+});
+
 test('úzký panel zkrátí sloupce místo přetékání', { skip }, async () => {
   await b.eval(`document.querySelector('${P}').style.width = '380px'; 1`); await sleep(500);
   assert.equal(await b.eval(`(() => { const r = document.querySelector('${P} .rbody'); return r.scrollWidth > r.clientWidth + 2; })()`), false);

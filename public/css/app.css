@@ -461,11 +461,14 @@
   .hlrow { display:flex; align-items:center; gap:10px; padding:6px 14px; font-size:13px; } .hlrow i { width:9px; height:9px; border-radius:50%; flex:0 0 auto; background:#444b5c; } .hlrow i.ok { background:var(--ok); } .hlrow i.warn { background:var(--acc); } .hlrow i.bad { background:var(--bad); }
   .hlrow span { flex:1; } .hlrow b { font-weight:500; color:var(--mut); font-variant-numeric:tabular-nums; font-size:12px; }
   .hlhd { padding:2px 14px 6px; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--mut); }
-  /* responzivita: úzký panel zkrátí tabulku místo přetékání */
-  @container rp (max-width: 560px) { .rpanel .ddslot, .rpanel .pdd { display:none; } .rpanel .thl { display:none; } .rpanel .dohodit { padding:3px 7px; font-size:12px; } .rpanel .rbody td.n, .rpanel .rbody th.n { padding-right:10px; } }
-  @container rp (max-width: 460px) { .rpanel .dcol, .rpanel th.dcol { display:none; } .rpanel .rwatch { display:none; } .rpanel .rbody td, .rpanel .rbody th { padding-left:5px; padding-right:5px; } }
+  /* responzivita: úzký panel zkracuje tabulku jen tolik, kolik je potřeba (fáze s1…s5 nastavuje JS podle skutečné šířky; viz fitPanel):
+     s1 přírůstky planet, s2 odznak prahu, s3 menší Dohodit a mezery, s4 sloupec Útok a počet hlídaných, s5 sloupec Planety */
+  .rpanel[data-fit~="s1"] .ddslot, .rpanel[data-fit~="s1"] .pdd { display:none; }
+  .rpanel[data-fit~="s2"] .thl { display:none; }
+  .rpanel[data-fit~="s3"] .dohodit { padding:3px 7px; font-size:12px; } .rpanel[data-fit~="s3"] .rbody td.n, .rpanel[data-fit~="s3"] .rbody th.n { padding-right:10px; }
+  .rpanel[data-fit~="s4"] .dcol, .rpanel[data-fit~="s4"] th.dcol, .rpanel[data-fit~="s4"] .rwatch { display:none; } .rpanel[data-fit~="s4"] .rbody td, .rpanel[data-fit~="s4"] .rbody th { padding-left:5px; padding-right:5px; }
+  .rpanel[data-fit~="s5"] .pcw, .rpanel[data-fit~="s5"] th.pc, .rpanel[data-fit~="s5"] td.pc { display:none; }
   .rtitle .rwatch { margin-left:0; }
-  @container rp (max-width: 400px) { .rpanel .pcw, .rpanel th.pc, .rpanel td.pc { display:none; } }
   /* přístupnost: viditelné zaostření, dostatečně velké cíle */
   :focus-visible { outline:2px solid var(--acc); outline-offset:2px; border-radius:6px; }
   button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline:none; }
