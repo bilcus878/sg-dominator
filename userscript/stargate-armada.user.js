@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – rasová armáda
 // @namespace    sg-dominator
-// @version      2.1.0
+// @version      2.1.1
 // @description  Na pokyn z aplikace (tlačítko Dohodit) vepíše jméno hráče do „Odeslat hráči“ a klikne na Odeslat; pak se vrátí zpět a znovu vyplní počty jednotek podle nastavení v aplikaci (Nastavení → Dohoz).
 // @match        https://stargate-game.cz/jednotky.php*
 // @match        https://www.stargate-game.cz/jednotky.php*
@@ -110,7 +110,7 @@
   let busy = false;
   async function tick() {
     if (busy) return;
-    const ins = await post('/army/poll', {}, 'POST', 30_000); // dlouhé dotazování: server odpoví hned, jak aplikace zadá Dohodit
+    const ins = await post('/army/poll?short=1', {}); // krátký dotaz: server odpoví hned (dlouhé držení spojení zdržovalo posílání dat ze hry)
     if (!ins) { await sleep(1000); return; } // server nedostupný: chvíli počkat
     if (ins?.action !== 'send' || !ins.name) return;
     busy = true;
@@ -131,5 +131,5 @@
       busy = false;
     }
   }
-  (async () => { for (;;) { try { await tick(); } catch { await sleep(1000); } } })();
+  (async () => { for (;;) { try { await tick(); } catch { await sleep(1000); } await sleep(250); } })();
 })();

@@ -373,10 +373,11 @@ const routes = {
     if (merged) { cfg.army = merged; saveConfig(cfg); }
     return [200, { ok: true }];
   },
-  // dlouhé dotazování: skript dostane pokyn hned, jak ho aplikace zadá (dřív se ptal po 0,7 s a pokyn čekal až 0,7 s); bez pokynu odpoví po ~20 s
+  // skript se ptá, jestli má něco odeslat. ?short=1 (skript 2.1.1+) odpoví hned; bez něj (starší skript 2.1.0 ve smyčce) server počká max 1 s na pokyn,
+  // aby smyčka nebyla horká. Dlouhé držení spojení (20 s) zdržovalo ostatní dotazy z prohlížeče, hlavně posílání dat ze hry.
   'POST /army/poll': async (req) => {
     if (!authOk(req)) return [401, { error: 'bad token' }];
-    const end = Date.now() + 20_000;
+    const end = Date.now() + (new URL(req.url, 'http://x').searchParams.get('short') ? 0 : 1000);
     army.waitStart();
     try {
       for (;;) {
