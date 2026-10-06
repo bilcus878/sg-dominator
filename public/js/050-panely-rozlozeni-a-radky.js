@@ -328,12 +328,13 @@ function updatePanel(id) {
       }).join('') : '';
     }
     const tgt = atk && p.target, noatk = tgt && p.attackable === false;
-    row.power.classList.toggle('target', tgt);
-    row.power.classList.toggle('noatk', noatk);
-    const tagTxt = tgt ? (noatk ? '🎯 nelze dobýt' : '🎯 k dobytí') : '';
+    // označí se jen hráč, kterého jde skutečně dobýt (svítí D); ti, co jsou pod hranicí, ale dobýt nejdou, bez značky (u slabých rasy jich je většina)
+    const real = tgt && !noatk;
+    row.power.classList.toggle('target', real);
+    const tagTxt = real ? '🎯 k dobytí' : '';
     if (row.tag.textContent !== tagTxt) row.tag.textContent = tagTxt;
-    row.tag.className = 'tg' + (noatk ? ' noatk' : '');
-    row.tag.title = tgt ? `K dobytí ${ago(p.since)}${noatk ? ' – teď nelze dobýt (chybí D), zpráva přijde, až D bude' : ''}` : '';
+    row.tag.className = 'tg';
+    row.tag.title = real ? `K dobytí ${ago(p.since)}` : '';
     row.power.title = [
       recent ? `Změna síly ${signed(recent)} před ${Math.max(1, Math.round((S.serverTime - p.powerAt) / 1000))} s` : '',
       !atk && p.critical > 0 ? `Kritická hranice ${fmt(p.critical)}` : '',

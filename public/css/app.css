@@ -39,7 +39,7 @@
   .pd { display:block; height:14px; line-height:14px; font-size:11px; text-align:right; font-variant-numeric:tabular-nums; } .pd.plus, .pd.minus { font-weight:600; }
   td.pname { cursor:copy; } td.pname:hover { color:var(--acc); }
   /* cizí rasa: hráč k dobytí */
-  td.target { background:rgba(224,184,76,.13); box-shadow:inset 3px 0 0 var(--acc); color:var(--acc); font-weight:600; }
+  td.target { background:rgba(224,184,76,.13); color:var(--acc); font-weight:600; }
   td.target.noatk { background:rgba(139,147,165,.10); box-shadow:inset 3px 0 0 var(--mut); color:var(--mut); }
   .tg { font-size:11px; margin-left:6px; color:var(--acc); font-weight:600; white-space:nowrap; } .tg.noatk { color:var(--mut); font-weight:400; }
   .rpanel[data-role=attack] .thl { display:none; } /* práh u cizí rasy nemá smysl */
