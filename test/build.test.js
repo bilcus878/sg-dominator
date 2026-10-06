@@ -484,3 +484,27 @@ test('skript stavění starší než 1.4.2 (bez pojistky na naquadah) se nespust
   assert.equal(r.action, 'idle');
   assert.match(r.message, /Zastaralý skript/);
 });
+
+test('města přes zelené maximum: při plánu „max“ jde bot na planetu klikem na odkaz měst (postaví maximum)', () => {
+  const run = mkRun();
+  const c = cfg({ plan: { mesto: { mode: 'max', n: 0 } } });
+  run.start(c, 0);
+  run.report(rep('1', { phase: 'load' }), c, 1);
+  const t = [{ ...row('2', { mesto: 52 }), mestaLink: true, mestaMax: 103 }, { ...row('3', { mesto: 10 }) }];
+  const ins = run.report(rep('1', { phase: 'table', table: t }), c, 2);
+  assert.equal(ins.action, 'goto');
+  assert.equal(ins.plId, '2');
+  assert.equal(ins.viaCities, true);
+  assert.equal(ins.cityAdd, 51);
+});
+
+test('města přes zelené maximum: při cíli pod maximem se odkaz nepoužije (postavil by víc)', () => {
+  const run = mkRun();
+  const c = cfg({ plan: { mesto: { mode: 'target', n: 60 } } });
+  run.start(c, 0);
+  run.report(rep('1', { phase: 'load' }), c, 1);
+  const t = [{ ...row('2', { mesto: 52 }), mestaLink: true, mestaMax: 103 }];
+  const ins = run.report(rep('1', { phase: 'table', table: t }), c, 2);
+  assert.equal(ins.action, 'goto');
+  assert.equal(ins.viaCities, undefined);
+});

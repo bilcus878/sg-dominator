@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – stavění
 // @namespace    sg-dominator
-// @version      1.4.2
+// @version      1.5.0
 // @description  Na pokyn z aplikace vyplní počty staveb, klikne na Postavit a přejde na další planetu klikem v tabulce planet (pomalu a nepravidelně, jako člověk)
 // @match        https://stargate-game.cz/stavby.php*
 // @match        https://www.stargate-game.cz/stavby.php*
@@ -30,7 +30,7 @@
   const pause = (ms) => sleep(Math.max(40, ms * (1 + gauss() * 0.3)) + (Math.random() < 0.06 ? rnd(1500, 4500) * Math.min(1, tempo) : 0));
 
   // ---------- komunikace se serverem ----------
-  const VERSION = '1.4.2'; // stejné jako @version; server podle ní pozná zastaralý skript
+  const VERSION = '1.5.0'; // stejné jako @version; server podle ní pozná zastaralý skript
 
   /** Hláška přímo na stránce (např. zastaralý skript). Stejný text se neopakuje; křížek ji zavře. */
   let bannerText = '';
@@ -161,7 +161,11 @@
       // značka za názvem: (DP), (CP), (PP) – takové planety se nestaví
       const tag = tr.querySelector('.nazev-planety')?.textContent.match(/\(([A-Za-z]{1,3})\)/)?.[1] ?? '';
       const uninhabitable = tr.classList.contains('neobyvatelna'); // celý řádek sytě červený: neobyvatelná planeta, nestaví se
-      return { id: tr.id.slice(3), name: tr.querySelector('.nazev-planety a')?.textContent.trim(), tag, uninhabitable, free: num(tr.cells[1]?.textContent), c };
+      // Města „52 / 103“: zelené číslo (odkaz .stavby-max) postaví maximum měst jedním klikem
+      const mCell = tr.cells[TABLE_COLS.mesto];
+      const mestaLink = !!mCell?.querySelector('a.stavby-max');
+      const mestaMax = mestaLink ? num(mCell.querySelector('a.stavby-max').textContent) : undefined;
+      return { id: tr.id.slice(3), name: tr.querySelector('.nazev-planety a')?.textContent.trim(), tag, uninhabitable, free: num(tr.cells[1]?.textContent), c, mestaLink, mestaMax };
     }).filter((r) => r.id && r.name);
   }
 
@@ -318,6 +322,21 @@
   /** Přechod na jinou planetu klikem na její název v tabulce pod stavěním. */
   async function goPlanet(ins) {
     const speed = Math.min(2.5, Math.max(0.25, Number(ins.speed) || 1));
+    // města přes zelené číslo v tabulce: jedním klikem postaví maximum měst a zároveň otevře planetu
+    const cityLink = ins.viaCities ? document.querySelector(`#pl-${CSS.escape(String(ins.plId))} a.stavby-max`) : null;
+    if (cityLink && cityLink.closest('td') === document.querySelector(`#pl-${CSS.escape(String(ins.plId))}`)?.cells[TABLE_COLS.mesto]) {
+      const add = Math.max(0, Number(ins.cityAdd) || 0);
+      const price = num(document.getElementById('mesto')?.closest('.stavba')?.querySelector('.cena')?.textContent);
+      const nq = naquadah();
+      if (nq !== null && Number.isFinite(price) && add * price > nq) {
+        return await post('/build/report', { phase: 'nofunds', cost: add * price, naquadah: nq, planet: ins.name, plId: ins.plId, buildings: {}, uninhabitable: false });
+      }
+      if (!(await stillActive())) return null;
+      await pause(rnd(900, 2600) * speed);
+      holdUntil = Date.now() + 25000;
+      await clickEl(cityLink, speed);
+      return null;
+    }
     const a = document.querySelector(`#pl-${CSS.escape(String(ins.plId))} .nazev-planety a`);
     if (!a) return await post('/build/report', { phase: 'goto-failed', plId: ins.plId }); // server planetu přeskočí
     if (!(await stillActive())) return null;

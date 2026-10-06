@@ -168,8 +168,16 @@ export function buildQueue(table, cfgBuild, ledgerPlanets = {}, forceAll = false
   let skipped = 0;
   for (const row of table) {
     const why = visitReasons(row, cfgBuild, ledgerPlanets[row.id], forceAll);
-    if (why.length) queue.push({ id: row.id, name: row.name, why });
-    else skipped++;
+    if (!why.length) { skipped++; continue; }
+    const item = { id: row.id, name: row.name, why };
+    // města jdou postavit klikem na zelené maximum v tabulce, když plán chce maximum (nebo cíl aspoň na maximum)
+    const pm = cfgBuild.plan?.mesto;
+    const wantsMax = pm?.mode === 'max' || (pm?.mode === 'target' && Number.isFinite(row.mestaMax) && pm.n >= row.mestaMax);
+    if (why.includes('mesto') && row.mestaLink && wantsMax && Number.isFinite(row.mestaMax) && row.c.mesto >= 0) {
+      item.viaCities = true;
+      item.cityAdd = Math.max(0, row.mestaMax - row.c.mesto);
+    }
+    queue.push(item);
   }
   return { queue, skipped };
 }
@@ -185,6 +193,7 @@ function normalizeTable(raw) {
     free: opt(r.free), townsMax: opt(r.townsMax),
     sat: r.sat === undefined ? undefined : r.sat === null ? null : opt(r.sat) ?? undefined,
     c: Object.fromEntries(COUNT_IDS.map((id) => [id, Number.isFinite(Number(r.c?.[id])) && r.c?.[id] !== null ? Number(r.c[id]) : -1])),
+    mestaLink: r.mestaLink === true, mestaMax: opt(r.mestaMax), // zelené číslo u měst v tabulce = postavit maximum jedním klikem
   }));
   return { table, valid: valid.length, excluded: valid.length - allowed.length };
 }
@@ -273,7 +282,9 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
         addLog(`${head.name}: nepodařilo se na ni přejít, přeskočeno`, now);
         continue;
       }
-      return { action: 'goto', plId: head.id, name: head.name, speed: speed(cfgBuild) };
+      const via = head.viaCities && tries === 1 ? { viaCities: true, cityAdd: head.cityAdd } : {}; // při opakovaném pokusu už normálně přes název
+      if (via.viaCities) addLog(`${head.name}: města přes zelené maximum v tabulce (+${head.cityAdd})`, now);
+      return { action: 'goto', plId: head.id, name: head.name, speed: speed(cfgBuild), ...via };
     }
   }
 
