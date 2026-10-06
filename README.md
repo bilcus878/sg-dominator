@@ -33,7 +33,7 @@ Konfigurace se zapisuje atomicky a předchozí verze zůstává jako `config.jso
 - **Hlídání síly** po rasách (celá rasa / vybraní hráči), prahy na rasu i hráče, pauza a opakování zpráv.
 - **Kritická hranice**: druhý práh (% z prahu hráče). Vstup do kritického pásma se hlásí ihned (🆘), pak se opakuje.
 - **OP na mapě**: tečky opuštěných planet se hledají v obrázku mapy (barva `#FFB200`), sektor se určí z polohy.
-- **Automatický dohoz**: když hráč naší rasy spadne pod práh, bot za náhodnou dobu (nastavitelné rozmezí v Nastavení → Dohoz) sám klikne na Dohodit; vypínač DOHOZ je v hlavičce. Potřebuje otevřenou stránku Rasová armáda. Volitelně dohazuje opakovaně, dokud síla hráče nepřekoná horní hranici (po každém dohození počká na novou sílu a zastaví se, když dohoz nezabírá).
+- **Automatický dohoz**: když hráč naší rasy spadne pod práh, bot za náhodnou dobu (nastavitelné rozmezí v Nastavení → Dohoz) sám klikne na Dohodit; vypínač AUTO je v záhlaví sloupce Dohodit v každém panelu. Potřebuje otevřenou stránku Rasová armáda. Volitelně dohazuje opakovaně, dokud síla hráče nepřekoná horní hranici (po každém dohození počká na novou sílu a zastaví se, když dohoz nezabírá).
 - **Hlídač výpadku**: pošle zprávu, když hlídaná rasa nebo mapa přestane dodávat data, a když se vrátí.
 
 ## Přenos na jiný počítač (flashka, plug and play)

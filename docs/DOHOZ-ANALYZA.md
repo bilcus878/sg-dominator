@@ -93,8 +93,8 @@ nic a stav je vidět v aplikaci (Nastavení → Dohoz) a v logu. Hlídá to i te
 Horní hranice je výchozí pro všechny hráče a u každého hráče jde nastavit zvlášť: v tabulce hráčů tlačítko ⚙ vedle jména otevře okno
 s dolním prahem (alert) i horní hranicí (dohoz), každé pole je popsané a má tlačítko „výchozí“.
 Pojistka: nejvíc dohozů za hodinu (výchozí 200).
-Vypínač je na třech místech (hlavička DOHOZ, záhlaví panelu AUTO, nastavení) a všechny jsou propojené. Při selhání
-dohozu svítí vypínač v hlavičce červeně.
+Vypínač je na dvou místech (záhlaví sloupce Dohodit v panelu = AUTO, a nastavení) a obě jsou propojené. Při selhání
+dohozu svítí AUTO v záhlaví panelů červeně (s vykřičníkem).
 
 ## 6. Pokrytí testy
 

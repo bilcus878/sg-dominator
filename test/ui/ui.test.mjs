@@ -25,7 +25,7 @@ after(async () => { await b?.close(); app?.stop(); });
 test('hlavička je jeden štíhlý řádek a tlačítka jsou ve správném pořadí', { skip }, async () => {
   assert.ok(await b.eval(`document.querySelector('header').getBoundingClientRect().height`) < 70);
   const order = await b.eval(`[...document.querySelectorAll('.ctl > *')].map(e => e.id || e.className.split(' ')[0]).join('>')`);
-  assert.equal(order, 'hlwrap>opTgl>armyTgl>addwrap>ntwrap>alwrap>openSettings');
+  assert.equal(order, 'hlwrap>opTgl>addwrap>ntwrap>alwrap>openSettings');
 });
 
 test('tabulka: záhlaví přesně nad daty, čísla na středu řádku, výška řádku se zapnutím ± nemění', { skip }, async () => {
@@ -202,18 +202,44 @@ test('Dohodit svítí při najetí jen na samotné tlačítko, ne na celý řád
 
 test('OP v hlavičce: víc teček = jeden odznak s počtem, sektory v rozbalovacím seznamu; hlavička se nerozbije', { skip, timeout: 30_000 }, async () => {
   const dots = [['30', '30'], ['25', '25'], ['68', 'Tokra'], ['86', '86'], ['51', '51']].map(([id, label]) => `{ id: '${id}', label: '${label}' }`).join(', ');
-  await b.eval(`S.op = { enabled: true, at: Date.now(), dots: [${dots}], vigilance: { count: 0, lastClickedAt: 0, pendingSince: 0 }, telescope: {} }; renderOp(); 1`);
-  assert.equal(await b.eval(`document.querySelectorAll('#opDots .opdot').length`), 1, 'jediný odznak místo jednoho na každý sektor');
-  assert.match(await b.eval(`document.querySelector('#opDots .opsum').firstChild.textContent`), /5/);
-  assert.equal(await b.eval(`document.querySelectorAll('#opDots .opsec').length`), 5);
-  assert.match(await b.eval(`document.querySelector('#opDots .oppop').textContent`), /Sektor 68 · Tokra/);
-  assert.equal(await b.eval(`getComputedStyle(document.querySelector('#opDots .oppop')).display`), 'none', 'sektory jsou skryté, dokud se nenajede');
-  await b.eval(`document.querySelector('#opDots .opsum').focus(); 1`);
-  assert.equal(await b.eval(`getComputedStyle(document.querySelector('#opDots .oppop')).display`), 'block', 'po najetí/kliknutí se ukážou');
-  assert.ok(await b.eval(`document.querySelector('header').getBoundingClientRect().height`) < 70, 'hlavička zůstala štíhlá');
-  // překreslení beze změny nezahodí odznak (seznam pod myší nemizí)
-  await b.eval(`window.__opNode = document.querySelector('#opDots .opsum'); renderOp(); 1`);
-  assert.equal(await b.eval(`window.__opNode === document.querySelector('#opDots .opsum')`), true);
-  await b.eval(`S.op.dots = []; renderOp(); 1`);
-  assert.equal(await b.eval(`document.getElementById('opDots').innerHTML`), '');
+  // vše v jednom kroku: server mezitím posílá nový stav a přepsal by testovací OP
+  const r = await b.eval(`(() => {
+    S.op = { enabled: true, at: Date.now(), dots: [${dots}], vigilance: { count: 0, lastClickedAt: 0, pendingSince: 0 }, telescope: {} };
+    renderOp();
+    const box = document.getElementById('opDots'), pop = () => box.querySelector('.oppop');
+    const out = { badges: box.querySelectorAll('.opdot').length, text: box.querySelector('.opsum')?.firstChild?.textContent, sectors: box.querySelectorAll('.opsec').length, popText: pop()?.textContent, hidden: getComputedStyle(pop()).display };
+    box.querySelector('.opsum').focus();
+    out.shown = getComputedStyle(pop()).display;
+    out.header = document.querySelector('header').getBoundingClientRect().height;
+    const node = box.querySelector('.opsum'); renderOp(); out.same = node === box.querySelector('.opsum'); // beze změny se nepřekresluje
+    S.op.dots = []; renderOp(); out.empty = box.innerHTML;
+    return out;
+  })()`);
+  assert.equal(r.badges, 1, 'jediný odznak místo jednoho na každý sektor');
+  assert.match(r.text, /5/);
+  assert.equal(r.sectors, 5);
+  assert.match(r.popText, /Sektor 68 · Tokra/);
+  assert.equal(r.hidden, 'none', 'sektory jsou skryté, dokud se nenajede');
+  assert.equal(r.shown, 'block', 'po najetí/kliknutí se ukážou');
+  assert.ok(r.header < 70, 'hlavička zůstala štíhlá');
+  assert.equal(r.same, true, 'překreslení beze změny odznak nezahodí');
+  assert.equal(r.empty, '');
+});
+
+test('auto-dohoz: v hlavičce už není vypínač DOHOZ, ovládá se přepínačem AUTO v panelech; selhání dohozu ho podbarví červeně', { skip, timeout: 30_000 }, async () => {
+  const r = await b.eval(`(() => { // vše v jednom kroku: server mezitím posílá nový stav a přepsal by testovací
+    const out = { gone: document.getElementById('armyTgl') === null && document.getElementById('armyAuto') === null, panels: document.querySelectorAll('.autoh').length };
+    const el = () => document.querySelector('.autoh');
+    S.autoArmy = { pending: [], topping: [], sent: 1, skipped: 0, failed: 1, lastHour: 1, recent: [{ at: S.serverTime, type: 'fail', name: 'Nas1', text: 'nejsou vyplněné jednotky' }] };
+    renderAutoArmy(); out.warn = el().classList.contains('warn'); out.warnTitle = el().title;
+    S.autoArmy.recent = [{ at: S.serverTime, type: 'sent', name: 'Nas1', text: '' }];
+    renderAutoArmy(); out.warnAfter = el().classList.contains('warn'); out.titleAfter = el().title;
+    return out;
+  })()`);
+  assert.equal(r.gone, true, 'hlavičkový vypínač je pryč');
+  assert.ok(r.panels >= 1, 'AUTO v panelu zůstalo');
+  assert.equal(r.warn, true);
+  assert.match(r.warnTitle, /selhal.*nejsou vyplněné jednotky/);
+  assert.equal(r.warnAfter, false);
+  assert.match(r.titleAfter, /^Auto-dohoz:/, 'původní popis se vrátil');
 });

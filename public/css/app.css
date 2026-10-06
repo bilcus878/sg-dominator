@@ -72,6 +72,7 @@
   .rbody td.hcol { width:1%; white-space:nowrap; } .dohodit { padding:3px 9px; font-size:12px; }
   .autoh { display:inline-flex; align-items:center; gap:6px; margin:0; cursor:pointer; color:var(--mut); font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; }
   .autoh i { font-style:normal; } .autoh:hover { color:var(--fg); }
+  .autoh.warn { color:var(--bad); } .autoh.warn i::after { content:' !'; }
   .autoh .sw { width:28px; height:16px; } .autoh .sw span::before { width:10px; height:10px; left:3px; top:3px; }
   .autoh .sw input:checked + span::before { transform:translateX(12px); }
   /* hráč naší rasy pod prahem: celý řádek červeně (trvale), po pádu 10 s navíc pulzuje; tlačítko Dohodit svítí, ať je jasné, kam kliknout */
@@ -422,7 +423,6 @@
   .ctl { display:flex; align-items:center; gap:8px; }
   .optgl { display:inline-flex; align-items:center; gap:8px; height:34px; padding:0 13px 0 9px; margin:0; background:var(--card2); border:1px solid var(--line); border-radius:9px; color:var(--mut); font-size:13px; cursor:pointer; user-select:none; }
   .optgl b { font-weight:700; letter-spacing:.03em; } .optgl.on { color:var(--fg); border-color:#2c5a46; } .optgl:hover { border-color:#3a4358; }
-  .optgl.warn { border-color:#8a3a3a; color:var(--bad); } .optgl.warn b::after { content:' !'; }
   .dstat { background:none; border:0; padding:0; gap:6px; margin-left:4px; }
   .dstat::before { display:none; } .dstat:empty { display:none; }
   .dstat .dh { display:none; } .dstat.bad::before { color:var(--bad); } .dstat.ok::before { color:var(--ok); }

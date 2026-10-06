@@ -78,18 +78,19 @@ document.querySelector('[data-tab="attack"]').addEventListener('click', loadAtkI
 
 
 /* ---------- Automatický dohoz: vypínač v hlavičce a stav ---------- */
-function setAutoArmy(on) { // společné pro vypínač v hlavičce, v záhlaví panelu a v nastavení
+function setAutoArmy(on) { // společné pro vypínač AUTO v záhlaví panelů a vypínač v nastavení
   cfg.army = { ...cfg.army, auto: { ...cfg.army.auto, enabled: on } };
-  $('armyAuto').checked = on;
   $('armyAutoOn').checked = on;
   renderAutoArmy();
   savePartial({ army: { auto: { enabled: on } } });
 }
-$('armyAuto').onchange = () => setAutoArmy($('armyAuto').checked);
 function renderAutoArmy() {
   const on = !!cfg?.army?.auto?.enabled;
-  $('armyTgl').classList.toggle('on', on);
-  { const l = S.autoArmy?.recent?.[S.autoArmy.recent.length - 1]; $('armyTgl').classList.toggle('warn', !!l && ['fail', 'stall', 'max', 'breaker'].includes(l.type) && S.serverTime - l.at < 600_000); } // poslední dohoz selhal: vypínač svítí červeně
+  { // vypínače AUTO v záhlaví panelů: zapnuto = svítí zeleně (přepínač), poslední dohoz selhal = červený vykřičník
+    const l = S.autoArmy?.recent?.[S.autoArmy.recent.length - 1];
+    const bad = !!l && ['fail', 'stall', 'max', 'breaker'].includes(l.type) && S.serverTime - l.at < 600_000;
+    for (const el of document.querySelectorAll('.autoh')) { el.classList.toggle('on', on); el.classList.toggle('warn', bad); if (!el.dataset.t0) el.dataset.t0 = el.title; el.title = bad ? `Poslední auto-dohoz selhal: ${l.name ? l.name + ' – ' : ''}${l.text || l.type}. Podrobnosti v Nastavení → Dohoz.` : el.dataset.t0; }
+  }
   for (const cb of document.querySelectorAll('.autoarmy')) if (document.activeElement !== cb) cb.checked = on; // vypínače v záhlaví panelů
   const s = S.autoArmy;
   if (!s) return;
