@@ -38,14 +38,15 @@ function renderArmy(a) {
   $('armyAutoOn').checked = !!au.enabled; $('armyMin').value = au.minSec; $('armyMax').value = au.maxSec;
   $('armyGapMin').value = au.gapMinSec ?? 0.9; $('armyGapMax').value = au.gapMaxSec ?? 2.5;
   $('armyRoundMin').value = au.roundMinSec ?? 2; $('armyRoundMax').value = au.roundMaxSec ?? 4;
-  $('armyCoolMin').value = au.cooldownMinSec ?? 60; $('armyCoolMax').value = au.cooldownMaxSec ?? 120; $('armyMaxHour').value = au.maxPerHour ?? 200;
+  $('armyCoolMin').value = au.cooldownMinSec ?? 60; $('armyCoolMax').value = au.cooldownMaxSec ?? 120;
+  $('armyQuietMin').value = au.quietMinSec ?? 5; $('armyQuietMax').value = au.quietMaxSec ?? 15; $('armyMaxHour').value = au.maxPerHour ?? 200;
   $('armySelfName').value = au.selfName ?? ''; $('armySelfMin').value = au.selfMinSec ?? 0.3; $('armySelfMax').value = au.selfMaxSec ?? 1;
   $('armySelfRoundMin').value = au.selfRoundMinSec ?? 0.4; $('armySelfRoundMax').value = au.selfRoundMaxSec ?? 1.2;
   $('armyTopTarget').value = au.topUpTarget ? dots(au.topUpTarget) : '';
   setArmyMode(!!au.topUp);
 }
 const readArmy = () => ({ units: [...$('armyUnits').rows].map((tr) => ({ name: tr.querySelector('.aname').value.trim(), count: undots(tr.querySelector('.acount').value) ?? 0, max: tr.querySelector('.amax').checked })).filter((u) => u.name),
-  auto: { enabled: $('armyAutoOn').checked, minSec: $('armyMin').value, maxSec: $('armyMax').value, gapMinSec: $('armyGapMin').value, gapMaxSec: $('armyGapMax').value, roundMinSec: $('armyRoundMin').value, roundMaxSec: $('armyRoundMax').value, cooldownMinSec: $('armyCoolMin').value, cooldownMaxSec: $('armyCoolMax').value, maxPerHour: $('armyMaxHour').value, selfName: $('armySelfName').value.trim(), selfMinSec: $('armySelfMin').value, selfMaxSec: $('armySelfMax').value, selfRoundMinSec: $('armySelfRoundMin').value, selfRoundMaxSec: $('armySelfRoundMax').value, topUp: $('armyTopUp').checked, topUpTarget: undots($('armyTopTarget').value) ?? 0 } });
+  auto: { enabled: $('armyAutoOn').checked, minSec: $('armyMin').value, maxSec: $('armyMax').value, gapMinSec: $('armyGapMin').value, gapMaxSec: $('armyGapMax').value, roundMinSec: $('armyRoundMin').value, roundMaxSec: $('armyRoundMax').value, cooldownMinSec: $('armyCoolMin').value, cooldownMaxSec: $('armyCoolMax').value, quietMinSec: $('armyQuietMin').value, quietMaxSec: $('armyQuietMax').value, maxPerHour: $('armyMaxHour').value, selfName: $('armySelfName').value.trim(), selfMinSec: $('armySelfMin').value, selfMaxSec: $('armySelfMax').value, selfRoundMinSec: $('armySelfRoundMin').value, selfRoundMaxSec: $('armySelfRoundMax').value, topUp: $('armyTopUp').checked, topUpTarget: undots($('armyTopTarget').value) ?? 0 } });
 $('armyAdd').onclick = () => { $('armyUnits').appendChild(atkRow({ name: '', count: 0, max: false })); $('armyNone').hidden = true; markDirty(); };
 $('armyUnits').addEventListener('click', (e) => { const b = e.target.closest('.adel'); if (b) { b.closest('tr').remove(); markDirty(); } });
 function readAtk() {

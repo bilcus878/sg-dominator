@@ -263,8 +263,10 @@
           <div class="tr"><input type="number" id="armyRoundMin" min="0" max="120" step="0.5" aria-label="od"><span>–</span><input type="number" id="armyRoundMax" min="0" max="120" step="0.5" aria-label="do"><i>s</i></div></div>
         <div class="trow"><div class="tl"><b>4 · Znovu začít dohazovat téhož hráče</b><small>Když stejný hráč znovu spadne pod práh, dřív než za tuhle dobu po posledním dohození se nezačne dohazovat znovu.</small></div>
           <div class="tr"><input type="number" id="armyCoolMin" min="0" max="3600" step="1" aria-label="od"><span>–</span><input type="number" id="armyCoolMax" min="0" max="3600" step="1" aria-label="do"><i>s</i></div></div>
+        <div class="trow"><div class="tl"><b>5 · První pád po klidu – počkat navíc</b><small>Když za posledních 60 minut nikdo z naší rasy pod práh nespadl (začíná nový útok), k bodu 1 se přičte ještě tahle doba. Přednostní dohoz pro mě se nezdržuje.</small></div>
+          <div class="tr"><input type="number" id="armyQuietMin" min="0" max="600" step="1" aria-label="od"><span>–</span><input type="number" id="armyQuietMax" min="0" max="600" step="1" aria-label="do"><i>s</i></div></div>
         </div>
-        <p class="muted" style="margin:6px 0 0">Průběh: pád pod práh → <b>1</b> → Dohodit → (víc hráčů: <b>2</b>) → (další kola: <b>3</b>) → hotovo → (nový pád: nejdřív po <b>4</b>).</p>
+        <p class="muted" style="margin:6px 0 0">Průběh: pád pod práh → <b>1</b> (+ <b>5</b>, když je to první pád po hodině klidu) → Dohodit → (víc hráčů: <b>2</b>) → (další kola: <b>3</b>) → hotovo → (nový pád: nejdřív po <b>4</b>).</p>
 
         <div class="asec">⚡ Přednostní dohoz pro mě</div>
         <p class="muted" style="margin:0 0 8px">Člověk má sebe vždycky připraveného, že armádu odešle okamžitě. Zadej své <b>jméno v rase</b> (přesně jak je v tabulce hráčů) a když spadneš <b>ty sám</b>, bot dohodí rychleji a <b>jako první</b> (před ostatními, bez odstupu mezi hráči, bez čekání za jejich záchranou a bez pauzy před opětovným dohozem). Prodlevy výše platí pro ostatní hráče.</p>

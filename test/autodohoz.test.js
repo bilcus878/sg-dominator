@@ -628,7 +628,7 @@ test('pojistka: příliš mnoho dohozů za hodinu auto-dohoz zastaví a pošle z
 test('pojistka počítá jen poslední hodinu', () => {
   const a = createAutoArmy({ rand: () => 0 });
   const io = { stillBelow: () => true, power: () => 50, threshold: () => 100, request: () => ({ ok: true }) };
-  const cfg = { ...ON, minSec: 0, maxSec: 0, gapMinSec: 0, gapMaxSec: 0, cooldownMinSec: 0, cooldownMaxSec: 0, maxPerHour: 2 };
+  const cfg = { ...ON, minSec: 0, maxSec: 0, gapMinSec: 0, gapMaxSec: 0, cooldownMinSec: 0, cooldownMaxSec: 0, quietMinSec: 0, quietMaxSec: 0, maxPerHour: 2 };
   for (const [i, base] of [0, 4_000_000].entries()) { // dvě skupiny dohozů s odstupem víc než hodina
     for (let k = 0; k < 2; k++) {
       const t = base + k * 40_000;
@@ -973,4 +973,30 @@ test('nad práh: přednostní dohoz (já) dohazuje rychle, dokud nejsem nad prah
   for (now = 0; now <= 20_000; now += 50) a.tick(now, io);
   assert.equal(io.sent.length, 3);
   assert.ok(times.at(-1) < 3000, `hotovo za ${times.at(-1)} ms`);
+});
+
+test('první pád po hodině klidu: k prodlevě 1 se přičte zpoždění 5; další pády ve stejném útoku už ne; já (přednostní) bez zpoždění', () => {
+  const a = createAutoArmy({ rand: () => 0, startedAt: 0 });
+  const cfg = { ...ON, minSec: 2, maxSec: 2, gapMinSec: 0, gapMaxSec: 0, quietMinSec: 30, quietMaxSec: 30, selfName: 'Ja' };
+  const t0 = 2 * 3_600_000; // aplikace běží 2 h, nikdo nespadl
+  const r1 = a.onAlert(alert('A', 'threshold'), cfg, t0);
+  assert.equal(r1.dueAt - t0, 32_000, '2 s + 30 s po klidu');
+  const r2 = a.onAlert(alert('B', 'threshold'), cfg, t0 + 60_000); // stejný útok, minutu po prvním pádu
+  assert.equal(r2.dueAt - (t0 + 60_000), 2_000);
+  const b = createAutoArmy({ rand: () => 0, startedAt: 0 });
+  const r3 = b.onAlert(alert('Ja', 'threshold'), cfg, t0); // přednostní dohoz pro mě se nezdržuje
+  assert.ok(r3.dueAt - t0 < 2_000);
+});
+
+test('první pád krátce po spuštění aplikace (méně než hodina) se nezdržuje – historii před spuštěním neznáme', () => {
+  const a = createAutoArmy({ rand: () => 0, startedAt: 0 });
+  const r = a.onAlert(alert('A', 'threshold'), { ...ON, minSec: 2, maxSec: 2, gapMinSec: 0, gapMaxSec: 0, quietMinSec: 30, quietMaxSec: 30 }, 10 * 60_000);
+  assert.equal(r.dueAt - 10 * 60_000, 2_000);
+});
+
+test('konfigurace: zpoždění po klidu se ořezává (0–600 s) a max nikdy pod min', () => {
+  const c = sanitizeAutoArmy({}, { quietMinSec: 50, quietMaxSec: 10 });
+  assert.deepEqual([c.quietMinSec, c.quietMaxSec], [50, 50]);
+  assert.equal(sanitizeAutoArmy({}, { quietMaxSec: 9999 }).quietMaxSec, 600);
+  assert.deepEqual([AUTO_ARMY_DEFAULTS.quietMinSec, AUTO_ARMY_DEFAULTS.quietMaxSec], [5, 15]);
 });

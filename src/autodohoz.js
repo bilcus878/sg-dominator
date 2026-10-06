@@ -27,6 +27,7 @@ export const AUTO_ARMY_DEFAULTS = {
   enabled: false, minSec: 2, maxSec: 4, gapMinSec: 0.9, gapMaxSec: 2.5,
   roundMinSec: 2, roundMaxSec: 4, // pauza mezi dohozy téhož hráče (kola k horní hranici): náhodně v rozmezí
   cooldownMinSec: 60, cooldownMaxSec: 120, // dřív než za tuhle (náhodnou) dobu se stejný hráč po dohození znovu nezačíná dohazovat
+  quietMinSec: 5, quietMaxSec: 15, // první pád po klidu (QUIET_MS nikdo z rasy nespadl): k prodlevě 1 se přičte ještě tohle (hráč „nebyl připravený“)
   topUp: false, topUpTarget: 0, // false = jeden dohoz za pád pod práh; true = dohazovat, dokud síla nepřekročí topUpTarget (bez omezení počtu dohozů)
   maxPerHour: 200, // pojistka: víc dohozů za hodinu = auto-dohoz se sám vypne
   // přednostní dohoz pro uživatele samotného: kdo si zadá svoje jméno v rase, tomu se dohazuje rychleji a jako prvnímu (člověk má sebe vždycky připraveného)
@@ -39,6 +40,7 @@ const BELOW_REASONS = new Set(['threshold', 'critical']); // pád pod práh (pro
 const STALL_MS = 15_000; // pojistka: síla po dohození do téhle doby nevzrostla = dohoz nezabírá, přestat (běžně síla naskočí hned)
 const GAIN_FRACTION = 0.001; // „síla vzrostla“ = o víc než 0,1 % cíle (filtr drobného přirozeného kolísání)
 const HOUR_MS = 3_600_000;
+const QUIET_MS = 60 * 60_000; // „klid“: tak dlouho nikdo z naší rasy nespadl pod práh -> další pád je začátek nového útoku
 const MAX_ROUNDS = 500; // jen tvrdý strop proti chybě v kódu; v nastavení se počet dohozů na hráče neomezuje
 
 /** Starší nastavení (pevná pauza cooldownSec, kola s prodlevou jako první dohoz) -> nová rozmezí. */
@@ -73,6 +75,8 @@ export function sanitizeAutoArmy(cur, body) {
   if ('maxPerHour' in body) next.maxPerHour = Math.floor(num(body.maxPerHour, 1, 1000, next.maxPerHour));
   if ('selfName' in body && typeof body.selfName === 'string') next.selfName = body.selfName.trim().slice(0, 64);
   for (const k of ['selfMinSec', 'selfMaxSec', 'selfRoundMinSec', 'selfRoundMaxSec']) if (k in body) next[k] = num(body[k], 0, 60, next[k]);
+  for (const k of ['quietMinSec', 'quietMaxSec']) if (k in body) next[k] = num(body[k], 0, 600, next[k]);
+  if (next.quietMaxSec < next.quietMinSec) next.quietMaxSec = next.quietMinSec;
   if (next.maxSec < next.minSec) next.maxSec = next.minSec;
   if (next.gapMaxSec < next.gapMinSec) next.gapMaxSec = next.gapMinSec;
   if (next.cooldownMaxSec < next.cooldownMinSec) next.cooldownMaxSec = next.cooldownMinSec;
@@ -82,7 +86,7 @@ export function sanitizeAutoArmy(cur, body) {
   return next;
 }
 
-export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS } = {}) {
+export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS, startedAt = Date.now() } = {}) {
   let queue = []; // [{ name, dueAt, firstDueAt, episode, cool, limit }]
   let lastDueAt = 0; // kdy byl naplánovaný poslední dohoz (kvůli rozestupu mezi hráči)
   const blockedUntil = new Map(); // jméno -> do kdy se po dohození znovu nezačíná dohazovat (náhodná doba z rozmezí cooldownMin–Max)
@@ -92,6 +96,7 @@ export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS } = 
   const recent = []; // poslední události pro UI
   const total = { sent: 0, skipped: 0, failed: 0 };
   let pageAlertAt = -Infinity;
+  let lastFallAt = startedAt; // poslední pád hráče naší rasy pod práh; před prvním pádem čas spuštění (historii před ním neznáme)
 
   const randRange = (a, b) => a + rand() * (b - a);
   const note = (now, type, name, text = '') => {
@@ -131,7 +136,12 @@ export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS } = 
     if (alert.repeat) return { scheduled: false, why: 'repeat' }; // připomínka „stále pod prahem“ není nový pád
     if (queue.some((q) => q.name === alert.name) || episodes.has(alert.name)) return { scheduled: false, why: 'queued' };
     const self = isSelf(auto, alert.name); // přednostní dohoz: rychlejší a jako první, bez odstupu a bez pauzy před opětovným dohozem
+    // první pád po klidu (60 min nikdo nespadl) = začátek nového útoku: bot „nebyl připravený“ a dohodí s trochou zpoždění navíc
+    const afterQuiet = now - lastFallAt >= QUIET_MS;
+    lastFallAt = now;
     let dueAt = self ? now + Math.round(randRange(auto.selfMinSec ?? 0.3, auto.selfMaxSec ?? 1) * 1000) : dueFor(now, auto);
+    const extra = afterQuiet && !self ? Math.round(randRange(auto.quietMinSec ?? 5, auto.quietMaxSec ?? 15) * 1000) : 0;
+    if (extra) { dueAt += extra; lastDueAt = Math.max(lastDueAt, dueAt); }
     // pauza po předchozím dohození: nový pád se NEZAHODÍ, jen se dohoz odloží na konec pauzy (až bude potřeba, ověří se, že je hráč pořád pod prahem)
     const until = self ? undefined : blockedUntil.get(alert.name);
     const deferred = until !== undefined && until > dueAt;
@@ -148,7 +158,7 @@ export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS } = 
       : null;
     if (episode) episodes.set(alert.name, episode);
     queue.push({ name: alert.name, dueAt, firstDueAt: dueAt, episode, cool, limit, priority: self });
-    note(now, 'plan', alert.name, `${self ? '⚡ ' : ''}za ${Math.round((dueAt - now) / 100) / 10} s${deferred ? ' (po pauze)' : ''}${episode ? (topUp ? `, pak do ${fmt(episode.target)}` : ` (dohazuje se, dokud není nad ${fmt(episode.target)})`) : ''}`);
+    note(now, 'plan', alert.name, `${self ? '⚡ ' : ''}za ${Math.round((dueAt - now) / 100) / 10} s${extra ? ' (první pád po klidu)' : ''}${deferred ? ' (po pauze)' : ''}${episode ? (topUp ? `, pak do ${fmt(episode.target)}` : ` (dohazuje se, dokud není nad ${fmt(episode.target)})`) : ''}`);
     return { scheduled: true, dueAt, deferred };
   }
 
