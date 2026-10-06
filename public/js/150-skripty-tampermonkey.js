@@ -82,7 +82,9 @@ async function findChats(target) {
       box.appendChild(row);
     }
   } catch (e) { box.innerHTML = `<span style="color:var(--bad)">${esc(e.message)}</span>`; }
-};
+}
+$('findChats').onclick = () => findChats('tChat');
+$('findServiceChats').onclick = () => findChats('tService');
 
 $('clearRaces').onclick = async () => {
   if (!confirm('Vymazat všechny rasy a nastavení hlídání u ras a hráčů?\n\nVýchozí hranice, pravidla a kanály zůstanou. Rasy otevřené v prohlížeči se po chvíli načtou znovu jako vypnuté.')) return;

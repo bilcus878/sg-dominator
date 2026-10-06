@@ -259,3 +259,12 @@ test('Nastavení → Přihlášení: vlastní záložka, přepínač zapnuto/vyp
   await b.eval(`document.getElementById('sesEnabled').click(); document.getElementById('save').click(); document.getElementById('closeSettings').click(); 1`); await sleep(500);
   assert.equal((await app.api('/api/config')).session.enabled, true);
 });
+
+test('Telegram: tlačítka Najít skupinu (hlavní i servisní) něco udělají – bez platného tokenu ukážou chybu, ne nic', { skip, timeout: 30_000 }, async () => {
+  await b.eval(`document.getElementById('openSettings').click(); document.querySelector('[data-tab=channels]').click(); 1`); await sleep(300);
+  for (const id of ['findChats', 'findServiceChats']) {
+    await b.eval(`document.getElementById('chatList').textContent = ''; document.getElementById('tToken').value = ''; document.getElementById('${id}').click(); 1`); await sleep(500);
+    assert.ok((await b.eval(`document.getElementById('chatList').textContent`)).length > 0, id + ' nic neukázalo');
+  }
+  await b.eval(`document.getElementById('closeSettings').click(); 1`);
+});
