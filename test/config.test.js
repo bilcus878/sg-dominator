@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
-import { sanitizeUpdate, DEFAULTS } from '../src/config.js';
+import { sanitizeUpdate, DEFAULTS, applyMyRace } from '../src/config.js';
 
 const base = () => {
   const c = structuredClone(DEFAULTS);
@@ -63,4 +63,26 @@ test('notifyTypes: vypnutý druh se uloží jako false, zapnutý se smaže, nezn
   const back = sanitizeUpdate(off, { notifyTypes: { threshold: true } }, ctx);
   assert.deepEqual(back.notifyTypes, { op: false });
   assert.deepEqual(sanitizeUpdate(back, { threshold: 5 }, ctx).notifyTypes, { op: false });
+});
+
+test('naše rasa: vybraná rasa je defend, všechny ostatní attack; role z těla se při vybrané rase ignorují', () => {
+  const a = sanitizeUpdate(base(), { myRace: '20' }, ctx);
+  assert.equal(a.myRace, '20');
+  assert.equal(a.races[20].role, 'defend');
+  assert.equal(a.races[7].role, 'attack');
+  // přepnutí naší rasy otočí role
+  const b = sanitizeUpdate(a, { myRace: '7' }, ctx);
+  assert.deepEqual([b.races[20].role, b.races[7].role], ['attack', 'defend']);
+  // ruční změna role je při vybrané rase ignorována
+  const c = sanitizeUpdate(b, { races: { 20: { role: 'defend' } } }, ctx);
+  assert.equal(c.races[20].role, 'attack');
+  // neznámá rasa se nepřijme, prázdná zruší výběr (role zůstanou)
+  assert.equal(sanitizeUpdate(b, { myRace: '999' }, ctx).myRace, '7');
+  assert.equal(sanitizeUpdate(b, { myRace: '' }, ctx).myRace, '');
+});
+
+test('naše rasa: applyMyRace bez vybrané rasy nic nemění', () => {
+  const c = base(); c.races[20].role = 'defend'; c.races[7].role = 'defend';
+  applyMyRace(c);
+  assert.deepEqual([c.races[20].role, c.races[7].role], ['defend', 'defend']);
 });

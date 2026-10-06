@@ -37,6 +37,7 @@ export const DEFAULTS = {
   repeatWhileBelow: true, // opakovat zprávu po každé pauze, dokud je hráč pod prahem
   minDrop: 0, // pod prahem hlásit další pokles jen o aspoň tolik
   notifyRecovery: false, // hlásit i návrat nad práh
+  myRace: '', // id naší rasy; všechny ostatní rasy jsou cizí (k dobytí). Prázdné = zatím nevybráno
   notify: true, // hlavní vypínač: vypnuto = bot neposílá nic do Telegramu ani Discordu
   notifyTypes: {}, // vypnuté druhy upozornění: { threshold: false, … } (chybí = zapnuto); druhy v NOTIFY_KINDS
   // rasy: { [id]: { name, mode: 'off'|'all'|'selected', role: 'defend'|'attack', threshold: číslo|null, criticalPct: číslo|null } }
@@ -81,11 +82,22 @@ export function loadConfig() {
   cfg.attack = sanitizeAttack(ATTACK_DEFAULTS, cfg.attack);
   cfg.army = sanitizeArmy(ARMY_DEFAULTS, cfg.army);
   migrateLegacy(cfg, stored);
+  if (!cfg.myRace) { // starší konfigurace: naše rasa byla ta, která měla roli 'defend' (když je právě jedna)
+    const mine = Object.entries(cfg.races ?? {}).filter(([, r]) => r.role === 'defend').map(([id]) => id);
+    if (mine.length === 1) cfg.myRace = mine[0];
+  }
+  applyMyRace(cfg);
   if (!cfg.token) {
     cfg.token = randomBytes(16).toString('hex');
     saveConfig(cfg);
   }
   return cfg;
+}
+
+/** Role ras podle vybrané naší rasy: naše = hlídá se pokles pod práh (defend), všechny ostatní cizí = k dobytí (attack). */
+export function applyMyRace(cfg) {
+  if (!cfg.myRace) return;
+  for (const [id, r] of Object.entries(cfg.races ?? {})) r.role = id === cfg.myRace ? 'defend' : 'attack';
 }
 
 /** Starý formát (ignore + playerThresholds) -> players. */
@@ -134,6 +146,11 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
   if ('repeatWhileBelow' in body) next.repeatWhileBelow = !!body.repeatWhileBelow;
   if ('notifyRecovery' in body) next.notifyRecovery = !!body.notifyRecovery;
   if ('notify' in body) next.notify = !!body.notify;
+  if ('myRace' in body) { // naše rasa (jedna); všechny ostatní se tím stanou cizími
+    const v = String(body.myRace ?? '').trim();
+    next.myRace = v === '' || next.races[v] ? v : cur.myRace ?? '';
+    applyMyRace(next);
+  }
   if (body.notifyTypes && typeof body.notifyTypes === 'object') {
     next.notifyTypes = { ...cur.notifyTypes };
     for (const k of NOTIFY_KINDS) if (k in body.notifyTypes) { if (body.notifyTypes[k]) delete next.notifyTypes[k]; else next.notifyTypes[k] = false; }
@@ -155,7 +172,7 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
         }
         rec.mode = r.mode;
       }
-      if (['defend', 'attack'].includes(r.role)) rec.role = r.role;
+      if (!cur.myRace && ['defend', 'attack'].includes(r.role)) rec.role = r.role; // roli určuje vybraná naše rasa; ruční přepínání jen dokud není vybrána
       if ('threshold' in r) rec.threshold = r.threshold === null || r.threshold === '' ? null : num(r.threshold, rec.threshold);
       if ('criticalPct' in r) rec.criticalPct = r.criticalPct === null || r.criticalPct === '' ? null : Math.min(100, num(r.criticalPct, rec.criticalPct ?? 0));
       if (typeof r.name === 'string' && r.name.trim()) rec.name = r.name.trim().slice(0, 64);

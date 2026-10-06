@@ -527,6 +527,8 @@
   </div>
   <div class="d-body">
     <div class="pane on" id="pane-rules">
+      <div class="field" style="border:1px solid var(--acc);border-radius:10px;padding:12px 14px"><label for="myRace" style="color:var(--acc);font-weight:700">⭐ Moje rasa</label><select id="myRace"></select>
+        <small>Vyber svou rasu. <b>Tvoje rasa</b> se hlídá (pokles pod práh, tlačítko Dohodit). <b>Všechny ostatní rasy jsou cizí</b>: hlídá se, kdo je k dobytí, a jde na ně útočit písmeny D P Z…</small></div>
       <p class="muted" style="margin-top:0">Zpráva přijde, když někomu klesne síla pod hranici. Zbytek jen doladí, aby to nespamovalo.</p>
       <div class="field"><label for="threshold">Výchozí hranice síly</label><input type="text" inputmode="numeric" class="num" id="threshold">
         <small>Platí pro všechny hlídané hráče, pokud rasa nebo hráč nemá vlastní práh. Klesne-li síla <b>pod toto číslo</b>, pošle se zpráva.</small></div>
@@ -873,7 +875,7 @@ function buildPanel(id) {
       ${isW ? '' : `<div class="rmode" role="group" aria-label="Co hlídat">
         ${modeBtn.map(([m, ic, t]) => `<button data-act="mode" data-mode="${m}" title="${modeHint[m]}"><span class="mi">${ic}</span><span class="mt">${t}</span></button>`).join('')}
       </div>
-      <button class="icon rrole chip" data-act="role" title="Naše rasa = hlídá se pokles pod práh (obrana). Cizí rasa = hlídá se, kdo je k dobytí. Klikni pro přepnutí."></button>
+      <button class="icon rrole chip" hidden data-act="role" title="Naše rasa = hlídá se pokles pod práh (obrana). Cizí rasa = hlídá se, kdo je k dobytí. Klikni pro přepnutí."></button>
       <button class="icon rcfgbtn chip" data-act="cfg" title="Práh a kritická hranice této rasy"></button>`}
       <div class="rtools">
         <button class="icon" data-act="fold" title="Sbalit / rozbalit panel">▾</button>
@@ -1309,12 +1311,6 @@ $('board').addEventListener('click', (e) => {
     if (j >= 0 && j < panels.length) { [panels[i], panels[j]] = [panels[j], panels[i]]; saveUi(); renderBoard(); }
   } else if (act === 'mode') setMode(id, btn.dataset.mode);
   else if (act === 'dohodit') dohodit(btn);
-  else if (act === 'role') {
-    const r = raceOf(id); if (!r) return;
-    const role = r.role === 'attack' ? 'defend' : 'attack';
-    if (!confirm(role === 'attack' ? `Přepnout ${r.name} na CIZÍ rasu?\n\nNebude se hlídat pokles pod práh, ale kdo je k dobytí (pod ${dots(cfg.conquest.below)}).` : `Přepnout ${r.name} na NAŠI rasu?\n\nBude se hlídat pokles pod práh (obrana) místo k dobytí.`)) return;
-    r.role = role; updatePanel(id); savePartial({ races: { [id]: { role } } });
-  }
   else if (act === 'cfg' && raceOf(id)?.role === 'attack') { $('openSettings').click(); }
   else if (act === 'cfg') { const st = ps(id); st.cfgOpen = !st.cfgOpen; saveUi(); updatePanel(id); }
   else if (act === 'dday') { const st = ps(id); st.dday = !st.dday; saveUi(); updatePanel(id); }
@@ -1664,7 +1660,14 @@ function updateCritHint() {
     : `Např. při hranici ${fmt(th || 0)} je kritické pod ${fmt(Math.round(((th || 0) * pct) / 100))}. Hráč s vlastním prahem má kritickou hranici úměrnou jeho prahu. 0 = vypnuto.`;
 }
 document.addEventListener('input', (e) => { if (e.target.id === 'criticalPct' || e.target.id === 'threshold') updateCritHint(); });
+function fillMyRace() {
+  const sel = $('myRace');
+  const races = [...(S.races ?? [])].sort((a, b) => a.name.localeCompare(b.name, 'cs'));
+  sel.innerHTML = `<option value="">– nevybrána –</option>` + races.map((r) => `<option value="${esc(r.id)}">${esc(r.name)}${r.at ? '' : ' (zatím bez dat)'}</option>`).join('');
+  sel.value = cfg.myRace ?? '';
+}
 function fillForm() {
+  fillMyRace();
   $('threshold').value = dots(cfg.threshold); $('cooldownSec').value = cfg.cooldownSec; $('minDrop').value = dots(cfg.minDrop);
   $('conqBelow').value = dots(cfg.conquest.below); $('conqAbove').value = dots(cfg.conquest.above);
   $('criticalPct').value = cfg.criticalPct; $('criticalCooldownSec').value = cfg.criticalCooldownSec; updateCritHint();
@@ -1815,6 +1818,7 @@ $('save').onclick = async () => {
       op: { enabled: $('opEnabled2').checked, repeatSec: $('opRepeatSec').value, vigilance: { enabled: $('opVigEnabled').checked, minSec: $('opVigMin').value, maxSec: $('opVigMax').value, skipEnabled: $('opVigSkip').checked, skipMin: $('opSkipMin').value, skipMax: $('opSkipMax').value, downMin: $('opDownMin').value, downMax: $('opDownMax').value }, telescope: { auto: $('opTeleAuto').checked, reactMinSec: $('opReactMin').value, reactMaxSec: $('opReactMax').value, restEnabled: $('opRestEnabled').checked, restChance: $('opRestChance').value, restStopMin: $('opRestStopMin').value, restStopMax: $('opRestStopMax').value, restResumeMin: $('opRestResumeMin').value, restResumeMax: $('opRestResumeMax').value } },
       dropPct: $('dropPct').value, dropWindowSec: $('dropWindowSec').value,
       attack: readAtk(),
+      myRace: $('myRace').value,
       army: readArmy(),
       discord: { enabled: $('dEnabled').checked, webhookUrl: $('dUrl').value },
       telegram: { enabled: $('tEnabled').checked, botToken: $('tToken').value, chatId: $('tChat').value, serviceChatId: $('tService').value },

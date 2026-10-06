@@ -124,7 +124,7 @@ function registerRace(raceId, name) {
     cfg.races[raceId] = {
       name: name || `Rasa #${raceId}`,
       mode: 'off', // nová rasa se nehlídá, dokud ji nezapneš
-      role: 'attack', // nová rasa je cizí (k dobytí); naši rasu přepneš v jejím panelu
+      role: cfg.myRace && raceId === cfg.myRace ? 'defend' : 'attack', // nová rasa je cizí (k dobytí), kromě naší vybrané rasy
       threshold: null,
       criticalPct: null,
     };
