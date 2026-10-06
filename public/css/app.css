@@ -464,7 +464,8 @@
   /* responzivita: úzký panel zkrátí tabulku místo přetékání */
   @container rp (max-width: 560px) { .rpanel .ddslot, .rpanel .pdd { display:none; } .rpanel .thl { display:none; } .rpanel .dohodit { padding:3px 7px; font-size:12px; } .rpanel .rbody td.n, .rpanel .rbody th.n { padding-right:10px; } }
   @container rp (max-width: 460px) { .rpanel .dcol, .rpanel th.dcol { display:none; } .rpanel .rwatch { display:none; } .rpanel .rbody td, .rpanel .rbody th { padding-left:5px; padding-right:5px; } }
-  @container rp (max-width: 380px) { .rpanel .pcw, .rpanel th.pc, .rpanel td.pc { display:none; } }
+  .rtitle .rwatch { margin-left:0; }
+  @container rp (max-width: 400px) { .rpanel .pcw, .rpanel th.pc, .rpanel td.pc { display:none; } }
   /* přístupnost: viditelné zaostření, dostatečně velké cíle */
   :focus-visible { outline:2px solid var(--acc); outline-offset:2px; border-radius:6px; }
   button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline:none; }
