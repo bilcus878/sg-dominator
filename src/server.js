@@ -74,8 +74,26 @@ const autoArmyIo = {
 function sendDohoz(text) {
   sendService(cfg, text);
 }
+/**
+ * Občan nemůže dohazovat: když je moje jméno (Dohoz → Moje jméno v rase) ve hře vedené jako občan (modré jméno), auto-dohoz se pozastaví
+ * a rozběhne se sám, až bude hodnost zase ministr/zástupce/vůdce. Neznámá hodnost (žádná data) nepozastavuje.
+ */
+let rankPaused = false;
+function ownRankIsCitizen() {
+  const me = cfg.army.auto.selfName;
+  const raceId = me && playerRace.get(me);
+  if (!raceId) return false;
+  return store.snapshot(raceId, Date.now()).players.find((x) => x.name === me)?.rank === 'obcan';
+}
 setInterval(() => {
-  for (const ev of autoArmy.tick(Date.now(), autoArmyIo, !!cfg.army.auto.enabled)) {
+  const citizen = ownRankIsCitizen();
+  if (citizen !== rankPaused) {
+    rankPaused = citizen;
+    console.log(`[dohodit] auto ${citizen ? 'pozastaven: nemáš hodnost (občan)' : 'znovu spuštěn: hodnost je zpět'}`);
+    if (cfg.army.auto.enabled) sendService(cfg, citizen ? '⏸ Auto-dohoz pozastaven: ztratil jsi hodnost (občan nemůže dohazovat). Rozběhne se sám, až ji budeš mít zpět.' : '▶️ Auto-dohoz znovu běží: hodnost je zpět.');
+    pushState();
+  }
+  for (const ev of autoArmy.tick(Date.now(), autoArmyIo, !!cfg.army.auto.enabled && !rankPaused)) {
     if (ev.type === 'fail') console.log(`[dohodit] auto selhal (${ev.name}): ${ev.error}`);
     else if (['done', 'stall', 'max', 'breaker'].includes(ev.type)) console.log(`[dohodit] auto ${ev.type}: ${ev.name ?? ''} ${ev.text ?? ''}`);
     if (ev.type === 'breaker') { // pojistka: auto-dohoz se vypne i v nastavení, ať je to vidět a nezapne se samo
@@ -379,7 +397,7 @@ function buildState() {
     vigilance: { count: vig.count, lastClickedAt: vig.clickedAt, pendingSince: vig.pending ? vig.seenAt : 0 },
     telescope: tele.snapshot(),
   };
-  return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState, autoArmy: autoArmy.snapshot(now), sound: cfg.sound };
+  return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState, autoArmy: { ...autoArmy.snapshot(now), rankPaused }, sound: cfg.sound };
 }
 
 /** Hlídač výpadku: hlídané rasy a mapa (když je OP alert zapnutý) musí dodávat data. */

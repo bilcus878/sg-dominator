@@ -96,7 +96,7 @@ function renderAutoArmy() {
   if (!s) return;
   const label = { plan: 'naplánováno', sent: 'odesláno', skip: 'přeskočeno', fail: 'selhalo', rescued: 'je nad prahem', rescue: 'znovu pod prahem', verified: 'dohoz zabral', cancel: 'zrušeno', breaker: 'pojistka: vypnuto', done: 'je nad cílem', stall: 'dohoz nezabral', max: 'bezpečnostní strop kol' };
   const last = s.recent[s.recent.length - 1];
-  const txt = `${on ? 'Zapnuto' : 'Vypnuto'}. Odesláno ${s.sent}×, přeskočeno ${s.skipped}×, selhalo ${s.failed}×.`
+  const txt = `${s.rankPaused && on ? '⏸ Pozastaveno: nemáš hodnost (jsi občan), dohazovat nelze. Rozběhne se samo, až budeš zase ministr.' : on ? 'Zapnuto.' : 'Vypnuto.'} Odesláno ${s.sent}×, přeskočeno ${s.skipped}×, selhalo ${s.failed}×.`
     + (s.topping?.length ? ` Dohazuje se: ${s.topping.map((t) => `${esc(t.name)} (${t.phase === 'rescue' ? 'nad práh' : 'k hranici'}, ${t.rounds}. dohoz, cíl ${dots(t.target)})`).join(', ')}.` : '')
     + (s.pending.length ? ` Čeká: ${s.pending.map((p) => `${esc(p.name)} za ${Math.ceil(p.inMs / 1000)} s`).join(', ')}.` : '')
     + (last ? ` Naposledy: ${esc(last.name)} – ${label[last.type] ?? last.type}${last.text ? ` (${esc(last.text)})` : ''}.` : '');

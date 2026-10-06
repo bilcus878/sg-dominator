@@ -79,6 +79,8 @@ V Nastavení → Dohoz jde zadat *Moje jméno v rase*. Když spadne tento hráč
 a **jako první**: před ostatními, bez odstupu mezi hráči, bez čekání za cizí záchranou a bez pauzy před opětovným dohozem. Ostatním hráčům se tím
 neposouvají termíny. Ostatní pojistky (čerstvá data, ověřování, hodinová pojistka, vypnutí) platí i pro mě. U jména v tabulce svítí ⚡.
 
+**Hodnost.** Občan (modré jméno) dohazovat nemůže. Když je moje jméno vedené jako občan, auto-dohoz se pozastaví (zruší rozjeté dohozy, v Nastavení → Dohoz je vidět „Pozastaveno“, do servisního chatu přijde zpráva) a samo se rozběhne, až budu zase ministr/zástupce/vůdce. Neznámá hodnost nepozastavuje.
+
 ## 4c. Co se píše do chatu
 
 Do hlavní skupiny se o auto-dohozu **nikdy nic neposílá**: tam jdou jen herní alerty (pád pod práh apod.) jako dřív, takže to vypadá, že dohazuje člověk.
