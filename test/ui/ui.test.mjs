@@ -109,6 +109,14 @@ test('úzký panel zkrátí sloupce místo přetékání', { skip }, async () =>
   await b.eval(`document.querySelector('${P}').style.width = ''; 1`);
 });
 
+test('stav systému hlídá jen rasy otevřené jako panel (zavřený panel se nepočítá)', { skip }, async () => {
+  await b.eval(`panels = panels.filter((x) => x !== '5'); renderBoard(); 1`); await sleep(400); // panel Aschen zavřu
+  await b.eval(`document.getElementById('hlBtn').click(); 1`); await sleep(700);
+  const t = await b.eval(`document.getElementById('hlMenu').innerText`);
+  assert.match(t, /Bedrosian/); assert.ok(!/Aschen/.test(t), 'zavřená rasa je ve stavu systému: ' + t);
+  await b.eval(`document.body.click(); 1`);
+});
+
 test('staré údaje (10 s bez příjmu): tabulka ztlumená, okraj červený, LED červená, nápověda Proč', { skip, timeout: 40_000 }, async () => {
   await app.ingest(20, 'Bedrosian', ours); // poslední příjem, pak ticho
   assert.ok(await b.waitFor(`document.querySelector('${P}').dataset.fresh === 'bad'`, 20_000), 'panel nezestárl');

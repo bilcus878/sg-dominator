@@ -4,8 +4,9 @@ function healthItems() {
   const items = [];
   const stream = sseUp && Date.now() - lastPush < 4000;
   items.push({ cls: stream ? 'ok' : 'bad', t: 'Server Dominatora', v: stream ? 'připojeno' : 'bez spojení' });
+  const shown = new Set((panels ?? []).filter((id) => id !== WATCHED)); // jen rasy, které máš otevřené jako panel
   for (const r of S.races ?? []) {
-    if (r.mode === 'off') continue;
+    if (r.mode === 'off' || (panels && !shown.has(r.id))) continue;
     const age = r.at ? dAge(r.at) : null;
     items.push({ cls: age == null ? 'bad' : age < 3000 ? 'ok' : age < 10_000 ? 'warn' : 'bad', t: `Data: ${r.name}`, v: age == null ? 'čeká na data' : dSec(age) });
   }
