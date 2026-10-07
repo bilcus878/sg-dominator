@@ -463,3 +463,12 @@ test('Obchod: karta Chování má tempo (turbo až velmi pomalé) a pauzu mezi p
   await b.eval(`document.querySelector('#rdPace [data-v="1"]').click(); rdPauseMin.value = '4'; rdPauseMin.dispatchEvent(new Event('change', { bubbles: true })); 1`); await sleep(900);
   await b.eval(`document.querySelector('[data-nav=watch]').click(); 1`);
 });
+
+test('Obchod: omezení obřích planet (měst / lidí) se uloží na server', { skip, timeout: 30_000 }, async () => {
+  await b.eval(`document.querySelector('[data-nav=shop]').click(); 1`); await sleep(500);
+  assert.equal(await b.eval(`rdGiantCities.value + '/' + rdGiantPeople.value`), '0/0');
+  await b.eval(`rdGiantCities.value = '500'; rdGiantCities.dispatchEvent(new Event('change', { bubbles: true })); 1`); await sleep(900);
+  assert.equal((await app.api('/api/config')).redist.ignoreCities, 500);
+  await b.eval(`rdGiantCities.value = '0'; rdGiantCities.dispatchEvent(new Event('change', { bubbles: true })); 1`); await sleep(900);
+  await b.eval(`document.querySelector('[data-nav=watch]').click(); 1`);
+});

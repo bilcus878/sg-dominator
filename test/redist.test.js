@@ -93,3 +93,21 @@ test('pojistky: maximum přesunů, ruční zastavení a nečinný skript', () =>
   assert.equal(t.staleCheck(60_000), null);
   assert.match(t.staleCheck(130_000), /přestal hlásit/);
 });
+
+import { isGiant } from '../src/redist.js';
+test('obří planety: víc měst nebo lidí, než je nastaveno, se nepoužijí jako cíl; 0 = bez omezení', () => {
+  const big = { name: 'OBR', cities: 3000, people: 13_000 * M, free: 25_000 * M, unemployed: 0 };
+  const small = { name: 'MALA', cities: 120, people: 100 * M, free: 700 * M, unemployed: 0 };
+  assert.equal(isGiant(big, {}), false);
+  assert.equal(isGiant(big, { ignoreCities: 500 }), true);
+  assert.equal(isGiant(big, { ignorePeopleM: 5000 }), true);
+  assert.equal(isGiant(small, { ignoreCities: 500, ignorePeopleM: 5000 }), false);
+  assert.deepEqual(pickTargets([big, small], 'S', 100 * M).map((r) => r.name), ['OBR', 'MALA'], 'bez omezení vede obří planeta (největší rezerva)');
+  assert.deepEqual(pickTargets([big, small], 'S', 100 * M, null, { ignoreCities: 500 }).map((r) => r.name), ['MALA']);
+  // celý běh: cíl je ten malý, obří se přeskočí
+  const r = createRedist(); r.start({ ...S, ignoreCities: 500 }, 0);
+  const rows = [row('SRC', 5000, 200, 0), { ...big }, { ...small }];
+  r.report({ page: 'list', sorted: true, rows }, 1);
+  const mv = r.report({ page: 'planet', name: 'SRC', count: 200 * M, options: ['OBR', 'MALA'] }, 2);
+  assert.deepEqual([mv.action, mv.target], ['move', 'MALA']);
+});

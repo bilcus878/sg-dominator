@@ -25,11 +25,11 @@
   const RD_STATUS = { idle: 'nečinné', running: 'běží', stopped: 'zastaveno', finished: 'hotovo', error: 'chyba' };
   const fmtMil = (n) => (Number(n) / 1e6).toLocaleString('cs-CZ', { maximumFractionDigits: 1 }) + ' mil.';
   const paceNow = () => Number(document.querySelector('#rdPace .on')?.dataset.v ?? 1);
-  function rdFields() { return { minM: $('rdMin').value, maxM: $('rdMax').value, freeMaxM: $('rdFree').value, maxMoves: $('rdMoves').value, dry: $('rdDry').checked, pace: paceNow(), pauseMinSec: $('rdPauseMin').value, pauseMaxSec: $('rdPauseMax').value }; }
-  function rdFill(c) { if (!c) return; $('rdMin').value = c.minM; $('rdMax').value = c.maxM; $('rdFree').value = c.freeMaxM; $('rdMoves').value = c.maxMoves; $('rdDry').checked = !!c.dry; $('rdPauseMin').value = c.pauseMinSec ?? 4; $('rdPauseMax').value = c.pauseMaxSec ?? 10; for (const b of $('rdPace').children) b.classList.toggle('on', Math.abs(Number(b.dataset.v) - Number(c.pace ?? 1)) < 0.01); }
+  function rdFields() { return { minM: $('rdMin').value, maxM: $('rdMax').value, freeMaxM: $('rdFree').value, maxMoves: $('rdMoves').value, dry: $('rdDry').checked, pace: paceNow(), pauseMinSec: $('rdPauseMin').value, pauseMaxSec: $('rdPauseMax').value, ignoreCities: $('rdGiantCities').value, ignorePeopleM: $('rdGiantPeople').value }; }
+  function rdFill(c) { if (!c) return; $('rdMin').value = c.minM; $('rdMax').value = c.maxM; $('rdFree').value = c.freeMaxM; $('rdMoves').value = c.maxMoves; $('rdDry').checked = !!c.dry; $('rdGiantCities').value = c.ignoreCities ?? 0; $('rdGiantPeople').value = c.ignorePeopleM ?? 0; $('rdPauseMin').value = c.pauseMinSec ?? 4; $('rdPauseMax').value = c.pauseMaxSec ?? 10; for (const b of $('rdPace').children) b.classList.toggle('on', Math.abs(Number(b.dataset.v) - Number(c.pace ?? 1)) < 0.01); }
   async function rdSave() { clearTimeout(rdSaveTimer); const cfgNew = await api('/api/config', 'PUT', { redist: rdFields() }); cfg = cfgNew; rdFill(cfgNew.redist); }
   for (const b of $('rdPace').children) b.onclick = () => { for (const x of $('rdPace').children) x.classList.toggle('on', x === b); clearTimeout(rdSaveTimer); rdSaveTimer = setTimeout(() => rdSave().catch((e) => toast(e.message, true)), 150); };
-  for (const id of ['rdMin', 'rdMax', 'rdFree', 'rdMoves', 'rdDry', 'rdPauseMin', 'rdPauseMax']) $(id).addEventListener('change', () => { clearTimeout(rdSaveTimer); rdSaveTimer = setTimeout(() => rdSave().catch((e) => toast(e.message, true)), 250); });
+  for (const id of ['rdMin', 'rdMax', 'rdFree', 'rdMoves', 'rdDry', 'rdPauseMin', 'rdPauseMax', 'rdGiantCities', 'rdGiantPeople']) $(id).addEventListener('change', () => { clearTimeout(rdSaveTimer); rdSaveTimer = setTimeout(() => rdSave().catch((e) => toast(e.message, true)), 250); });
   function rdRender() {
     if (!R) return;
     const on = R.status === 'running';

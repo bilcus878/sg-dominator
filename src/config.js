@@ -355,6 +355,7 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
     const r = { ...REDIST_DEFAULTS, ...cur.redist };
     const lim = (k, lo, hi) => { if (k in body.redist) r[k] = Math.min(hi, Math.max(lo, num(body.redist[k], r[k]))); };
     lim('minM', 1, 10_000); lim('maxM', 1, 10_000); lim('freeMaxM', 0, 10_000); lim('maxMoves', 1, 1000);
+    lim('ignoreCities', 0, 100_000); lim('ignorePeopleM', 0, 10_000_000); r.ignoreCities = Math.round(r.ignoreCities);
     lim('pace', 0.25, 3); lim('pauseMinSec', 0, 300); lim('pauseMaxSec', 0, 300);
     if (r.pauseMaxSec < r.pauseMinSec) r.pauseMaxSec = r.pauseMinSec; // konec nikdy pod začátkem
     r.maxMoves = Math.round(r.maxMoves);

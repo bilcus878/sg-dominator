@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – nezaměstnaní
 // @namespace    sg-dominator
-// @version      1.2.0
+// @version      1.3.0
 // @description  Na pokyn z aplikace doplní nezaměstnané na planety, kterým chybí lidé, nebo je přerozdělí z plných planet na planety s volným místem: Obchod → Nezaměstnaní, seřadit, otevřít planetu, vybrat cíl, Přesunout, zpět.
 // @match        https://stargate-game.cz/obchod.php*
 // @match        https://www.stargate-game.cz/obchod.php*
@@ -73,7 +73,7 @@
   const firstNum = (t) => { const m = String(t ?? '').match(/\d[\d\s\u00a0]*/); return m ? Number(m[0].replace(/\D/g, '')) : NaN; };
   /** Celý seznam planet pro přerozdělení: název, města, lidé na planetě, nezaměstnaní (první číslo v buňce), zbývá míst. */
   function rowsData(rows) {
-    return rows.map((r) => ({ name: r.cells[0].textContent.trim(), cities: num(r.cells[1].textContent), people: num(r.cells[2].textContent), unemployed: firstNum(r.cells[3].textContent), free: num(r.cells[4].textContent) }))
+    return rows.map((r) => ({ name: r.cells[0].textContent.trim(), cities: num(r.cells[1].textContent), people: num(r.cells[2].textContent), unemployed: firstNum(r.cells[3].textContent), free: num(r.cells[4].textContent), missing: (() => { const red = r.cells[3].querySelector('span.asistent'); return red ? num(red.textContent) : 0; })() }))
       .filter((r) => r.name && Number.isFinite(r.people) && Number.isFinite(r.unemployed) && Number.isFinite(r.free));
   }
   /** Detail planety s formulářem „Přesunutí nezaměstnaných“. */

@@ -12,7 +12,7 @@
 const STALE_MS = 120_000; // skript se tak dlouho neozval = běh se zastaví
 const MAX_RELOADS = 3; // tolikrát se znovu načte seznam, když ukazuje stará data (po návratu zpět z mezipaměti prohlížeče)
 
-export const REDIST_DEFAULTS = { minM: 100, maxM: 300, freeMaxM: 0, dry: true, maxMoves: 100, pace: 1, pauseMinSec: 4, pauseMaxSec: 10 }; // pace = násobek tempa skriptu (menší = rychlejší), pauza = náhodná prodleva mezi planetami (s); platí pro přerozdělení i doplňování // v milionech lidí; dry = zkušební běh (nic se nepřesouvá)
+export const REDIST_DEFAULTS = { minM: 100, maxM: 300, freeMaxM: 0, dry: true, maxMoves: 100, pace: 1, pauseMinSec: 4, pauseMaxSec: 10, ignoreCities: 0, ignorePeopleM: 0 }; // pace = násobek tempa skriptu (menší = rychlejší), pauza = náhodná prodleva mezi planetami (s); platí pro přerozdělení i doplňování // v milionech lidí; dry = zkušební běh (nic se nepřesouvá)
 
 const fmtM = (n) => `${(Number(n) / 1e6).toLocaleString('cs-CZ', { maximumFractionDigits: 1 })} mil.`;
 
@@ -26,9 +26,12 @@ export function pickSources(rows, s, done = new Set()) {
 export const acceptance = (r) => Math.floor((r.free - r.people) / 2);
 
 /** Cíle, kam se vejde celý přesun `amount`: největší rezerva první. `allowed` = názvy planet, které jsou v nabídce na detailu zdroje. */
-export function pickTargets(rows, source, amount, allowed = null) {
+/** Obří planety (víc měst / víc lidí, než je nastaveno; 0 = bez omezení) se jako cíl ani k doplňování nepoužijí. */
+export const isGiant = (r, s = {}) => (s.ignoreCities > 0 && r.cities > s.ignoreCities) || (s.ignorePeopleM > 0 && r.people > s.ignorePeopleM * 1e6);
+
+export function pickTargets(rows, source, amount, allowed = null, s = {}) {
   return rows
-    .filter((r) => r.name !== source && acceptance(r) >= amount && (!allowed || allowed.has(r.name)))
+    .filter((r) => r.name !== source && !isGiant(r, s) && acceptance(r) >= amount && (!allowed || allowed.has(r.name)))
     .sort((a, b) => acceptance(b) - acceptance(a));
 }
 
@@ -116,7 +119,7 @@ export function createRedist() {
       const amount = Number(rep.count);
       if (!(amount >= S.minM * 1e6)) { skip(now, c.source.name, `k přesunu je jen ${Number.isFinite(amount) ? fmtM(amount) : '?'}`); return { action: 'back' }; }
       const allowed = Array.isArray(rep.options) ? new Set(rep.options) : null;
-      const targets = pickTargets(run.rows, c.source.name, amount, allowed);
+      const targets = pickTargets(run.rows, c.source.name, amount, allowed, S);
       if (!targets.length) { skip(now, c.source.name, `není planeta, kam by se vešlo ${fmtM(amount)} a zůstala vyrovnaná`); return { action: 'back' }; }
       const t = targets[0];
       c.target = t.name; c.amount = amount;

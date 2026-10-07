@@ -868,7 +868,7 @@ const routes = {
     return [200, { action: r.action, name: r.name, target: r.target, speed: cfg.redist.pace, pause: [cfg.redist.pauseMinSec, cfg.redist.pauseMaxSec] }]; // tempo a pauza mezi planetami z Obchodu (platí pro přerozdělení i doplňování)
   },
   'GET /api/unemp': async () => [200, unemp.snapshot()],
-  'POST /api/unemp/start': async () => { if (redist.active()) return [409, { error: 'Běží přerozdělení nezaměstnaných, nejdřív ho zastav.' }]; unemp.start(); return [200, unemp.snapshot()]; },
+  'POST /api/unemp/start': async () => { if (redist.active()) return [409, { error: 'Běží přerozdělení nezaměstnaných, nejdřív ho zastav.' }]; unemp.start(Date.now(), cfg.redist); return [200, unemp.snapshot()]; }, // omezení obřích planet se bere ze stejného nastavení jako u přerozdělení
   'GET /api/redist': async () => [200, redist.snapshot()],
   'POST /api/redist/start': async () => {
     if (unemp.snapshot().status === 'running') return [409, { error: 'Běží doplňování nezaměstnaných, nejdřív ho zastav.' }];

@@ -61,3 +61,19 @@ test('nezaměstnaní: ruční zastavení a zastavení, když skript přestane hl
   assert.equal(u.staleCheck(60_000), null);
   assert.match(u.staleCheck(200_000), /přestal hlásit/);
 });
+
+test('doplňování s omezením obřích planet: poslední planeta v seznamu, která není obří; bez omezení platí poslední řádek', () => {
+  const mk = (name, cities, people, missing) => ({ name, cities, people, unemployed: 0, free: 0, missing });
+  const rows = [mk('A', 100, 1e8, 5e7), mk('B', 150, 2e8, 9e7), mk('OBR1', 3000, 13e9, 25e9), mk('OBR2', 3000, 13e9, 25.3e9)];
+  const u = createUnemp(); u.start(0, { ignoreCities: 500 });
+  assert.equal(u.report({ page: 'list', sorted: true, last: { name: 'OBR2', missing: 25.3e9 } }, 1).action, 'send-rows', 'potřebuje celou tabulku');
+  const open = u.report({ page: 'list', sorted: true, last: { name: 'OBR2', missing: 25.3e9 }, rows }, 2);
+  assert.deepEqual([open.action, open.name], ['open', 'B'], 'obří planety se přeskočí');
+  assert.match(u.snapshot().log.map((l) => l.msg).join('\n'), /Obří planety se přeskakují/);
+  const plain = createUnemp(); plain.start(0);
+  const o2 = plain.report({ page: 'list', sorted: true, last: { name: 'OBR2', missing: 25.3e9 } }, 1);
+  assert.deepEqual([o2.action, o2.name], ['open', 'OBR2'], 'bez omezení beze změny');
+  const none = createUnemp(); none.start(0, { ignorePeopleM: 1000 });
+  const r3 = none.report({ page: 'list', sorted: true, last: { name: 'X', missing: 1 }, rows: [mk('OBR', 3000, 13e9, 25e9)] }, 1);
+  assert.equal(r3.action, 'idle'); assert.match(none.snapshot().reason, /všechny planety mají dost lidí/);
+});

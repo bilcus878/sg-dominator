@@ -7,18 +7,19 @@
  */
 const STALE_MS = 120_000; // skript se tak dlouho neozval = běh se zastaví (zavřená karta, odhlášení…)
 const MAX_PLANETS = 200; // pojistka proti zacyklení
+const isGiant = (r, s) => (s.ignoreCities > 0 && r.cities > s.ignoreCities) || (s.ignorePeopleM > 0 && r.people > s.ignorePeopleM * 1e6); // obří planety se nedoplňují (nastavení Obchod → Chování)
 
 export function createUnemp() {
   let run = idle();
   function idle() {
-    return { status: 'idle', startedAt: 0, lastSeenAt: 0, target: null, done: new Set(), filled: [], moved: 0, reason: '', log: [], last: false, reloads: 0 };
+    return { status: 'idle', startedAt: 0, lastSeenAt: 0, target: null, done: new Set(), filled: [], moved: 0, reason: '', log: [], last: false, reloads: 0, settings: {} };
   }
   const active = () => run.status === 'running';
   const addLog = (now, msg) => { run.log.push({ at: now, msg }); if (run.log.length > 60) run.log.shift(); };
 
-  function start(now = Date.now()) {
+  function start(now = Date.now(), settings = {}) {
     if (active()) return false;
-    run = { ...idle(), status: 'running', startedAt: now, lastSeenAt: now };
+    run = { ...idle(), status: 'running', startedAt: now, lastSeenAt: now, settings: { ignoreCities: Number(settings.ignoreCities) || 0, ignorePeopleM: Number(settings.ignorePeopleM) || 0 } };
     addLog(now, 'Spuštěno – čekám na stránku Obchod → Nezaměstnaní');
     return true;
   }
@@ -58,7 +59,15 @@ export function createUnemp() {
     }
     if (rep.page === 'list') {
       if (!rep.sorted) return { action: 'sort' };
-      const last = rep.last;
+      const filtering = run.settings.ignoreCities > 0 || run.settings.ignorePeopleM > 0;
+      let last = rep.last;
+      if (filtering) { // omezení obřích planet: potřebuje celou tabulku, dole se vezme poslední planeta, která obří není
+        if (!Array.isArray(rep.rows)) return { action: 'send-rows' };
+        const cand = rep.rows.filter((r) => r.missing > 0 && !isGiant(r, run.settings));
+        const skippedGiants = rep.rows.filter((r) => r.missing > 0 && isGiant(r, run.settings)).length;
+        if (skippedGiants && !run.giantNoted) { run.giantNoted = true; addLog(now, `Obří planety se přeskakují (${skippedGiants} s chybějícími lidmi)`); }
+        last = cand.length ? { name: cand[cand.length - 1].name, missing: cand[cand.length - 1].missing } : null;
+      }
       if (!last || !(last.missing > 0)) return { action: 'idle', summary: finish(now, 'finished', 'všechny planety mají dost lidí') };
       if (run.done.has(last.name)) { // seznam z mezipaměti prohlížeče ještě ukazuje doplněnou planetu
         if (run.reloads++ < 3) return { action: 'reload' };
