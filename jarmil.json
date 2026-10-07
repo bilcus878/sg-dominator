@@ -1,8 +1,8 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791386883228,
-  "savedBy": "Jaroslav-ntb",
+  "savedAt": 1791399968511,
+  "savedBy": "JarmilPC",
   "config": {
     "threshold": 100000000,
     "criticalPct": 5,
@@ -241,11 +241,11 @@
           "n": 0
         },
         "bs": {
-          "mode": "target",
+          "mode": "skip",
           "n": 1000
         },
         "sdi": {
-          "mode": "target",
+          "mode": "skip",
           "n": 1000
         },
         "po": {
@@ -257,7 +257,7 @@
           "n": 0
         },
         "vyrobna": {
-          "mode": "skip",
+          "mode": "max",
           "n": 0
         }
       },
