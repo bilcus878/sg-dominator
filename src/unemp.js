@@ -12,7 +12,7 @@ const isGiant = (r, s) => (s.ignoreCities > 0 && r.cities > s.ignoreCities) || (
 export function createUnemp() {
   let run = idle();
   function idle() {
-    return { status: 'idle', startedAt: 0, lastSeenAt: 0, target: null, done: new Set(), filled: [], moved: 0, reason: '', log: [], last: false, reloads: 0, settings: {} };
+    return { status: 'idle', startedAt: 0, lastSeenAt: 0, target: null, done: new Set(), filled: [], moved: 0, reason: '', log: [], last: false, reloads: 0, settings: {}, skipNames: new Set() };
   }
   const active = () => run.status === 'running';
   const addLog = (now, msg) => { run.log.push({ at: now, msg }); if (run.log.length > 60) run.log.shift(); };
@@ -57,13 +57,19 @@ export function createUnemp() {
       }
       return { action: 'back' };
     }
+    if (rep.page === 'failed') { // na otevřené planetě nešlo přesouvat (není tlačítko Přesunout): přeskočit a zkusit další
+      const name = run.target?.name ?? rep.name;
+      if (name) { run.skipNames.add(name); addLog(now, `${name}: přeskočeno – ${String(rep.error ?? 'nejde přesouvat').slice(0, 100)}`); }
+      run.target = null;
+      return { action: 'back' };
+    }
     if (rep.page === 'list') {
       if (!rep.sorted) return { action: 'sort' };
-      const filtering = run.settings.ignoreCities > 0 || run.settings.ignorePeopleM > 0 || run.settings.prioBelowM > 0;
+      const filtering = run.skipNames.size > 0 || run.settings.ignoreCities > 0 || run.settings.ignorePeopleM > 0 || run.settings.prioBelowM > 0;
       let last = rep.last;
       if (filtering) { // omezení obřích planet: potřebuje celou tabulku, dole se vezme poslední planeta, která obří není
         if (!Array.isArray(rep.rows)) return { action: 'send-rows' };
-        let cand = rep.rows.filter((r) => r.missing > 0 && !isGiant(r, run.settings));
+        let cand = rep.rows.filter((r) => r.missing > 0 && !isGiant(r, run.settings) && !run.skipNames.has(r.name));
         if (run.settings.prioBelowM > 0) { // přednostně planety s málo lidmi (pod nastavenou hranicí); z nich ta nejprázdnější
           const low = cand.filter((r) => r.people < run.settings.prioBelowM * 1e6);
           if (low.length) { cand = [low.reduce((best, r) => (r.people <= best.people ? r : best))]; if (!run.emptyNoted) { run.emptyNoted = true; addLog(now, `Přednostně planety s méně než ${run.settings.prioBelowM} mil. lidí (${low.length})`); } }
@@ -72,7 +78,7 @@ export function createUnemp() {
         if (skippedGiants && !run.giantNoted) { run.giantNoted = true; addLog(now, `Obří planety se přeskakují (${skippedGiants} s chybějícími lidmi)`); }
         last = cand.length ? { name: cand[cand.length - 1].name, missing: cand[cand.length - 1].missing } : null;
       }
-      if (!last || !(last.missing > 0)) return { action: 'idle', summary: finish(now, 'finished', 'všechny planety mají dost lidí') };
+      if (!last || !(last.missing > 0)) return { action: 'idle', summary: finish(now, 'finished', run.skipNames.size ? 'žádná další planeta, kam jde doplňovat (zbylé nejdou přesouvat)' : 'všechny planety mají dost lidí') };
       if (run.done.has(last.name)) { // seznam z mezipaměti prohlížeče ještě ukazuje doplněnou planetu
         if (run.reloads++ < 3) return { action: 'reload' };
         return { action: 'idle', summary: finish(now, 'error', `${last.name} je pořád na konci seznamu i po doplnění`) };

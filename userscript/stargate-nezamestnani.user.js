@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – nezaměstnaní
 // @namespace    sg-dominator
-// @version      1.3.0
+// @version      1.4.0
 // @description  Na pokyn z aplikace doplní nezaměstnané na planety, kterým chybí lidé, nebo je přerozdělí z plných planet na planety s volným místem: Obchod → Nezaměstnaní, seřadit, otevřít planetu, vybrat cíl, Přesunout, zpět.
 // @match        https://stargate-game.cz/obchod.php*
 // @match        https://www.stargate-game.cz/obchod.php*
@@ -17,6 +17,7 @@
   const SERVER = '__SERVER__';
   const TOKEN = '__TOKEN__';
   const MOVED_KEY = 'sgd-unemp-moved'; // kliknuto na Přesunout: na další stránce nahlásit, že je přesunuto
+  const OPEN_KEY = 'sgd-unemp-open'; // otevíráme planetu (název): když na ní není formulář Přesunout, vrátíme se zpět a zkusíme další
   const RETURN_KEY = 'sgd-unemp-return'; // vracíme se zpět v prohlížeči na seznam (počet kroků)
 
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -114,6 +115,15 @@
 
     // 3) detail planety
     const pl = readPlanet();
+    const opened = ss.get(OPEN_KEY);
+    if (opened) ss.del(OPEN_KEY);
+    if (!pl && !tbl && opened) { // planetu jsme otevřeli, ale není na ní tlačítko Přesunout (třeba nově osídlená planeta, ze které se přesouvat nedá): zpět a další
+      await post('/unemp/report', { page: 'failed', name: opened, error: 'na planetě není tlačítko Přesunout (nově osídlená?)' });
+      ss.set(RETURN_KEY, '1');
+      await sleep(rnd(700, 1500));
+      history.back();
+      return;
+    }
     if (pl) {
       const ins = await post('/unemp/report', { page: 'planet', name: pl.name, need: pl.need, count: pl.count, avail: pl.avail, options: pl.options });
       if (ins?.action === 'move') {
@@ -146,7 +156,7 @@
       if (ins?.action === 'open') {
         await rawSleep(rnd(pauseRange[0], Math.max(pauseRange[0], pauseRange[1])) * 1000); // pauza mezi planetami (Obchod → Chování)
         const link = (ins.name && L.rows.find((r) => r.cells[0].textContent.trim() === ins.name)?.cells[0].querySelector('a')) || L.lastLink;
-        if (link) { await sleep(rnd(800, 2000)); await clickEl(link); return; }
+        if (link) { await sleep(rnd(800, 2000)); ss.set(OPEN_KEY, link.textContent.trim()); await clickEl(link); return; }
       }
       if (ins?.action === 'reload') { await sleep(rnd(500, 1200)); location.reload(); return; }
       await sleep(1500); // běh neběží: zeptat se znovu

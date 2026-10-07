@@ -91,3 +91,22 @@ test('doplňování: přednostně planety s málo lidmi (pod hranicí, nejprázd
   const none = createUnemp(); none.start(0, { prioBelowM: 50 }); // žádná pod hranicí: normálně poslední
   assert.equal(none.report({ page: 'list', sorted: true, last: { name: 'C', missing: 2e8 }, rows: rows.slice(2) }, 1).name, 'C');
 });
+
+test('planeta bez tlačítka Přesunout (nově osídlená): přeskočí se, zkusí se další; když žádná nezbyde, běh skončí a vypne se', () => {
+  const mk = (name, missing) => ({ name, cities: 100, people: 1e8, unemployed: 0, free: 0, missing });
+  const rows = [mk('A', 5e7), mk('B', 9e7), mk('NOVA', 2e8)]; // NOVA je dole = první na řadě
+  const u = createUnemp(); u.start(0);
+  const o1 = u.report({ page: 'list', sorted: true, last: { name: 'NOVA', missing: 2e8 } }, 1);
+  assert.deepEqual([o1.action, o1.name], ['open', 'NOVA']);
+  assert.equal(u.report({ page: 'failed', name: 'NOVA', error: 'není tlačítko' }, 2).action, 'back');
+  assert.equal(u.report({ page: 'list', sorted: true, last: { name: 'NOVA', missing: 2e8 } }, 3).action, 'send-rows', 'po neúspěchu potřebuje celou tabulku');
+  const o2 = u.report({ page: 'list', sorted: true, last: { name: 'NOVA', missing: 2e8 }, rows }, 4);
+  assert.deepEqual([o2.action, o2.name], ['open', 'B'], 'nová planeta se už neotevírá');
+  assert.match(u.snapshot().log.map((l) => l.msg).join('\n'), /NOVA: přeskočeno/);
+  // další dvě selžou taky: nic nezbývá -> hotovo
+  u.report({ page: 'failed', name: 'B', error: 'x' }, 5);
+  u.report({ page: 'failed', name: 'A', error: 'x' }, 6);
+  const end = u.report({ page: 'list', sorted: true, last: { name: 'NOVA', missing: 2e8 }, rows }, 7);
+  assert.equal(end.action, 'idle'); assert.equal(u.snapshot().status, 'finished');
+  assert.match(u.snapshot().reason, /zbylé nejdou přesouvat/);
+});

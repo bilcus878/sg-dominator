@@ -121,3 +121,16 @@ test('přednostně planety s málo lidmi: pod nastavenou hranicí se plní prvn�
   r.report({ page: 'list', sorted: true, rows }, 1);
   assert.equal(r.report({ page: 'planet', name: 'S', count: 200 * M, options: ['MNOHO', 'MALO', 'NULA'] }, 2).target, 'NULA');
 });
+
+test('přerozdělení: zdrojová planeta bez tlačítka Přesunout se přeskočí, běh jde na další a když žádná nezbyde, skončí', () => {
+  const r = createRedist(); r.start(S, 0);
+  const rows = [row('NOVA', 5000, 290, 0), row('B', 5000, 200, 0), row('T', 100, 0, 2000)];
+  assert.equal(r.report({ page: 'list', sorted: true, rows }, 1).name, 'NOVA');
+  assert.equal(r.report({ page: 'failed', name: 'NOVA', error: 'na planetě není tlačítko Přesunout' }, 2).action, 'back');
+  assert.equal(r.report({ page: 'list', sorted: true, rows }, 3).name, 'B', 'NOVA se už neotevírá');
+  assert.equal(r.report({ page: 'planet', name: 'B', count: 200 * M, options: ['T'] }, 4).action, 'move');
+  r.report({ page: 'moved', name: 'B' }, 5);
+  const end = r.report({ page: 'list', sorted: true, rows: [row('NOVA', 5000, 290, 0), row('B', 5000, 0, 0), row('T', 300, 0, 1700)] }, 6);
+  assert.equal(end.action, 'idle');
+  assert.deepEqual([r.snapshot().status, r.snapshot().count, r.snapshot().skipped], ['finished', 1, 1]);
+});
