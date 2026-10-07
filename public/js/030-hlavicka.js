@@ -6,7 +6,7 @@ function renderChips() {
   renderBell();
   for (const cb of ntMenu.querySelectorAll('input[data-nt]')) if (document.activeElement !== cb) cb.checked = cfg.notifyTypes?.[cb.dataset.nt] !== false;
   renderChannels();
-  if (typeof renderOpAlertToggle === 'function') renderOpAlertToggle();
+  if (typeof renderOpToggles === 'function') renderOpToggles();
 }
 /** Kanály dole v nabídce Alerty: nastaveno ✓, a když poslední odeslání selhalo (třeba neplatný token), červeně s důvodem. */
 function renderChannels() {

@@ -610,7 +610,7 @@
   .statpill .hlwrap { display:flex; } .statpill .hbtn.sq { border:0; background:transparent; width:34px; height:32px; border-radius:8px 0 0 8px; } .statpill .hbtn.sq:hover { background:rgba(255,255,255,.05); }
   .statpill .optgl { border:0; border-left:1px solid var(--line); background:transparent; border-radius:0; height:32px; }
   .statpill .optgl:last-child { border-radius:0 8px 8px 0; }
-  .statpill .optgl.sub { padding:0 9px 0 7px; gap:6px; } .optgl.sub b { font-size:14px; letter-spacing:0; } .optgl .dtag { font-size:10px; color:var(--acc); text-transform:uppercase; letter-spacing:.04em; }
+  .optgl .ic { font-size:14px; letter-spacing:0; } .optgl .lbl { font-weight:600; font-size:13px; } .optgl .dtag { font-size:10px; color:var(--acc); text-transform:uppercase; letter-spacing:.04em; }
   .optgl.sub.off { opacity:.5; }
   .mainwrap { position:relative; }
   .mbtn { padding:0 12px; gap:9px; min-width:0; } .mbtn[aria-expanded=true] { border-color:var(--acc); }

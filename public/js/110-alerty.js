@@ -57,17 +57,7 @@ function renderOp() {
       if (el.textContent !== txt) el.textContent = txt;
     }
   }
-  if (document.activeElement !== $('opMaster')) $('opMaster').checked = !!op.enabled;
-  $('opTgl').classList.toggle('on', !!op.enabled);
-  { // chytání OP (🎯) a alerty do skupiny (📣): vlastní přepínače vedle OP
-    const h = op.hunt ?? {};
-    if (document.activeElement !== $('opHuntMaster')) $('opHuntMaster').checked = !!h.enabled && !!op.enabled;
-    $('opHuntTgl').classList.toggle('on', !!h.enabled && !!op.enabled);
-    $('opHuntTgl').classList.toggle('off', !op.enabled);
-    $('opHuntTag').hidden = !(h.enabled && op.enabled && h.dryRun);
-    $('opHuntTgl').title = 'Chytat OP: bot sám otevře sektor s OP, najde pravou tečku a osídlí planetu.' + (h.dryRun ? ' Teď je ZKUŠEBNÍ režim: bot jen projde cestu a pošle zprávu, nekliká na Získat souřadnice (vypne se v Nastavení → OP).' : ' Ostrý režim: bot opravdu osídlí.') + ' Zapnutím se zapne i OP, vypnutím OP se chytání vypne.';
-    renderOpAlertToggle();
-  }
+  renderOpToggles();
   const v = op.vigilance;
   if (v) {
     const ago = (t) => { const m = Math.round((S.serverTime - t) / 60000); return m < 1 ? 'před chvílí' : `před ${m} min`; };
@@ -89,13 +79,32 @@ function renderOp() {
     $('opTeleStatus').textContent = parts.join(' · ') + '.';
   }
 }
-function renderOpAlertToggle() {
-  const on = cfg?.notifyTypes?.op !== false;
-  if (document.activeElement !== $('opAlertMaster')) $('opAlertMaster').checked = on;
-  $('opAlertTgl').classList.toggle('on', on);
-  $('opAlertTgl').classList.toggle('off', !(S.op?.enabled));
+/**
+ * Dva přepínače v hlavičce: 🎯 Chytat (automat osídlí OP) a 📣 Alerty (zprávy o OP do hlavní skupiny). Dá se zapnout jen jeden, nebo oba.
+ * Bot na mapě pracuje (hlídá, zapíná teleskop, potvrzuje bdělost), když je zapnutý aspoň jeden: cfg.op.enabled = alerty || chytání.
+ */
+const opAlertsOn = () => !!S.op?.enabled && cfg?.notifyTypes?.op !== false;
+const opHuntOn = () => !!S.op?.enabled && !!S.op?.hunt?.enabled;
+function renderOpToggles() {
+  const op = S.op;
+  if (!op) return;
+  const h = op.hunt ?? {}, a = opAlertsOn(), c = opHuntOn();
+  if (document.activeElement !== $('opHuntMaster')) $('opHuntMaster').checked = c;
+  if (document.activeElement !== $('opAlertMaster')) $('opAlertMaster').checked = a;
+  $('opHuntTgl').classList.toggle('on', c);
+  $('opAlertTgl').classList.toggle('on', a);
+  $('opHuntTag').hidden = !(c && h.dryRun);
+  $('opHuntTgl').title = 'Chytat OP: bot sám otevře sektor s OP, najde pravou tečku a osídlí planetu.' + (h.dryRun ? ' Teď je ZKUŠEBNÍ režim: bot jen projde cestu a pošle zprávu, nekliká na Získat souřadnice (vypne se v Nastavení → OP).' : ' Ostrý režim: bot opravdu osídlí.') + ' Funguje samostatně, nebo spolu s alerty.';
+  $('opAlertTgl').title = 'Alerty OP: při objevení OP přijde zpráva do hlavní skupiny. Funguje samostatně, nebo spolu s chytáním. Když jsou vypnuté oba přepínače, bot na mapě nic nedělá.';
 }
-// vypnutí OP vypne i chytání (ať se po opětovném zapnutí nezačne samo osídlovat); zapnutí chytání zapne i OP
-$('opMaster').onchange = () => { const c = $('opMaster').checked; savePartial({ op: c ? { enabled: true } : { enabled: false, hunt: { enabled: false } } }); };
-$('opHuntMaster').onchange = () => { const c = $('opHuntMaster').checked; savePartial({ op: c ? { enabled: true, hunt: { enabled: true } } : { hunt: { enabled: false } } }); };
-$('opAlertMaster').onchange = () => { const c = $('opAlertMaster').checked; cfg.notifyTypes = { ...cfg.notifyTypes, op: c }; savePartial({ notifyTypes: { op: c } }); renderOpAlertToggle(); };
+/** Zapnutí z úplně vypnutého stavu zapne jen ten přepínač, na který se kliklo (druhý zůstane vypnutý). */
+$('opHuntMaster').onchange = () => {
+  const on = $('opHuntMaster').checked, a = opAlertsOn();
+  cfg.notifyTypes = { ...cfg.notifyTypes, op: a };
+  savePartial({ op: { enabled: on || a, hunt: { enabled: on } }, notifyTypes: { op: a } });
+};
+$('opAlertMaster').onchange = () => {
+  const on = $('opAlertMaster').checked, c = opHuntOn();
+  cfg.notifyTypes = { ...cfg.notifyTypes, op: on };
+  savePartial({ op: { enabled: on || c, hunt: { enabled: c } }, notifyTypes: { op: on } });
+};

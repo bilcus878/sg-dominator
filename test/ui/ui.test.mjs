@@ -393,24 +393,26 @@ test('Nastavení → Vzhled: živý náhled, téma, akcentní barva, největší
   await b.eval(`document.getElementById('closeSettings').click(); 1`);
 });
 
-test('hlavička: přepínače OP, 🎯 chytání a 📣 alerty do skupiny jsou nezávislé a hlavička zůstane štíhlá', { skip, timeout: 30_000 }, async () => {
+test('hlavička: dva nezávislé přepínače 🎯 chytat a 📣 alerty (jen jeden, nebo oba), hlavička zůstane štíhlá', { skip, timeout: 30_000 }, async () => {
   const r = await b.eval(`(() => { // vše v jednom kroku: server mezitím posílá nový stav a přepsal by testovací
     const out = {};
     const base = { at: Date.now(), dots: [], vigilance: { count: 0, lastClickedAt: 0, pendingSince: 0 }, telescope: {} };
-    const read = () => ({ op: $('opMaster').checked, hunt: $('opHuntMaster').checked, alert: $('opAlertMaster').checked, tag: !$('opHuntTag').hidden, dim: $('opHuntTgl').classList.contains('off') });
-    cfg.notifyTypes = { ...cfg.notifyTypes, op: undefined }; delete cfg.notifyTypes.op;
-    S.op = { ...base, enabled: true, hunt: { enabled: true, dryRun: true } }; renderOp(); out.dry = read();
-    S.op = { ...base, enabled: true, hunt: { enabled: true, dryRun: false } }; renderOp(); out.live = read();
-    S.op = { ...base, enabled: false, hunt: { enabled: true, dryRun: false } }; renderOp(); out.opOff = read();
-    S.op = { ...base, enabled: true, hunt: { enabled: false, dryRun: false } }; cfg.notifyTypes.op = false; renderOp(); out.noAlert = read();
+    const read = () => ({ hunt: $('opHuntMaster').checked, alert: $('opAlertMaster').checked, tag: !$('opHuntTag').hidden });
+    const set = (enabled, hunt, dry, alerts) => { S.op = { ...base, enabled, hunt: { enabled: hunt, dryRun: dry } }; cfg.notifyTypes = alerts ? {} : { op: false }; renderOp(); return read(); };
+    out.both = set(true, true, true, true);
+    out.onlyHunt = set(true, true, false, false);
+    out.onlyAlerts = set(true, false, false, true);
+    out.off = set(false, true, false, true); // bot na mapě vypnutý: nic z toho neplatí, i když jsou v nastavení příznaky
     out.header = document.querySelector('header').getBoundingClientRect().height;
     out.order = [...document.querySelectorAll('.statpill > *')].map((e) => e.id || e.className).join('>');
+    out.noMaster = document.getElementById('opMaster') === null;
     return out;
   })()`);
-  assert.deepEqual(r.dry, { op: true, hunt: true, alert: true, tag: true, dim: false }, 'chytání ve zkušebním režimu má štítek test');
-  assert.deepEqual(r.live, { op: true, hunt: true, alert: true, tag: false, dim: false });
-  assert.deepEqual(r.opOff, { op: false, hunt: false, alert: true, tag: false, dim: true }, 'bez OP chytání nejede (ani když je v nastavení zapnuté)');
-  assert.deepEqual(r.noAlert, { op: true, hunt: false, alert: false, tag: false, dim: false }, 'alerty do skupiny jdou vypnout zvlášť');
+  assert.deepEqual(r.both, { hunt: true, alert: true, tag: true }, 've zkušebním režimu má chytání štítek test');
+  assert.deepEqual(r.onlyHunt, { hunt: true, alert: false, tag: false }, 'jen chytání (bez zpráv do skupiny)');
+  assert.deepEqual(r.onlyAlerts, { hunt: false, alert: true, tag: false }, 'jen alerty');
+  assert.deepEqual(r.off, { hunt: false, alert: false, tag: false }, 'vypnutý bot nic nechytá ani nehlásí');
+  assert.equal(r.noMaster, true, 'hlavní přepínač OP je pryč');
   assert.ok(r.header < 70, 'hlavička zůstala štíhlá');
-  assert.match(r.order, /opTgl.*opHuntTgl.*opAlertTgl/);
+  assert.match(r.order, /opHuntTgl.*opAlertTgl/);
 });

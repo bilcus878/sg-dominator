@@ -25,9 +25,8 @@
       <button type="button" class="hbtn sq" id="hlBtn" title="Stav systému" aria-haspopup="true"><i class="led" id="hlLed"></i></button>
       <div class="ntmenu hlmenu" id="hlMenu" hidden></div>
     </div>
-    <label class="optgl" id="opTgl" title="OP: zapnuto = bot hlásí OP na mapě, sám zapíná zastavený teleskop a potvrzuje tlačítko bdělosti. Vypnuto = bot na mapě nic nedělá."><span class="sw"><input type="checkbox" id="opMaster"><span></span></span><b>OP</b></label>
-    <label class="optgl sub" id="opHuntTgl" title="Chytat OP: bot sám otevře sektor s OP, najde pravou tečku a osídlí planetu. Zapnutím se zapne i OP, vypnutím OP se chytání vypne."><span class="sw"><input type="checkbox" id="opHuntMaster"><span></span></span><b>🎯</b><small class="dtag" id="opHuntTag" hidden>test</small></label>
-    <label class="optgl sub" id="opAlertTgl" title="Alerty OP do skupiny: zapnuto = při objevení OP přijde zpráva do hlavní skupiny. Vypnuto = bot OP dál hlídá a chytá, ale do skupiny nepíše."><span class="sw"><input type="checkbox" id="opAlertMaster"><span></span></span><b>📣</b></label>
+    <label class="optgl" id="opHuntTgl" title="Chytání OP"><span class="sw"><input type="checkbox" id="opHuntMaster"><span></span></span><b class="ic">🎯</b><span class="lbl">Chytat</span><small class="dtag" id="opHuntTag" hidden>test</small></label>
+    <label class="optgl" id="opAlertTgl" title="Alerty OP"><span class="sw"><input type="checkbox" id="opAlertMaster"><span></span></span><b class="ic">📣</b><span class="lbl">Alerty</span></label>
     </div>
     <div class="mainwrap">
       <button type="button" class="hbtn mbtn" id="mainBtn" aria-haspopup="true" aria-expanded="false" title="Menu: přidat rasu, upozornění, poslední alerty, nastavení, zavřít aplikaci">
