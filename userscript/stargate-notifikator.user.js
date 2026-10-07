@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator
 // @namespace    sg-dominator
-// @version      3.15.0
+// @version      3.16.0
 // @description  Čte tabulku hráčů a posílá sílu na lokální notifikační server (bez zásahu do stránky)
 // @match        https://stargate-game.cz/vesmir.php*
 // @match        https://www.stargate-game.cz/vesmir.php*
@@ -25,6 +25,9 @@
         if (id && name && !seen.has(id)) seen.set(id, name);
       }
       if (seen.size < 2) return; // není to nabídka ras
+      const last = Number(localStorage.getItem('sgdRacesSent') || 0); // jednou za 10 minut stačí (nabídka se nemění); na rychlost dohozu a dat to nemá vliv
+      if (Date.now() - last < 600_000) return;
+      localStorage.setItem('sgdRacesSent', String(Date.now()));
       GM_xmlhttpRequest({ method: 'POST', url: `${SERVER}/races/known`, headers: { 'content-type': 'application/json', 'x-token': TOKEN }, data: JSON.stringify({ races: [...seen].map(([id, name]) => ({ id, name })) }), timeout: 5000, onload: () => {}, onerror: () => {}, ontimeout: () => {} });
     } catch { /* bez nabídky se nic neděje */ }
   })();
@@ -147,7 +150,7 @@
   let dirty = false; // změna přišla, zatímco předchozí odeslání ještě běželo: pošle se hned po jeho dokončení (dřív by čekala až na další změnu / 1 s)
   // diagnostika: výsledek posledního odeslání je vidět na stránce (data-sgd-*) a při chybě v konzoli, ať jde poznat, proč data nedorazila
   const mark = (k, v) => { try { if (document.documentElement.dataset[k] !== v) document.documentElement.dataset[k] = v; } catch { /* nic */ } };
-  mark('sgdScript', '3.15.0');
+  mark('sgdScript', '3.16.0');
   const finish = (label, res) => {
     mark('sgdLast', `${label} ${new Date().toLocaleTimeString('cs-CZ')}`);
     if (label !== 'ok') { mark('sgdErr', `${label}: ${JSON.stringify(res ?? {}).slice(0, 200)}`); console.warn('[Dominator] odeslání dat na server selhalo:', label, res); }
@@ -160,7 +163,7 @@
     const players = readPlayers();
     if (!players.length) return;
     for (const p of players) if (!Number.isFinite(p.planetsDelta) && deltaMap.has(p.name)) p.planetsDelta = deltaMap.get(p.name);
-    const body = JSON.stringify({ raceId, raceName: findRaceName(), page, src, ver: '3.15.0', dDebug, players });
+    const body = JSON.stringify({ raceId, raceName: findRaceName(), page, src, ver: '3.16.0', dDebug, players });
     const now = Date.now();
     const changed = body !== lastBody;
     if (inFlight) { if (changed) dirty = true; return; }

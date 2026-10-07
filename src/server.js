@@ -333,7 +333,7 @@ function registerRace(raceId, name) {
       criticalPct: null,
     };
     saveConfig(cfg);
-  } else if (name && rec.name !== name) {
+  } else if (name && rec.name !== name && !rec.navName) { // název z nabídky ras ve hře má přednost před tvarem na stránce hráčů
     rec.name = name;
     saveConfig(cfg);
   }
@@ -926,14 +926,16 @@ const routes = {
     if (!authOk(req)) return [401, { error: 'bad token' }];
     const body = await readJson(req, 16384);
     if (!Array.isArray(body.races) || body.races.length > 80) return [400, { error: 'invalid payload' }];
-    let added = 0;
+    let added = 0, renamed = 0;
     for (const r of body.races) {
       const id = String(r?.id ?? ''), name = typeof r?.name === 'string' ? r.name.trim().slice(0, 64) : '';
-      if (!/^\d{1,6}$/.test(id) || !name || cfg.races[id]) continue; // známé rasy se nepřejmenovávají (název na stránce hráčů je v jiném tvaru než v nabídce)
-      registerRace(id, name); added++;
+      if (!/^\d{1,6}$/.test(id) || !name) continue;
+      if (!cfg.races[id]) { registerRace(id, name); cfg.races[id].navName = true; added++; continue; }
+      const rec = cfg.races[id]; // názvy ras se řídí nabídkou ve hře (Vesmír): špatný název v aplikaci se přepíše a už se nevrací zpět
+      if (rec.name !== name || !rec.navName) { if (rec.name !== name) renamed++; rec.name = name; rec.navName = true; }
     }
-    if (added) { console.log(`[rasy] doplněno z nabídky ve hře: ${added}`); pushState(); }
-    return [200, { ok: true, added }];
+    if (added || renamed) { saveConfig(cfg); console.log(`[rasy] z nabídky ve hře: nových ${added}, přejmenováno ${renamed}`); pushState(); }
+    return [200, { ok: true, added, renamed }];
   },
   'POST /ingest-op': handleIngestOp,
   'POST /vigilance': handleVigilance,
