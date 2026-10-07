@@ -1,8 +1,8 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791337297857,
-  "savedBy": "JarmilPC",
+  "savedAt": 1791367434417,
+  "savedBy": "Jaroslav-ntb",
   "config": {
     "threshold": 100000000,
     "criticalPct": 5,
@@ -154,7 +154,7 @@
       }
     },
     "op": {
-      "enabled": false,
+      "enabled": true,
       "repeatSec": 60,
       "vigilance": {
         "enabled": true,
@@ -207,7 +207,7 @@
     },
     "telegram": {
       "enabled": true,
-      "chatId": "-5176726466",
+      "chatId": "-5397296796",
       "serviceChatId": "-5382664675"
     },
     "build": {
@@ -339,7 +339,7 @@
         }
       ],
       "auto": {
-        "enabled": true,
+        "enabled": false,
         "minSec": 1.5,
         "maxSec": 2,
         "gapMinSec": 1.5,
