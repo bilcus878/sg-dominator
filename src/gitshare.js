@@ -73,6 +73,25 @@ export async function pushShared({ root, files, message, git = runGit }) {
  * @returns {Promise<{ok:boolean, existed?:boolean, created?:boolean, error?:string}>}
  */
 export async function ensureDataRepo({ mainRoot, dir, branch = DATA_BRANCH, git = runGit }) {
+  const r = await ensureDataRepoInner({ mainRoot, dir, branch, git });
+  if (r.ok) await copyIdentity({ mainRoot, dir, git });
+  return r;
+}
+
+/**
+ * Jméno a e-mail autora pro commity sdílených dat: když v jejich repozitáři chybí (a git je nemá ani globálně),
+ * převezmou se z hlavního repozitáře kódu. Bez nich git commit selže („unable to auto-detect email address“).
+ */
+export async function copyIdentity({ mainRoot, dir, git = runGit }) {
+  for (const key of ['user.name', 'user.email']) {
+    const have = await git(['config', key], { cwd: dir });
+    if (have.code === 0 && have.out.trim()) continue;
+    const main = await git(['config', key], { cwd: mainRoot });
+    if (main.code === 0 && main.out.trim()) await git(['config', key, main.out.trim()], { cwd: dir });
+  }
+}
+
+async function ensureDataRepoInner({ mainRoot, dir, branch, git }) {
   if (existsSync(join(dir, '.git'))) return { ok: true, existed: true };
   const url = await git(['remote', 'get-url', 'origin'], { cwd: mainRoot });
   if (url.code !== 0) return { ok: false, error: 'Hlavní repozitář nemá vzdálený odkaz origin (git remote).' };
