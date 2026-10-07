@@ -1,0 +1,363 @@
+{
+  "format": 1,
+  "name": "jarmil",
+  "savedAt": 1791334963210,
+  "savedBy": "JarmilPC",
+  "config": {
+    "threshold": 100000000,
+    "criticalPct": 5,
+    "criticalCooldownSec": 5,
+    "cooldownSec": 15,
+    "dropPct": 0,
+    "dropWindowSec": 300,
+    "repeatWhileBelow": true,
+    "minDrop": 0,
+    "notifyRecovery": true,
+    "myRace": "20",
+    "notify": true,
+    "sound": {
+      "on": false,
+      "vol": 75,
+      "types": {
+        "threshold": false,
+        "drop": false,
+        "critical": false,
+        "recovered": false,
+        "target": false,
+        "released": false,
+        "op": false,
+        "service": false
+      }
+    },
+    "notifyTypes": {},
+    "races": {
+      "1": {
+        "name": "Asgard",
+        "mode": "off",
+        "role": "attack",
+        "threshold": null,
+        "criticalPct": null
+      },
+      "2": {
+        "name": "Tau´ri",
+        "mode": "off",
+        "role": "attack",
+        "threshold": null,
+        "criticalPct": null
+      },
+      "3": {
+        "name": "Oanessan",
+        "mode": "off",
+        "role": "attack",
+        "threshold": null,
+        "criticalPct": null
+      },
+      "4": {
+        "name": "Goauld",
+        "mode": "off",
+        "threshold": null,
+        "role": "attack"
+      },
+      "5": {
+        "name": "Aschen",
+        "mode": "all",
+        "threshold": 0,
+        "criticalPct": 0,
+        "role": "attack"
+      },
+      "8": {
+        "name": "Antik",
+        "mode": "off",
+        "role": "attack",
+        "threshold": null,
+        "criticalPct": null
+      },
+      "9": {
+        "name": "Replikátor",
+        "mode": "off",
+        "role": "attack",
+        "threshold": null,
+        "criticalPct": null
+      },
+      "11": {
+        "name": "Vyvrhel",
+        "mode": "off",
+        "threshold": null,
+        "role": "attack"
+      },
+      "15": {
+        "name": "Nox",
+        "mode": "off",
+        "threshold": null,
+        "criticalPct": null,
+        "role": "attack"
+      },
+      "20": {
+        "name": "Bedrosian",
+        "mode": "all",
+        "threshold": 100000000,
+        "criticalPct": 5,
+        "role": "defend"
+      },
+      "21": {
+        "name": "Lucián",
+        "mode": "off",
+        "role": "attack",
+        "threshold": null,
+        "criticalPct": null
+      },
+      "33": {
+        "name": "Kořist",
+        "mode": "off",
+        "threshold": null,
+        "criticalPct": null,
+        "role": "attack"
+      }
+    },
+    "players": {
+      "DPH": {
+        "watch": false
+      },
+      "egral": {
+        "watch": false
+      }
+    },
+    "session": {
+      "enabled": true,
+      "reactMinSec": 1.5,
+      "reactMaxSec": 3,
+      "maintStart": "03:00",
+      "maintEnd": "03:31",
+      "maintMinSec": 8,
+      "maintMaxSec": 70,
+      "formMinSec": 1.5,
+      "formMaxSec": 4,
+      "maxAttempts": 3,
+      "retryFirstMinSec": 110,
+      "retryFirstMaxSec": 150,
+      "retryNextMinSec": 280,
+      "retryNextMaxSec": 340,
+      "tabWaitMin": 8,
+      "closeTab": true,
+      "reloadOthers": true,
+      "reloadMinSec": 2,
+      "reloadMaxSec": 8,
+      "probeMinSec": 60,
+      "probeMaxSec": 120,
+      "notify": {
+        "expired": true,
+        "maintenance": true,
+        "ok": true,
+        "retry": true,
+        "failed": true,
+        "needs-user": true
+      }
+    },
+    "op": {
+      "enabled": false,
+      "repeatSec": 60,
+      "vigilance": {
+        "enabled": true,
+        "minSec": 7,
+        "maxSec": 13,
+        "skipEnabled": true,
+        "skipMin": 37,
+        "skipMax": 49,
+        "downMin": 3,
+        "downMax": 11
+      },
+      "telescope": {
+        "auto": true,
+        "reactMinSec": 10,
+        "reactMaxSec": 40,
+        "restEnabled": true,
+        "restChance": 80,
+        "restStopMin": 20,
+        "restStopMax": 90,
+        "restResumeMin": 165,
+        "restResumeMax": 230
+      }
+    },
+    "conquest": {
+      "below": 10000000,
+      "above": 20000000
+    },
+    "dohozStats": {
+      "enabled": true,
+      "keep": 200
+    },
+    "recalc": {
+      "shared": true,
+      "pushOnStop": true,
+      "pullOnStart": true,
+      "syncMinutes": 15,
+      "military": true,
+      "economic": true,
+      "showMilitary": true,
+      "showEconomic": true,
+      "econMinGrowthPct": 0.1,
+      "hideOlderDays": 0
+    },
+    "watchdog": {
+      "enabled": true,
+      "staleSec": 30
+    },
+    "discord": {
+      "enabled": false
+    },
+    "telegram": {
+      "enabled": true,
+      "chatId": "-5176726466",
+      "serviceChatId": "-5382664675"
+    },
+    "build": {
+      "plan": {
+        "mesto": {
+          "mode": "max",
+          "n": 0
+        },
+        "laborator": {
+          "mode": "skip",
+          "n": 0
+        },
+        "bs": {
+          "mode": "target",
+          "n": 1000
+        },
+        "sdi": {
+          "mode": "target",
+          "n": 1000
+        },
+        "po": {
+          "mode": "skip",
+          "n": 0
+        },
+        "kasarna": {
+          "mode": "skip",
+          "n": 0
+        },
+        "vyrobna": {
+          "mode": "skip",
+          "n": 0
+        }
+      },
+      "parks": {
+        "0": 150,
+        "5": 100,
+        "10": 100,
+        "-50": 300,
+        "-25": 200
+      },
+      "parksMinAll": 50,
+      "dryRun": false,
+      "forceAll": false,
+      "pace": 0.4
+    },
+    "attack": {
+      "units": [
+        {
+          "name": "Bedrosian",
+          "count": 2000000,
+          "max": false
+        },
+        {
+          "name": "Bedrosianský samolet",
+          "count": 0,
+          "max": false
+        },
+        {
+          "name": "Bedrosianský křižník",
+          "count": 10000,
+          "max": false
+        },
+        {
+          "name": "Elitní Bedrosian",
+          "count": 0,
+          "max": false
+        },
+        {
+          "name": "Otrokářská loď",
+          "count": 0,
+          "max": false
+        },
+        {
+          "name": "Zloději naquadahu",
+          "count": 0,
+          "max": false
+        }
+      ],
+      "types": {},
+      "autoSubmit": false,
+      "randomPlanet": true,
+      "closeTab": true,
+      "retry": true,
+      "retryMaxSec": 60
+    },
+    "army": {
+      "units": [
+        {
+          "name": "Bedrosian",
+          "count": 1000000,
+          "max": false
+        },
+        {
+          "name": "Bedrosianský křižník",
+          "count": 1000,
+          "max": false
+        },
+        {
+          "name": "Bedrosianský samolet",
+          "count": 0,
+          "max": false
+        },
+        {
+          "name": "Naquadahová nálož",
+          "count": 0,
+          "max": false
+        },
+        {
+          "name": "Špionážní družice",
+          "count": 0,
+          "max": false
+        },
+        {
+          "name": "Otrokářská loď",
+          "count": 0,
+          "max": false
+        },
+        {
+          "name": "Elitní Bedrosian",
+          "count": 0,
+          "max": false
+        },
+        {
+          "name": "Jed",
+          "count": 0,
+          "max": false
+        }
+      ],
+      "auto": {
+        "enabled": true,
+        "minSec": 1.5,
+        "maxSec": 2,
+        "gapMinSec": 1.5,
+        "gapMaxSec": 2,
+        "roundMinSec": 1.5,
+        "roundMaxSec": 2,
+        "cooldownMinSec": 1.5,
+        "cooldownMaxSec": 2,
+        "quietMinSec": 3,
+        "quietMaxSec": 5,
+        "topUp": true,
+        "topUpTarget": 250000000,
+        "maxPerHour": 200,
+        "selfName": "bilcus87",
+        "selfMinSec": 1.5,
+        "selfMaxSec": 2,
+        "selfRoundMinSec": 1.5,
+        "selfRoundMaxSec": 2
+      }
+    }
+  },
+  "ui": null
+}
