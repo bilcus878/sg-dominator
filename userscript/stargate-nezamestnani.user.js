@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Stargate dominator – nezaměstnaní
 // @namespace    sg-dominator
-// @version      1.0.0
-// @description  Na pokyn z aplikace doplní nezaměstnané na planety, kterým chybí lidé: Obchod → Nezaměstnaní, seřadit, poslední červená planeta, Přesunout, zpět.
+// @version      1.1.0
+// @description  Na pokyn z aplikace doplní nezaměstnané na planety, kterým chybí lidé, nebo je přerozdělí z plných planet na planety s volným místem: Obchod → Nezaměstnaní, seřadit, otevřít planetu, vybrat cíl, Přesunout, zpět.
 // @match        https://stargate-game.cz/obchod.php*
 // @match        https://www.stargate-game.cz/obchod.php*
 // @match        https://stargate-game.cz/planety.php*
@@ -65,7 +65,13 @@
     const lastRow = rows[rows.length - 1];
     const red = lastRow?.cells[3].querySelector('span.asistent'); // červené číslo = lidé na planetě chybí
     const last = lastRow ? { name: lastRow.cells[0].textContent.trim(), missing: red ? num(red.textContent) : 0 } : null;
-    return { sorted, sortLink, last, lastLink: lastRow?.cells[0].querySelector('a') };
+    return { sorted, sortLink, last, lastLink: lastRow?.cells[0].querySelector('a'), rows };
+  }
+  const firstNum = (t) => { const m = String(t ?? '').match(/\d[\d\s\u00a0]*/); return m ? Number(m[0].replace(/\D/g, '')) : NaN; };
+  /** Celý seznam planet pro přerozdělení: název, města, lidé na planetě, nezaměstnaní (první číslo v buňce), zbývá míst. */
+  function rowsData(rows) {
+    return rows.map((r) => ({ name: r.cells[0].textContent.trim(), cities: num(r.cells[1].textContent), people: num(r.cells[2].textContent), unemployed: firstNum(r.cells[3].textContent), free: num(r.cells[4].textContent) }))
+      .filter((r) => r.name && Number.isFinite(r.people) && Number.isFinite(r.unemployed) && Number.isFinite(r.free));
   }
   /** Detail planety s formulářem „Přesunutí nezaměstnaných“. */
   function readPlanet() {
@@ -76,7 +82,10 @@
     const zb = form.textContent.match(/zbývá:\s*([\d\s ]+)\s*(miliard|milión|milion|tisíc)?/i);
     let avail = null;
     if (zb) { const u = (zb[2] ?? '').toLowerCase(); avail = num(zb[1]) * (u.startsWith('miliard') ? 1e9 : u.startsWith('mili') ? 1e6 : u.startsWith('tis') ? 1e3 : 1); }
-    return { name, need: num(form.querySelector('input[name="pocet"]')?.value), avail, btn };
+    const sel = form.querySelector('select[name="id_pl_cil"]');
+    const options = sel ? [...sel.options].map((o) => o.textContent.trim().replace(/\s*\(.*$/, '')) : [];
+    const count = num(form.querySelector('input[name="pocet"]')?.value); // kolik hra předvyplnila (kolik jde poslat): bot ho nikdy nepřepisuje
+    return { name, need: count, count, avail, options, sel, btn };
   }
 
   async function main() {
@@ -103,8 +112,17 @@
     // 3) detail planety
     const pl = readPlanet();
     if (pl) {
-      const ins = await post('/unemp/report', { page: 'planet', name: pl.name, need: pl.need, avail: pl.avail });
+      const ins = await post('/unemp/report', { page: 'planet', name: pl.name, need: pl.need, count: pl.count, avail: pl.avail, options: pl.options });
       if (ins?.action === 'move') {
+        if (ins.target) { // přerozdělení: vybrat cílovou planetu v nabídce „Na vlastní planetu“ (počet se nemění)
+          const opt = pl.sel && [...pl.sel.options].find((o) => o.textContent.trim().startsWith(ins.target + ' ('));
+          if (!opt) { await post('/unemp/report', { page: 'failed', name: pl.name, error: `cíl ${ins.target} není v nabídce` }); ss.set(RETURN_KEY, '1'); history.back(); return; }
+          await sleep(rnd(700, 1600));
+          pl.sel.value = opt.value;
+          pl.sel.dispatchEvent(new Event('change', { bubbles: true }));
+          await sleep(rnd(500, 1200));
+          if (pl.sel.value !== opt.value || num(document.querySelector('input[name="pocet"]')?.value) !== pl.count) { await post('/unemp/report', { page: 'failed', name: pl.name, error: 'formulář se změnil, přesun se neodeslal' }); ss.set(RETURN_KEY, '1'); history.back(); return; }
+        }
         await sleep(rnd(900, 2200));
         ss.set(MOVED_KEY, pl.name);
         await clickEl(pl.btn);
@@ -119,9 +137,13 @@
     if (!tbl) return;
     for (;;) {
       const L = readList(tbl);
-      const ins = await post('/unemp/report', { page: 'list', sorted: L.sorted, last: L.last });
+      let ins = await post('/unemp/report', { page: 'list', sorted: L.sorted, last: L.last });
+      if (ins?.action === 'send-rows') ins = await post('/unemp/report', { page: 'list', sorted: L.sorted, last: L.last, rows: rowsData(L.rows) }); // přerozdělení potřebuje celou tabulku
       if (ins?.action === 'sort' && L.sortLink) { await sleep(rnd(800, 2000)); await clickEl(L.sortLink); return; }
-      if (ins?.action === 'open' && L.lastLink) { await sleep(rnd(800, 2000)); await clickEl(L.lastLink); return; }
+      if (ins?.action === 'open') {
+        const link = (ins.name && L.rows.find((r) => r.cells[0].textContent.trim() === ins.name)?.cells[0].querySelector('a')) || L.lastLink;
+        if (link) { await sleep(rnd(800, 2000)); await clickEl(link); return; }
+      }
       if (ins?.action === 'reload') { await sleep(rnd(500, 1200)); location.reload(); return; }
       await sleep(1500); // běh neběží: zeptat se znovu
     }

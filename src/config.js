@@ -5,6 +5,7 @@ import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { isBuildingId, isSatKey } from './build.js';
 import { VIGILANCE_DEFAULTS, TELESCOPE_DEFAULTS } from './telescope.js';
+import { REDIST_DEFAULTS } from './redist.js';
 import { HUNT_DEFAULTS } from './ophunt.js';
 import { CONQUEST_DEFAULTS } from './conquest.js';
 import { ATTACK_DEFAULTS, sanitizeAttack, ARMY_DEFAULTS, sanitizeArmy } from './attack.js';
@@ -70,6 +71,7 @@ export const DEFAULTS = {
   session: { ...SESSION_DEFAULTS, notify: { ...SESSION_DEFAULTS.notify } }, // opětovné přihlášení po odhlášení ze hry (skript Přihlášení čte přes /session/config)
   op: { enabled: false, repeatSec: 10, vigilance: { ...VIGILANCE_DEFAULTS }, telescope: { ...TELESCOPE_DEFAULTS }, hunt: { ...HUNT_DEFAULTS } }, // alert na tečky OP na mapě; repeatSec = připomínka, dokud svítí (0 = jen jednou); vigilance = automatické potvrzení tlačítka bdělosti po minSec až maxSec
   conquest: { ...CONQUEST_DEFAULTS }, // cizí rasy: k dobytí pod `below`, konec až nad `above`
+  redist: { ...REDIST_DEFAULTS }, // přerozdělení nezaměstnaných (Obchod): podmínky zdroje a zkušební běh
   dohozStats: { enabled: true, keep: 200 }, // statistika dohozů: zapisovat a kolik posledních hotových dohazování držet
   recalc: { shared: true, pushOnStop: true, pullOnStart: true, syncMinutes: 15, military: true, economic: true, showMilitary: true, showEconomic: true, econMinGrowthPct: 0.1, hideOlderDays: 0 }, // přepočty hráčů: co se sbírá (military = vynulování Dobyt, economic = odhad z růstu populace), co se ukazuje u jmen, citlivost a stáří
   watchdog: { enabled: true, staleSec: 30 }, // hlášení, že hlídaná rasa / mapa přestala dodávat data
@@ -114,6 +116,7 @@ export function normalizeConfig(stored) {
   // uložená podobjekty se s výchozími slučují jen mělce, takže chybějící nová pole se doplní tady
   cfg.recalc = { ...DEFAULTS.recalc, ...cfg.recalc };
   cfg.dohozStats = { ...DEFAULTS.dohozStats, ...cfg.dohozStats };
+  cfg.redist = { ...REDIST_DEFAULTS, ...cfg.redist };
   cfg.login = { ...DEFAULTS.login, ...cfg.login };
   cfg.session = { ...DEFAULTS.session, ...cfg.session, notify: { ...SESSION_DEFAULTS.notify, ...cfg.session?.notify } };
   cfg.op.vigilance = { ...VIGILANCE_DEFAULTS, ...cfg.op.vigilance };
@@ -347,6 +350,15 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
     if ('above' in body.conquest) c.above = Math.min(1e12, num(body.conquest.above, c.above));
     if (c.above < c.below) c.above = c.below; // konec nikdy pod začátkem
     next.conquest = c;
+  }
+  if (body.redist && typeof body.redist === 'object') {
+    const r = { ...REDIST_DEFAULTS, ...cur.redist };
+    const lim = (k, lo, hi) => { if (k in body.redist) r[k] = Math.min(hi, Math.max(lo, num(body.redist[k], r[k]))); };
+    lim('minM', 1, 10_000); lim('maxM', 1, 10_000); lim('freeMaxM', 0, 10_000); lim('maxMoves', 1, 1000);
+    r.maxMoves = Math.round(r.maxMoves);
+    if (r.maxM < r.minM) r.maxM = r.minM; // horní hranice nikdy pod dolní
+    if ('dry' in body.redist) r.dry = !!body.redist.dry;
+    next.redist = r;
   }
   if (body.dohozStats && typeof body.dohozStats === 'object') {
     const st = { ...DEFAULTS.dohozStats, ...cur.dohozStats };

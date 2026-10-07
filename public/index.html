@@ -102,6 +102,20 @@
   <section id="shopBox" data-view="shop" hidden>
     <div class="bhead"><h2>Obchod</h2><span class="muted">věci z herního Obchodu</span></div>
     <div class="shopgrid">
+      <div class="card" id="redistCard">
+        <div class="card-head"><h2>🔀 Přerozdělení nezaměstnaných</h2></div>
+        <p class="muted" style="margin-top:0">Přesune nezaměstnané z <b>plných planet</b> (nezaměstnaných v zadaném rozmezí a zbývá málo míst) na planety s <b>hodně volným místem a málo lidmi</b>. Bot seřadí tabulku podle Nezaměstnaných, otevře planetu, v nabídce „Na vlastní planetu“ vybere cíl a klikne na Přesunout (počet nikdy nepřepisuje, pošle vše, co hra nabídne), vrátí se zpět a opakuje, dokud je co přesouvat. Do cílové planety posílá, dokud nejsou „lidé na planetě“ a „zbývá míst“ zhruba vyrovnané. Potřebuje otevřenou stránku <b>Obchod → Nezaměstnaní</b> a skript Nezaměstnaní.</p>
+        <div class="rd-grid">
+          <label>Nezaměstnaných od (mil.)<input type="number" id="rdMin" min="1" step="10"></label>
+          <label>do (mil.)<input type="number" id="rdMax" min="1" step="10"></label>
+          <label>Zbývá míst nejvýš (mil.)<input type="number" id="rdFree" min="0" step="1"></label>
+          <label>Nejvíc přesunů za běh<input type="number" id="rdMoves" min="1" max="1000" step="1"></label>
+        </div>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="rdDry"><span></span></span> Zkušební běh <span class="muted">(jen vypíše, co by přesunul; nic nepošle)</span></label>
+        <div class="brun"><button id="rdStart">▶ Přerozdělit</button><button class="ghost" id="rdStop">■ Zastavit</button></div>
+        <div class="muted" id="rdState" style="margin-top:6px">nečinné</div>
+        <div class="muted" id="rdLog" style="margin-top:6px;max-height:200px;overflow:auto;font-size:12px"></div>
+      </div>
       <div class="card">
         <div class="card-head"><h2>👥 Nezaměstnaní</h2></div>
         <p class="muted" style="margin-top:0">Doplní nezaměstnané na planety, kterým chybí lidé (červená čísla v Obchod → Nezaměstnaní): seřadí seznam, otevře poslední planetu, klikne na Přesunout a vrátí se zpět – dokud někde chybí lidé. Když dojdou nezaměstnaní („zbývá“ 0 nebo nestačí na celou planetu), skončí. Potřebuje otevřenou stránku <b>Obchod → Nezaměstnaní</b> a skript Nezaměstnaní.</p>

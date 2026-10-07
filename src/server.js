@@ -20,6 +20,7 @@ import { createHunt } from './ophunt.js';
 import { createConquest, CONQUEST_DEFAULTS } from './conquest.js';
 import { createArmy } from './army.js';
 import { createUnemp } from './unemp.js';
+import { createRedist } from './redist.js';
 import { createRecalc } from './recalc.js';
 import { createEcon } from './econ.js';
 import { createAutoArmy } from './autodohoz.js';
@@ -609,8 +610,9 @@ function watchdogTick(now = Date.now()) {
 setInterval(watchdogTick, 5000);
 // doplnění nezaměstnaných na planety (Obchod → Nezaměstnaní); zprávy jen do servisního chatu
 const unemp = createUnemp();
+const redist = createRedist(); // přerozdělení nezaměstnaných z plných planet na planety s volným místem
 const unempSummary = (s) => { if (s) { console.log(`[nezaměstnaní] ${s}`); sendService(cfg, s); } };
-setInterval(() => unempSummary(unemp.staleCheck()), 10_000);
+setInterval(() => { unempSummary(unemp.staleCheck()); unempSummary(redist.staleCheck()); }, 10_000);
 setInterval(() => { if (build.staleCheck()) { console.log('[stavění] skript přestal hlásit'); sendService(cfg, '⚠️ Stavění: skript přestal hlásit (zavřená karta nebo odhlášení?)'); } }, 10_000);
 
 /** Hlášení ze stránky stavby.php -> instrukce, co dělat dál. */
@@ -860,12 +862,20 @@ const routes = {
   // aby smyčka nebyla horká. Dlouhé držení spojení (20 s) zdržovalo ostatní dotazy z prohlížeče, hlavně posílání dat ze hry.
   'POST /unemp/report': async (req) => {
     if (!authOk(req)) return [401, { error: 'bad token' }];
-    const r = unemp.report(await readJson(req));
+    const rep = await readJson(req, 600_000); // seznam planet na vyžádání má stovky řádků
+    const r = redist.active() ? redist.report(rep) : unemp.report(rep); // běží vždy jen jeden z režimů
     unempSummary(r.summary);
-    return [200, { action: r.action, name: r.name }];
+    return [200, { action: r.action, name: r.name, target: r.target }];
   },
   'GET /api/unemp': async () => [200, unemp.snapshot()],
-  'POST /api/unemp/start': async () => { unemp.start(); return [200, unemp.snapshot()]; },
+  'POST /api/unemp/start': async () => { if (redist.active()) return [409, { error: 'Běží přerozdělení nezaměstnaných, nejdřív ho zastav.' }]; unemp.start(); return [200, unemp.snapshot()]; },
+  'GET /api/redist': async () => [200, redist.snapshot()],
+  'POST /api/redist/start': async () => {
+    if (unemp.snapshot().status === 'running') return [409, { error: 'Běží doplňování nezaměstnaných, nejdřív ho zastav.' }];
+    redist.start(cfg.redist);
+    return [200, redist.snapshot()];
+  },
+  'POST /api/redist/stop': async () => { unempSummary(redist.stop()); return [200, redist.snapshot()]; },
   'POST /api/unemp/stop': async () => { unempSummary(unemp.stop()); return [200, unemp.snapshot()]; },
   'POST /army/poll': async (req) => {
     if (!authOk(req)) return [401, { error: 'bad token' }];
