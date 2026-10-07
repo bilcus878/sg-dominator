@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791407398686,
+  "savedAt": 1791409315713,
   "savedBy": "JarmilPC",
   "config": {
     "threshold": 100000000,
@@ -14,7 +14,7 @@
     "minDrop": 0,
     "notifyRecovery": true,
     "myRace": "20",
-    "notify": false,
+    "notify": true,
     "sound": {
       "on": false,
       "vol": 75,
@@ -95,8 +95,8 @@
       "20": {
         "name": "Bedrosian",
         "mode": "all",
-        "threshold": 100000000,
-        "criticalPct": 5,
+        "threshold": 0,
+        "criticalPct": 0,
         "role": "defend"
       },
       "21": {
