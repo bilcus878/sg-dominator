@@ -563,3 +563,6 @@
   .st-row { cursor:pointer; } .st-row:hover, .st-row:focus-visible { background:rgba(255,255,255,.04); } .st-row.open { background:rgba(255,255,255,.05); } .st-row .exp { color:var(--mut); text-align:center; width:24px; }
   .st-detail td { background:rgba(0,0,0,.18); padding:10px 14px 12px; } .st-sub th { font-size:11px; padding:4px 8px; } .st-sub td { padding:5px 8px; border-bottom:1px solid rgba(255,255,255,.05); }
   .st-note { margin-top:10px; font-size:12px; line-height:1.5; }
+
+  /* červené tlačítko Zavřít aplikaci vedle nastavení */
+  .hbtn.sq.danger { color:#ff8a8a; border-color:#6a2a2a; } .hbtn.sq.danger:hover { background:rgba(255,90,90,.16); border-color:#ff6b6b; color:#ffb3b3; } .hbtn.sq.danger:hover svg { transform:none; } .hbtn.sq.danger:disabled { opacity:.5; }

@@ -342,3 +342,12 @@ test('Statistiky dohozů: pohled v nabídce, přehled, tabulka s rozbalením kol
   assert.equal(await b.eval(`document.getElementById('stEnabled').checked`), true);
   await b.eval(`document.getElementById('closeSettings').click(); document.getElementById('viewBtn').click(); document.querySelector('[data-nav=watch]').click(); 1`);
 });
+
+test('hlavička: červené tlačítko Zavřít aplikaci je vedle nastavení a ptá se na potvrzení (bez potvrzení nic nezavře)', { skip }, async () => {
+  assert.equal(await b.eval(`!!document.getElementById('hdrClose')`), true);
+  const pos = await b.eval(`(() => { const a = document.getElementById('openSettings').getBoundingClientRect(), c = document.getElementById('hdrClose').getBoundingClientRect(); return { dy: Math.abs(a.top - c.top), right: c.left > a.left }; })()`);
+  assert.ok(pos.dy < 2 && pos.right, 'je vpravo vedle nastavení na stejné výšce');
+  await b.eval(`window.__asked = 0; window.confirm = () => { window.__asked++; return false; }; document.getElementById('hdrClose').click(); 1`); await sleep(300);
+  assert.equal(await b.eval(`window.__asked`), 1);
+  assert.ok((await app.api('/api/state')).races !== undefined, 'aplikace dál běží');
+});
