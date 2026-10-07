@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791412620236,
+  "savedAt": 1791413184850,
   "savedBy": "JarmilPC",
   "config": {
     "threshold": 100000000,
@@ -210,7 +210,10 @@
       "maxMoves": 100,
       "pace": 1,
       "pauseMinSec": 2,
-      "pauseMaxSec": 7
+      "pauseMaxSec": 7,
+      "ignoreCities": 1000,
+      "ignorePeopleM": 0,
+      "prioBelowM": 100
     },
     "dohozStats": {
       "enabled": true,
