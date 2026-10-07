@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791413922529,
+  "savedAt": 1791415581326,
   "savedBy": "JarmilPC",
   "config": {
     "threshold": 100000000,
@@ -96,7 +96,7 @@
       },
       "20": {
         "name": "Bedrosian",
-        "mode": "all",
+        "mode": "selected",
         "threshold": 0,
         "criticalPct": 0,
         "role": "defend"
@@ -117,12 +117,6 @@
       }
     },
     "players": {
-      "DPH": {
-        "watch": false
-      },
-      "egral": {
-        "watch": false
-      },
       "bilcus87": {
         "threshold": 200000000,
         "topTarget": 400000000
@@ -395,7 +389,9 @@
     }
   },
   "ui": {
-    "panels": [],
+    "panels": [
+      "20"
+    ],
     "pstate": {
       "1": {
         "filter": "",
@@ -424,6 +420,11 @@
         "dday": false,
         "sortKey": "planets",
         "searchOpen": false
+      },
+      "watched": {
+        "filter": "",
+        "below": false,
+        "sort": "game"
       }
     },
     "uicfg": {
