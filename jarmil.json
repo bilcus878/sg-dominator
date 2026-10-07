@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791399968511,
+  "savedAt": 1791407398686,
   "savedBy": "JarmilPC",
   "config": {
     "threshold": 100000000,
@@ -29,9 +29,7 @@
         "service": false
       }
     },
-    "notifyTypes": {
-      "op": false
-    },
+    "notifyTypes": {},
     "races": {
       "1": {
         "name": "Asgard",
@@ -160,7 +158,7 @@
       }
     },
     "op": {
-      "enabled": false,
+      "enabled": true,
       "repeatSec": 60,
       "vigilance": {
         "enabled": true,
@@ -184,7 +182,7 @@
         "restResumeMax": 230
       },
       "hunt": {
-        "enabled": false,
+        "enabled": true,
         "dryRun": false,
         "reactMinSec": 0.5,
         "reactMaxSec": 1,
