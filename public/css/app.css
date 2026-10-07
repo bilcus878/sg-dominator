@@ -734,3 +734,11 @@
   header .racebar.expanded .rb-all { left:0; right:auto; width:min(440px, calc(100vw - 24px)); top:calc(100% + 8px); }
   @media (min-width: 1180px) { .racebar.norace { display:none; } }
   @media (max-width:480px) { header .rb-toggle { padding:8px 7px; gap:5px; } header .rb-toggle .rb-count { display:none; } }
+  /* úzké okno: Chytat a Alerty jen jako ikona + přepínač (název je v tooltipu), ať se lišta vejde */
+  @media (max-width:980px) { .statpill .optgl .lbl { display:none; } .statpill .optgl { gap:6px; padding:0 9px 0 8px; } }
+  @media (max-width:560px) { .statpill .optgl { gap:4px; padding:0 6px 0 5px; } .statpill .optgl .sw { width:28px; height:16px; } .statpill .optgl .sw span::before { width:10px; height:10px; left:3px; top:3px; } .statpill .optgl .sw input:checked + span::before { transform:translateX(12px); } .statpill .hbtn.sq { width:28px; } }
+  /* rozbalovací seznam ras v horní liště: pevná šířka, dva sloupce, názvy zleva, bez zelených teček */
+  .rchip .rdot, .rb-toggle .rdot { display:none !important; }
+  header .racebar.expanded .rb-all { display:grid; grid-template-columns:1fr 1fr; gap:4px; width:min(300px, calc(100vw - 24px)); padding:8px; justify-content:stretch; }
+  header .rb-all .rchip { justify-content:flex-start; padding:8px 12px; border-radius:8px; font-size:14px; }
+  header .rb-all .rchip.watched { grid-column:1 / -1; border-top:1px solid var(--line); border-radius:0 0 8px 8px; margin-top:2px; }

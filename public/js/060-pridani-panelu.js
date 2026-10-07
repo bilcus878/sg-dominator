@@ -50,7 +50,6 @@ function renderRaceBar() {
   const watchedChip = `<button type="button" class="rchip watched${watchedOpen ? ' open' : ''}" data-race="${WATCHED}" title="Hlídaní hráči ze všech ras"><i class="rstar">★</i><span class="rname">Hlídaní</span></button>`;
   $('rbAll').innerHTML = items.map((r) => rchip(r)).join('') + watchedChip;
   $('rbCount').textContent = items.length;
-  $('rbLive').hidden = !items.some((r) => r.live);
 }
 // úzká obrazovka: pruh ras sedí v horní liště mezi přepínačem pohledů a přepínači (jen „Rasy 12 ▾“ s rozbalovacím seznamem); široká: celý seznam nad panely
 const rbWide = matchMedia('(min-width: 1180px)');

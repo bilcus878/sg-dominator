@@ -498,7 +498,7 @@ test('pruh ras: na široké obrazovce celý seznam (naše první, bez přeškrtn
   assert.equal(await b.eval(`document.getElementById('raceBar').parentElement.tagName`), 'DIV', 'na úzké sedí pruh ras v horní liště');
   assert.ok(Number(await b.eval(`document.getElementById('rbCount').textContent`)) >= 2);
   await b.eval(`document.getElementById('rbToggle').click(); 1`); await sleep(250);
-  assert.equal(await b.eval(`getComputedStyle(document.getElementById('rbAll')).display + '/' + document.getElementById('rbToggle').getAttribute('aria-expanded')`), 'flex/true');
+  assert.equal(await b.eval(`getComputedStyle(document.getElementById('rbAll')).display + '/' + document.getElementById('rbToggle').getAttribute('aria-expanded')`), 'grid/true');
   await b.eval(`document.querySelector('#rbAll .rchip[data-race="5"]').click(); 1`); await sleep(300);
   assert.equal(await b.eval(`getComputedStyle(document.getElementById('rbAll')).display`), 'none', 'po kliku na rasu se seznam zavře');
   await b.send('Emulation.setDeviceMetricsOverride', { width: 900, height: 900, deviceScaleFactor: 1, mobile: false }); await sleep(300);
