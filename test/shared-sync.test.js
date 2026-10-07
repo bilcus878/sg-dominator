@@ -35,3 +35,18 @@ test('sdílení mezi počítači: aplikace načte data z cizího souboru, zapí�
     assert.ok(JSON.parse(readFileSync(own, 'utf8')).clearedAt.military > 0);
   } finally { app.stop(); rmSync(pdir, { recursive: true, force: true }); }
 });
+
+test('stop.cmd: /api/share/stop jde volat bez tokenu z počítače; vypnuté odesílání se přeskočí, mimo git repozitář vrátí srozumitelnou chybu', async () => {
+  const pdir = mkdtempSync(join(tmpdir(), 'sgd-stop-'));
+  const app = await startApp({ profilesDir: pdir, host: 'STOP' });
+  try {
+    await app.api('/api/recalc/sync', 'POST', {});
+    const raw = (path) => fetch(app.base + path, { method: 'POST' }).then((r) => r.json());
+    const r1 = await raw('/api/share/stop'); // stejně jako ho volá stop.ps1: bez hlaviček
+    assert.equal(r1.ok, false); assert.match(r1.error, /git/i, 'dočasná složka není repozitář');
+    await app.api('/api/config', 'PUT', { recalc: { pushOnStop: false } });
+    assert.deepEqual(await raw('/api/share/stop'), { ok: true, skipped: true });
+    const r2 = await raw('/api/share/push'); // tlačítko v Nastavení funguje i při vypnutém odesílání při zastavení
+    assert.equal(r2.ok, false);
+  } finally { app.stop(); rmSync(pdir, { recursive: true, force: true }); }
+});

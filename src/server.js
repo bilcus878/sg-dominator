@@ -22,6 +22,7 @@ import { createUnemp } from './unemp.js';
 import { createRecalc } from './recalc.js';
 import { createEcon } from './econ.js';
 import { createAutoArmy } from './autodohoz.js';
+import { pushShared } from './gitshare.js';
 import { mergeRecalc, mergeEcon, sharedFileName, buildShared, sameShared, readAllShared, writeShared } from './shared-data.js';
 import { DEFAULT_PROFILES, validName, buildProfile, mergeProfileConfig, sameContent, readProfile, writeProfile, listProfiles, cleanUi } from './profiles.js';
 import { mergeSeenUnits, sanitizeReport, sanitizeSeenUnits, unitsFor, ATTACK_TYPES } from './attack.js';
@@ -611,7 +612,29 @@ function sharedView() { return { on: !!cfg.recalc.shared, files: shared.files, m
 setTimeout(sharedSync, 3000);
 setInterval(sharedSync, 60_000); // po pullu z gitu se cizí data načtou do minuty; vlastní se zapisují jen při změně
 
+let shareBusy = null;
+/** Pošle ostatním (commit + pull --rebase + push) soubor s daty tohoto počítače a vybraný profil. Najednou běží jen jedno odeslání. */
+async function sharePush() {
+  if (shareBusy) return shareBusy;
+  shareBusy = (async () => {
+    try {
+      sharedSync(); // nejdřív se sloučí a zapíše všechno nejnovější
+      if (validName(prof.name) && prof.autoSave) { try { profileSaveNow(false); } catch { /* profil se jen nepřidá */ } }
+      const files = [SHARED_FILE];
+      if (validName(prof.name)) files.push(`${prof.name}.json`);
+      const r = await pushShared({ root: PROFILES_DIR, files, message: `Sdílená data přepočtů a profil (${HOST})` });
+      console.log(r.ok ? `[sdílení] ${r.nothing ? 'není co odeslat' : r.committed ? (r.pushed ? 'odesláno ostatním (commit + push)' : 'commit, push nebyl potřeba') : 'beze změn, nic nového k odeslání'}` : `[sdílení] odeslání selhalo: ${r.error}`);
+      return r;
+    } catch (e) { return { ok: false, error: e.message }; }
+    finally { shareBusy = null; }
+  })();
+  return shareBusy;
+}
+
 const routes = {
+  'POST /api/share/push': async () => [200, await sharePush()],
+  // volá stop.cmd: odešle data jen když je to zapnuté (Nastavení → Data → Přepočty hráčů)
+  'POST /api/share/stop': async () => [200, cfg.recalc.pushOnStop && cfg.recalc.shared ? await sharePush() : { ok: true, skipped: true }],
   'POST /api/recalc/sync': async () => { sharedSync(); pushState(); return [200, sharedView()]; },
   'GET /api/profile': async () => [200, { ...profileView(), profiles: profileChoices() }],
   'PUT /api/profile': async (req) => {

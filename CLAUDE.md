@@ -17,3 +17,4 @@
 - Když je potřeba uživatel (přihlášení, potvrzení), zastav se a řekni mu.
 - Profily nastavení: Nastavení → Data → Profil. Celé nastavení (bez tokenů, webhooku, hesla a portu) se ukládá do `profiles/<jméno>.json`, který se commituje a pushuje; po pullu ho aplikace sama načte. Tajné věci do profilu nepatří a nikdy se nesmí dostat do repozitáře.
 - Sdílená data o přepočtech hráčů: každý počítač zapisuje jen svůj soubor `profiles/data-<počítač>.json` (commituj ho s ostatním) a čte soubory ostatních; slučuje se sjednocením, takže při pullu nevznikají konflikty. Zapíná se v Nastavení → Data → Přepočty hráčů.
+- stop.cmd před zastavením (když je zapnuto v Nastavení → Data) sám commitne a pushne JEN profiles/data-<počítač>.json a vybraný profil (git add/commit omezený na tyto soubory, pull --rebase, push; nikdy force). Totéž dělá tlačítko „Poslat data a profil ostatním“.

@@ -90,14 +90,14 @@ $('loginClear').onclick = async () => {
 
 /** Přepočty hráčů (Nastavení → Data) */
 function fillRecalc(r) {
-  $('rcShared').checked = r.shared !== false;
+  $('rcShared').checked = r.shared !== false; $('rcPushOnStop').checked = r.pushOnStop !== false;
   $('rcMil').checked = r.military !== false; $('rcEco').checked = r.economic !== false;
   $('rcShowMil').checked = r.showMilitary !== false; $('rcShowEco').checked = r.showEconomic !== false;
   $('rcMinGrowth').value = r.econMinGrowthPct ?? 0.1; $('rcHideDays').value = r.hideOlderDays ?? 0;
   renderRecalcStats();
 }
 function collectRecalc() {
-  return { shared: $('rcShared').checked, military: $('rcMil').checked, economic: $('rcEco').checked, showMilitary: $('rcShowMil').checked, showEconomic: $('rcShowEco').checked, econMinGrowthPct: $('rcMinGrowth').value, hideOlderDays: $('rcHideDays').value };
+  return { shared: $('rcShared').checked, pushOnStop: $('rcPushOnStop').checked, military: $('rcMil').checked, economic: $('rcEco').checked, showMilitary: $('rcShowMil').checked, showEconomic: $('rcShowEco').checked, econMinGrowthPct: $('rcMinGrowth').value, hideOlderDays: $('rcHideDays').value };
 }
 function renderRecalcStats() {
   const el = $('rcStats'); if (!el) return;
@@ -106,6 +106,14 @@ function renderRecalcStats() {
   const sh = S?.shared, ss = $('rcSharedStatus');
   if (ss) ss.textContent = !sh ? '' : sh.error ? 'Sdílení selhalo: ' + sh.error : !sh.on ? 'Sdílení je vypnuté.' : `Sdílení: ${sh.files} ${sh.files === 1 ? 'soubor' : sh.files < 5 ? 'soubory' : 'souborů'} (tento počítač + ${Math.max(0, sh.files - 1)} další), naposledy sloučeno ${sh.mergedAt ? new Date(sh.mergedAt).toLocaleTimeString('cs-CZ') : '–'}, od spuštění přijato ${sh.received} nových záznamů.`;
 }
+$('rcPush').onclick = async () => {
+  const b = $('rcPush'), note = $('rcPushNote'); b.disabled = true; note.textContent = 'Odesílám…';
+  try {
+    const r = await api('/api/share/push', 'POST', {});
+    note.textContent = r.ok ? (r.nothing ? 'Není co odeslat (zapni sdílení a chvíli počkej na první data).' : r.committed ? (r.pushed ? 'Odesláno ostatním ✓' : 'Uloženo (commit), na GitHubu už to bylo.') : 'Nic nového k odeslání.') : 'Nepovedlo se: ' + r.error;
+    toast(r.ok ? 'Odesláno' : 'Odeslání selhalo', !r.ok);
+  } catch (e) { note.textContent = e.message; toast(e.message, true); } finally { b.disabled = false; }
+};
 $('rcSync').onclick = async () => { try { await api('/api/recalc/sync', 'POST', {}); toast('Sloučeno'); refresh(); } catch (e) { toast(e.message, true); } };
 for (const [id, kind, label] of [['rcClearMil', 'military', 'vojenské'], ['rcClearEco', 'economic', 'ekonomické']]) {
   $(id).onclick = async () => {
