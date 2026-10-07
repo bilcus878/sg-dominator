@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791409315713,
+  "savedAt": 1791411332787,
   "savedBy": "JarmilPC",
   "config": {
     "threshold": 100000000,
@@ -199,6 +199,13 @@
     "conquest": {
       "below": 10000000,
       "above": 20000000
+    },
+    "redist": {
+      "minM": 100,
+      "maxM": 300,
+      "freeMaxM": 0,
+      "dry": false,
+      "maxMoves": 100
     },
     "dohozStats": {
       "enabled": true,
