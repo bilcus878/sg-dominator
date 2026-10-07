@@ -153,33 +153,38 @@
 <div id="scrim"></div>
 <aside id="drawer" aria-label="Nastavení">
   <div class="d-head"><h2>Nastavení</h2><button class="ghost" id="closeSettings">✕</button></div>
-  <div class="tabs">
-    <button class="tab on" data-tab="rules">Síla</button>
-    <button class="tab" data-tab="op">OP</button>
-    <button class="tab" data-tab="attack">Útok</button>
-    <button class="tab" data-tab="army">Dohoz</button>
-    <button class="tab" data-tab="channels">Kanály</button>
-    <button class="tab" data-tab="data">Data</button>
-    <button class="tab" data-tab="look">Vzhled</button>
-    <button class="tab" data-tab="login">Přihlášení</button>
-    <button class="tab" data-tab="scripts">Skripty</button>
+  <div class="d-main">
+  <div class="tabs" role="tablist" aria-label="Kategorie nastavení">
+    <span class="tgroup">Hlídání a akce</span>
+    <button class="tab on" data-tab="rules"><i>🎯</i>Hlídání</button>
+    <button class="tab" data-tab="army"><i>⚔</i>Armáda</button>
+    <button class="tab" data-tab="op"><i>🗺</i>Mapa a OP</button>
+    <span class="tgroup">Komunikace</span>
+    <button class="tab" data-tab="channels"><i>💬</i>Zprávy</button>
+    <button class="tab" data-tab="login"><i>🔑</i>Přihlášení</button>
+    <span class="tgroup">Data</span>
+    <button class="tab" data-tab="stats"><i>📊</i>Statistiky</button>
+    <button class="tab" data-tab="sync"><i>🔄</i>Sdílení</button>
+    <span class="tgroup">Aplikace</span>
+    <button class="tab" data-tab="look"><i>🎨</i>Vzhled</button>
+    <button class="tab" data-tab="scripts"><i>🧩</i>Skripty</button>
   </div>
   <div class="d-body">
     <div class="pane on" id="pane-rules">
       <div class="field" style="border:1px solid var(--acc);border-radius:10px;padding:12px 14px"><label for="myRace" style="color:var(--acc);font-weight:700">⭐ Moje rasa</label><select id="myRace"></select>
         <small>Vyber svou rasu. <b>Tvoje rasa</b> se hlídá (pokles pod práh, tlačítko Dohodit). <b>Všechny ostatní rasy jsou cizí</b>: hlídá se, kdo je k dobytí, a jde na ně útočit písmeny D P Z…</small></div>
-      <p class="muted" style="margin-top:0">Zpráva přijde, když někomu klesne síla pod hranici. Zbytek jen doladí, aby to nespamovalo.</p>
+      <div class="chan">
+        <div class="chan-head"><span><b>Hranice síly</b></span></div>
+        <p class="muted" style="margin-top:0">Zpráva přijde, když někomu klesne síla pod hranici. Hranice jde nastavit i zvlášť pro rasu a pro hráče přímo v panelech.</p>
       <div class="field"><label for="threshold">Výchozí hranice síly</label><input type="text" inputmode="numeric" class="num" id="threshold">
         <small>Platí pro všechny hlídané hráče, pokud rasa nebo hráč nemá vlastní práh. Klesne-li síla <b>pod toto číslo</b>, pošle se zpráva.</small></div>
-      <div class="chan" style="margin-bottom:16px">
-        <div class="chan-head"><span>🎯 Cizí rasy – k dobytí</span></div>
-        <p class="muted" style="margin-top:0">U ras přepnutých na <b>🎯 Cizí</b> se nehlídá pokles, ale kdo je k dobytí. Jedna zpráva přijde, když hráči spadne síla pod spodní hranici (a jde ho dobýt – ve hře svítí D), a jedna, když vyleze nad horní. Mezi nimi zůstává k dobytí, ať zprávy neskáčou.</p>
-        <div class="two"><div><label for="conqBelow">K dobytí pod (síla)</label><input type="text" inputmode="numeric" class="num" id="conqBelow"></div>
-          <div><label for="conqAbove">Konec nad (síla)</label><input type="text" inputmode="numeric" class="num" id="conqAbove"></div></div></div>
-      <div class="field"><label for="cooldownSec">Pauza mezi zprávami o jednom hráči (s)</label><input type="number" id="cooldownSec" min="0">
-        <small>Další zpráva o něm přijde nejdřív po této pauze.</small></div>
       <div class="field"><label for="criticalPct">Kritická hranice – pod (% z hranice hráče)</label><input type="number" id="criticalPct" min="0" max="100">
         <small id="critHint"></small></div>
+      </div>
+      <div class="chan">
+        <div class="chan-head"><span><b>Opakování a pauzy</b></span></div>
+      <div class="field"><label for="cooldownSec">Pauza mezi zprávami o jednom hráči (s)</label><input type="number" id="cooldownSec" min="0">
+        <small>Další zpráva o něm přijde nejdřív po této pauze.</small></div>
       <div class="field"><label for="criticalCooldownSec">Pauza kritických zpráv (s)</label><input type="number" id="criticalCooldownSec" min="0">
         <small>Kritická zpráva 🆘 přijde ihned při vstupu do kritického pásma (bez čekání na pauzu) a pak se opakuje po této pauze, dokud hráč nevyleze výš. V kritickém pásmu se neposílají běžné zprávy „pod prahem“.</small></div>
       <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
@@ -197,79 +202,22 @@
           <div><label for="dropWindowSec">Za posledních (s)</label><input type="number" id="dropWindowSec" min="1"></div>
         </div>
       </details>
-      <p class="muted" style="margin-top:18px">Ochrana proti chybám: pokles se uzná, až když ho skript přečte dvakrát po sobě (cca 1 s).</p>
-    </div>
-
-    <div class="pane" id="pane-op">
-      <p class="muted" style="margin-top:0">Na mapě galaxie se na chvíli objevují svítící oranžové tečky = opuštěné planety (OP). Appka je hlídá, když máš otevřené okno <b>mapa.php</b>.</p>
-      <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
-        <span class="sw"><input type="checkbox" id="opEnabled2"><span></span></span> Zapnout OP: hlásit OP, sám zapínat teleskop a potvrzovat bdělost</label>
-        <small>Zapnuto = bot na mapě jedná sám: sám zapne zastavený teleskop, potvrzuje tlačítko bdělosti a pošle zprávu, jakmile se tečka v nějakém sektoru objeví. Vypnuto = bot nic nedělá a nehlásí. Stejný vypínač je nahoře v hlavičce. Tečky, které svítily už při zapnutí, se jako nové nehlásí.</small></div>
-      <div class="field"><label for="opRepeatSec">Připomínat, dokud tečka svítí – každých (s)</label><input type="number" id="opRepeatSec" min="0">
-        <small>Při objevení nového OP přijde jedna zpráva s celkovým počtem OP na mapě a seznamem sektorů. Dokud nějaký OP svítí, přijde po této pauze jedna připomínka „OP stále na mapě: počet“. 0 = ohlásit jen objevení.</small></div>
-      <div class="chan">
-        <div class="chan-head"><span>Tlačítko bdělosti</span><label class="sw"><input type="checkbox" id="opVigEnabled"><span></span></label></div>
-        <p class="muted" style="margin-top:0">Jednou za pár minut se na mapě objeví tlačítko <b>Povrdit</b>; bez kliknutí se obnova stránky přeruší a teleskop přestane jet. Skript ho potvrdí sám, ale <b>nikdy hned</b> po objevení, až po náhodné pauze v tomto rozmezí:</p>
-        <div class="two"><div><label for="opVigMin">Nejdřív po (s)</label><input type="number" id="opVigMin" min="1" max="120"></div>
-          <div><label for="opVigMax">Nejpozději po (s)</label><input type="number" id="opVigMax" min="1" max="120"></div></div>
-        <div class="field" style="margin-top:14px"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
-          <span class="sw"><input type="checkbox" id="opVigSkip"><span></span></span> Občas záměrně nepotvrdit (jako člověk)</label>
-          <small>Člověk to taky ne vždy stihne. Jednou za několik potvrzení (náhodně v tomto rozmezí) bot tlačítko vynechá, hra teleskop zastaví a bot ho nechá nějakou dobu vypnutý. <b>Po tuto dobu se OP nehlídají.</b></small></div>
-        <div class="two"><div><label for="opSkipMin">Vynechat jednou za (min. potvrzení)</label><input type="number" id="opSkipMin" min="1" max="50"></div>
-          <div><label for="opSkipMax">… až za (max. potvrzení)</label><input type="number" id="opSkipMax" min="1" max="50"></div></div>
-        <div class="two" style="margin-top:10px"><div><label for="opDownMin">Teleskop pak nechat vypnutý od (min)</label><input type="number" id="opDownMin" min="1" max="240"></div>
-          <div><label for="opDownMax">… do (min)</label><input type="number" id="opDownMax" min="1" max="240"></div></div>
-        <p class="muted" id="opVigStatus" style="margin-bottom:0"></p>
-        <p class="muted" style="margin-bottom:0">Když tlačítko zůstane nepotvrzené déle než 2,5 minuty, přijde zpráva na Telegram. Okno mapy musí být otevřené a viditelné.</p>
+      <p class="muted" style="margin:10px 0 0">Ochrana proti chybám: pokles se uzná, až když ho skript přečte dvakrát po sobě (cca 1 s).</p>
       </div>
-      <div class="chan">
-        <div class="chan-head"><span>Teleskop</span><label class="sw"><input type="checkbox" id="opTeleAuto"><span></span></label></div>
-        <p class="muted" style="margin-top:0">Když je teleskop zastavený (<b>Stav teleskopu: Zastaven</b>), bot po lidské prodlevě klikne na <b>Aktivovat teleskop</b>. Po záměrně vynechané bdělosti počká celou dobu „pauzy“ výše. Když teleskopu nezbývá žádný čas nebo se aktivace třikrát nepovede, pošle zprávu do <b>servisního chatu</b> (do hlavní skupiny nikdy). <b>Pozor:</b> když teleskop zastavíš ručně, vypni tenhle přepínač, jinak ho bot zase zapne.</p>
-        <div class="two"><div><label for="opReactMin">Aktivovat nejdřív po (s)</label><input type="number" id="opReactMin" min="1" max="600"></div>
-          <div><label for="opReactMax">… nejpozději po (s)</label><input type="number" id="opReactMax" min="1" max="600"></div></div>
-        <div class="field" style="margin-top:14px"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
-          <span class="sw"><input type="checkbox" id="opRestEnabled"><span></span></span> Šetřit teleskop po OP</label>
-          <small>Další OP se objeví nejdřív 5 minut po předchozím. Po objevení OP proto bot teleskop po lidské prodlevě <b>zastaví</b> a v náhodném čase ho zase <b>zapne</b> – vždycky tak, aby jel dřív než za 5 minut. Ne pokaždé (podle šance níže), ať to nemá pravidelný vzorec.</small></div>
-        <div class="two"><div><label for="opRestChance">Šance, že šetří (%)</label><input type="number" id="opRestChance" min="0" max="100"></div><div></div></div>
-        <div class="two" style="margin-top:10px"><div><label for="opRestStopMin">Zastavit po OP nejdřív za (s)</label><input type="number" id="opRestStopMin" min="5" max="240"></div>
-          <div><label for="opRestStopMax">… nejpozději za (s)</label><input type="number" id="opRestStopMax" min="5" max="240"></div></div>
-        <div class="two" style="margin-top:10px"><div><label for="opRestResumeMin">Zapnout zpět nejdřív (s od OP)</label><input type="number" id="opRestResumeMin" min="5" max="240"></div>
-          <div><label for="opRestResumeMax">… nejpozději (s od OP, max 240)</label><input type="number" id="opRestResumeMax" min="5" max="240"></div></div>
-        <p class="muted" id="opTeleStatus" style="margin-bottom:0"></p>
+      <div class="chan" style="margin-bottom:16px">
+        <div class="chan-head"><span>🎯 Cizí rasy – k dobytí</span></div>
+        <p class="muted" style="margin-top:0">U ras přepnutých na <b>🎯 Cizí</b> se nehlídá pokles, ale kdo je k dobytí. Jedna zpráva přijde, když hráči spadne síla pod spodní hranici (a jde ho dobýt – ve hře svítí D), a jedna, když vyleze nad horní. Mezi nimi zůstává k dobytí, ať zprávy neskáčou.</p>
+        <div class="two"><div><label for="conqBelow">K dobytí pod (síla)</label><input type="text" inputmode="numeric" class="num" id="conqBelow"></div>
+          <div><label for="conqAbove">Konec nad (síla)</label><input type="text" inputmode="numeric" class="num" id="conqAbove"></div></div></div>
+      <div class="chan" style="border-color:var(--bad)">
+        <div class="chan-head"><span><b>Nový věk</b></span></div>
+        <p class="muted" style="margin-top:0">Rasy a hráči se každý věk mění. Tlačítko smaže seznam načtených ras, <b>nastavení hlídání u ras a hráčů</b> (režimy, prahy ras, vlastní prahy a vypnutí u hráčů) a rozložení panelů. Výchozí hranice, pravidla a kanály zůstanou.</p>
+        <p class="muted">Rasy, které máš zrovna otevřené v prohlížeči, se po chvíli načtou znovu jako vypnuté.</p>
+        <button id="clearRaces" style="background:var(--bad);color:#190808">Vymazat rasy</button>
       </div>
-      <p class="muted">Skript pro mapu se instaluje z adresy <code>/mapa.user.js</code> (stejně jako ten pro hráče). Aktuální stav vidíš v kartě „OP na mapě“ na hlavní stránce.</p>
     </div>
-
-    <div class="pane" id="pane-look">
-      <p class="muted" style="margin-top:0">Velikost panelů ras se pamatuje <b>zvlášť pro každý monitor</b> (poznává ho podle rozlišení a polohy okna). Tenhle monitor: <b id="lookMon"></b>. Změny platí hned, nemusíš ukládat.</p>
-      <div class="field"><label>Velikost tabulky hráčů</label>
-        <div class="seg" id="uiDens"><button type="button" data-v="s">Malá</button><button type="button" data-v="m">Střední</button><button type="button" data-v="l">Velká</button></div>
-        <small>Písmo a výška řádků. Platí jen v tomhle prohlížeči.</small></div>
-      <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0"><span class="sw"><input type="checkbox" id="uiShort"><span></span></span> Zkrácená čísla síly (927,5 mil)</label>
-        <small>Čísla se lépe porovnávají. Přesná hodnota je v bublině po najetí myší.</small></div>
-      <div class="field"><label for="lookW">Výchozí šířka panelu: <b id="lookWv"></b> px</label><input type="range" id="lookW" min="320" max="1100" step="10">
-        <small>Platí pro panely, které sis neroztáhl ručně.</small></div>
-      <div class="field"><label for="lookH">Výchozí výška tabulky: <b id="lookHv"></b></label><input type="range" id="lookH" min="0" max="1600" step="20">
-        <small>0 = automaticky (panel se vejde do výšky okna). Vyšší hodnota drží výšku pevnou.</small></div>
-      <div class="field"><button class="ghost" id="lookReset">Vrátit všechny panely na výchozí velikost</button></div>
-      <p class="muted">Panel můžeš měnit i tažením pravého dolního rohu (dvojklik na roh = výchozí velikost) a sbalit tlačítkem ▾ v hlavičce (nebo dvojklikem na název). Sbalený panel ukáže jen souhrn, třeba počet hráčů k dobytí.</p>
-    </div>
-
-    <div class="pane" id="pane-attack">
-      <p class="muted" style="margin-top:0">Písmeno útoku (<b>D</b>, <b>P</b>…) u cizího hráče otevře ve hře jeho útok v nové kartě a skript ho podle tohoto nastavení připraví: vyplní jednotky a vybere planetu cíle. <b>Zaútočit a F5 děláš ty sám</b>, nic se neodesílá samo. Ve výchozím stavu útok <b>jen připraví</b>. Zkontrolovat ho a kliknout na „Zaútočit“ děláš ty.</p>
-      <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
-        <span class="sw"><input type="checkbox" id="atkRandom"><span></span></span> Vybrat náhodnou planetu cíle</label>
-        <small>Z výběru planet cíle se vybere jedna náhodně, ať neútočíš pořád na stejnou.</small></div>
-      <h3 style="font-size:13px;color:var(--acc);margin:6px 0">Jednotky k poslání pro druh útoku</h3>
-      <div class="atk-types" id="atkTypes"></div>
-      <table class="atktable"><thead><tr><th>Jednotka</th><th class="n">Kolik poslat</th><th class="c">Max</th><th class="c"></th></tr></thead><tbody id="atkUnits"></tbody></table>
-      <p class="muted" id="atkNone" hidden>Pro tento druh útoku zatím žádná jednotka. Klikni u cizí rasy na jeho písmeno, stránka útoku se otevře a jednotky se tu objeví samy (nebo je přidej ručně tlačítkem níže).</p>
-      <button class="ghost" id="atkAdd" type="button">＋ Přidat jednotku</button>
-      <p class="muted" style="margin-top:10px">„Max“ pošle všechny jednotky toho typu. Víc, než je k dispozici, se neposílá. Jednotka s počtem 0 a bez Max se přeskočí.</p>
-      <div class="chan" style="margin-top:14px"><div class="chan-head"><span>Poslední stránka útoku</span><button class="ghost" id="atkRefresh" type="button">Obnovit</button></div><div id="atkReport" class="muted">…</div></div>
-    </div>
-
     <div class="pane" id="pane-army">
+      <h3 class="sect"><span class="sic">🛡</span>Dohoz<small>vlastní rasa</small></h3>
       <p class="muted" style="margin-top:0">Tlačítko <b>Dohodit</b> u hráče naší rasy pošle jednotky přes stránku Jednotky → Rasová armáda. Počty tady nastavíš jednou: skript je <b>vyplní do formuláře</b> (a po dohození je tam hned vyplní znovu), takže je nemusíš psát ručně. Co už jsi na stránce vyplnil sám, se nepřepisuje.</p>
       <table class="atktable"><thead><tr><th>Jednotka</th><th class="n">Kolik poslat</th><th class="c">Vše</th><th class="c"></th></tr></thead><tbody id="armyUnits"></tbody></table>
       <p class="muted" id="armyNone" hidden>Zatím žádná jednotka. Otevři ve hře Jednotky → Rasová armáda (se skriptem) a jednotky se tu objeví samy, nebo je přidej ručně.</p>
@@ -322,73 +270,93 @@
 
         <p class="muted" id="armyAutoStatus" style="margin-bottom:0"></p>
       </div>
+      <h3 class="sect"><span class="sic">⚔</span>Útok<small>cizí rasy</small></h3>
+      <p class="muted" style="margin-top:0">Písmeno útoku (<b>D</b>, <b>P</b>…) u cizího hráče otevře ve hře jeho útok v nové kartě a skript ho podle tohoto nastavení připraví: vyplní jednotky a vybere planetu cíle. <b>Zaútočit a F5 děláš ty sám</b>, nic se neodesílá samo. Ve výchozím stavu útok <b>jen připraví</b>. Zkontrolovat ho a kliknout na „Zaútočit“ děláš ty.</p>
+      <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
+        <span class="sw"><input type="checkbox" id="atkRandom"><span></span></span> Vybrat náhodnou planetu cíle</label>
+        <small>Z výběru planet cíle se vybere jedna náhodně, ať neútočíš pořád na stejnou.</small></div>
+      <h3 style="font-size:13px;color:var(--acc);margin:6px 0">Jednotky k poslání pro druh útoku</h3>
+      <div class="atk-types" id="atkTypes"></div>
+      <table class="atktable"><thead><tr><th>Jednotka</th><th class="n">Kolik poslat</th><th class="c">Max</th><th class="c"></th></tr></thead><tbody id="atkUnits"></tbody></table>
+      <p class="muted" id="atkNone" hidden>Pro tento druh útoku zatím žádná jednotka. Klikni u cizí rasy na jeho písmeno, stránka útoku se otevře a jednotky se tu objeví samy (nebo je přidej ručně tlačítkem níže).</p>
+      <button class="ghost" id="atkAdd" type="button">＋ Přidat jednotku</button>
+      <p class="muted" style="margin-top:10px">„Max“ pošle všechny jednotky toho typu. Víc, než je k dispozici, se neposílá. Jednotka s počtem 0 a bez Max se přeskočí.</p>
+      <div class="chan" style="margin-top:14px"><div class="chan-head"><span>Poslední stránka útoku</span><button class="ghost" id="atkRefresh" type="button">Obnovit</button></div><div id="atkReport" class="muted">…</div></div>
     </div>
-
-    <div class="pane" id="pane-data">
-      <div class="chan" style="border-color:var(--bad)">
-        <div class="chan-head"><span><b>Zavřít aplikaci</b></span></div>
-        <p class="muted" style="margin-top:0">Totéž co <code>stop.cmd</code>: když je zapnuté sdílení, odešle data a profil ostatním (commit + push), pak zastaví hlídače i server. Hra a skripty v prohlížeči zůstanou, jen přestanou posílat data.</p>
-        <button id="closeApp" type="button" style="background:var(--bad);color:#190808">Zavřít aplikaci</button> <span class="muted" id="closeAppNote"></span>
+    <div class="pane" id="pane-op">
+      <p class="muted" style="margin-top:0">Na mapě galaxie se na chvíli objevují svítící oranžové tečky = opuštěné planety (OP). Appka je hlídá, když máš otevřené okno <b>mapa.php</b>.</p>
+      <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
+        <span class="sw"><input type="checkbox" id="opEnabled2"><span></span></span> Zapnout OP: hlásit OP, sám zapínat teleskop a potvrzovat bdělost</label>
+        <small>Zapnuto = bot na mapě jedná sám: sám zapne zastavený teleskop, potvrzuje tlačítko bdělosti a pošle zprávu, jakmile se tečka v nějakém sektoru objeví. Vypnuto = bot nic nedělá a nehlásí. Stejný vypínač je nahoře v hlavičce. Tečky, které svítily už při zapnutí, se jako nové nehlásí.</small></div>
+      <div class="field"><label for="opRepeatSec">Připomínat, dokud tečka svítí – každých (s)</label><input type="number" id="opRepeatSec" min="0">
+        <small>Při objevení nového OP přijde jedna zpráva s celkovým počtem OP na mapě a seznamem sektorů. Dokud nějaký OP svítí, přijde po této pauze jedna připomínka „OP stále na mapě: počet“. 0 = ohlásit jen objevení.</small></div>
+      <div class="chan">
+        <div class="chan-head"><span>Tlačítko bdělosti</span><label class="sw"><input type="checkbox" id="opVigEnabled"><span></span></label></div>
+        <p class="muted" style="margin-top:0">Jednou za pár minut se na mapě objeví tlačítko <b>Povrdit</b>; bez kliknutí se obnova stránky přeruší a teleskop přestane jet. Skript ho potvrdí sám, ale <b>nikdy hned</b> po objevení, až po náhodné pauze v tomto rozmezí:</p>
+        <div class="two"><div><label for="opVigMin">Nejdřív po (s)</label><input type="number" id="opVigMin" min="1" max="120"></div>
+          <div><label for="opVigMax">Nejpozději po (s)</label><input type="number" id="opVigMax" min="1" max="120"></div></div>
+        <div class="field" style="margin-top:14px"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
+          <span class="sw"><input type="checkbox" id="opVigSkip"><span></span></span> Občas záměrně nepotvrdit (jako člověk)</label>
+          <small>Člověk to taky ne vždy stihne. Jednou za několik potvrzení (náhodně v tomto rozmezí) bot tlačítko vynechá, hra teleskop zastaví a bot ho nechá nějakou dobu vypnutý. <b>Po tuto dobu se OP nehlídají.</b></small></div>
+        <div class="two"><div><label for="opSkipMin">Vynechat jednou za (min. potvrzení)</label><input type="number" id="opSkipMin" min="1" max="50"></div>
+          <div><label for="opSkipMax">… až za (max. potvrzení)</label><input type="number" id="opSkipMax" min="1" max="50"></div></div>
+        <div class="two" style="margin-top:10px"><div><label for="opDownMin">Teleskop pak nechat vypnutý od (min)</label><input type="number" id="opDownMin" min="1" max="240"></div>
+          <div><label for="opDownMax">… do (min)</label><input type="number" id="opDownMax" min="1" max="240"></div></div>
+        <p class="muted" id="opVigStatus" style="margin-bottom:0"></p>
+        <p class="muted" style="margin-bottom:0">Když tlačítko zůstane nepotvrzené déle než 2,5 minuty, přijde zpráva na Telegram. Okno mapy musí být otevřené a viditelné.</p>
       </div>
+      <div class="chan">
+        <div class="chan-head"><span>Teleskop</span><label class="sw"><input type="checkbox" id="opTeleAuto"><span></span></label></div>
+        <p class="muted" style="margin-top:0">Když je teleskop zastavený (<b>Stav teleskopu: Zastaven</b>), bot po lidské prodlevě klikne na <b>Aktivovat teleskop</b>. Po záměrně vynechané bdělosti počká celou dobu „pauzy“ výše. Když teleskopu nezbývá žádný čas nebo se aktivace třikrát nepovede, pošle zprávu do <b>servisního chatu</b> (do hlavní skupiny nikdy). <b>Pozor:</b> když teleskop zastavíš ručně, vypni tenhle přepínač, jinak ho bot zase zapne.</p>
+        <div class="two"><div><label for="opReactMin">Aktivovat nejdřív po (s)</label><input type="number" id="opReactMin" min="1" max="600"></div>
+          <div><label for="opReactMax">… nejpozději po (s)</label><input type="number" id="opReactMax" min="1" max="600"></div></div>
+        <div class="field" style="margin-top:14px"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
+          <span class="sw"><input type="checkbox" id="opRestEnabled"><span></span></span> Šetřit teleskop po OP</label>
+          <small>Další OP se objeví nejdřív 5 minut po předchozím. Po objevení OP proto bot teleskop po lidské prodlevě <b>zastaví</b> a v náhodném čase ho zase <b>zapne</b> – vždycky tak, aby jel dřív než za 5 minut. Ne pokaždé (podle šance níže), ať to nemá pravidelný vzorec.</small></div>
+        <div class="two"><div><label for="opRestChance">Šance, že šetří (%)</label><input type="number" id="opRestChance" min="0" max="100"></div><div></div></div>
+        <div class="two" style="margin-top:10px"><div><label for="opRestStopMin">Zastavit po OP nejdřív za (s)</label><input type="number" id="opRestStopMin" min="5" max="240"></div>
+          <div><label for="opRestStopMax">… nejpozději za (s)</label><input type="number" id="opRestStopMax" min="5" max="240"></div></div>
+        <div class="two" style="margin-top:10px"><div><label for="opRestResumeMin">Zapnout zpět nejdřív (s od OP)</label><input type="number" id="opRestResumeMin" min="5" max="240"></div>
+          <div><label for="opRestResumeMax">… nejpozději (s od OP, max 240)</label><input type="number" id="opRestResumeMax" min="5" max="240"></div></div>
+        <p class="muted" id="opTeleStatus" style="margin-bottom:0"></p>
+      </div>
+      <p class="muted">Skript pro mapu se instaluje z adresy <code>/mapa.user.js</code> (stejně jako ten pro hráče). Aktuální stav vidíš v kartě „OP na mapě“ na hlavní stránce.</p>
+    </div>
+    <div class="pane" id="pane-channels">
+      <div class="chan">
+        <div class="chan-head"><span>Telegram <span class="saved" id="tSaved"></span></span><label class="sw"><input type="checkbox" id="tEnabled"><span></span></label></div>
+        <label for="tToken">Token bota</label><input type="password" id="tToken" autocomplete="off">
+        <label for="tChat" style="margin-top:10px">ID skupiny</label>
+        <div style="display:flex;gap:8px"><input type="text" id="tChat" placeholder="např. -1001234567890"><button class="ghost" id="findChats" style="white-space:nowrap">Najít skupinu</button></div>
+        <label for="tService" style="margin-top:10px">ID servisního chatu <span class="muted">(systémové zprávy)</span></label>
+        <div style="display:flex;gap:8px"><input type="text" id="tService" placeholder="prázdné = systémové zprávy na Telegram nechodí"><button class="ghost" id="findServiceChats" style="white-space:nowrap">Najít skupinu</button></div>
+        <small class="muted" style="display:block;margin-top:5px">Sem jdou jen systémové věci: výpadek dat ras a mapy, tlačítko bdělosti, teleskop, stavění, auto-dohoz a přihlášení. Do hlavní skupiny jen OP, síla a k dobytí.</small>
+        <div id="chatList" style="margin-top:8px"></div>
+        <details open><summary>Postup</summary><p>
+          1) V Telegramu najdi <b>@BotFather</b>, napiš mu <code>/newbot</code> a dostaneš <b>token</b>, vlož ho výše.<br>
+          2) Najdi svého bota (hledej podle jeho jména), otevři skupinu → <b>Přidat členy</b> → přidej bota.<br>
+          3) Ve skupině napiš <code>/start</code> (nebo zmiň bota, např. <code>@jmeno_bota ahoj</code>) a tady klikni <b>Najít skupinu</b> → vyber ji. Obyčejné zprávy bot nevidí.<br>
+          4) Zapni přepínač, dej Uložit a pak „Poslat testovací zprávu“.<br><br>
+          <b>Servisní chat</b> (jen pro pár lidí): v Telegramu ☰ → <b>Nová skupina</b>, přidej ty lidi a svého bota, skupinu pojmenuj (např. „Dominator – servis“). Ve skupině napiš <code>/start</code>, tady klikni <b>Najít skupinu</b> a u ní dej <b>→ servisní</b>. Ulož a pošli testovací zprávu.</p></details>
+      </div>
+      <div class="chan">
+        <div class="chan-head"><span>Discord <span class="saved" id="dSaved"></span></span><label class="sw"><input type="checkbox" id="dEnabled"><span></span></label></div>
+        <label for="dUrl">Webhook URL</label><input type="password" id="dUrl" autocomplete="off">
+        <details><summary>Jak získat webhook</summary><p>Nastavení kanálu → Integrace → Webhooky → Nový webhook → Kopírovat URL webhooku.</p></details>
+      </div>
+      <p class="muted">Uložené tokeny se z bezpečnostních důvodů znovu nezobrazují. Prázdné pole = ponechat uložené.</p>
+      <p style="margin:0 0 16px"><button class="ghost" id="test">Poslat testovací zprávu</button> <button class="ghost" id="testSvc">Test do servisního chatu</button> <span class="muted"> (použije uložené nastavení)</span></p>
       <div class="chan">
         <div class="chan-head"><span>Hlídač výpadku dat</span><label class="sw"><input type="checkbox" id="wdEnabled"><span></span></label></div>
         <p class="muted" style="margin-top:0">Když hlídaná rasa (nebo mapa při zapnutém OP) přestane dodávat data, pošle se zpráva do <b>servisního chatu</b>, a další, až se data vrátí. Do hlavní skupiny nejde. Ticho z prohlížeče tak nevypadá jako klid.</p>
         <label for="wdStale">Hlásit po (s) bez dat</label><input type="number" id="wdStale" min="10">
       </div>
       <div class="chan">
-        <div class="chan-head"><span><b>Statistika dohozů</b></span><label class="sw"><input type="checkbox" id="stEnabled"><span></span></label></div>
-        <p class="muted" style="margin-top:0">Zapisuje každé dohazování hráče (od pádu pod práh): kdy spadl, jak dlouho byl pod prahem, za jak dlouho se odeslal 1. dohoz, další kola a jejich účinek, a kdo dohazoval (automat, nebo tlačítko Dohodit). Najdeš ji v nabídce pohledů nahoře (📊 Statistiky). Ukládá se jen na tomto počítači.</p>
-        <label for="stKeepInput">Kolik posledních dohazování držet (20–1000)</label>
-        <input type="number" id="stKeepInput" min="20" max="1000" step="10">
-        <small class="muted" style="display:block;margin-top:6px">Víc než pár set záznamů nemá smysl a aplikaci nezpomaluje (každý záznam je pár set bajtů).</small>
-        <p style="margin:10px 0 0"><button class="ghost" id="stClear" type="button">Vymazat statistiku dohozů</button></p>
-      </div>
-      <div class="chan" style="border-color:var(--acc)">
-        <div class="chan-head"><span><b>Profil nastavení</b></span></div>
-        <p class="muted" style="margin-top:0">Vyber svůj profil (Jarmil nebo Čmajz). Sdílená data (profily i přepočty) žijí v samostatné git větvi <code>sdilena-data</code>, takže se nemíchají s commity kódu. Celé nastavení aplikace (prahy, rasy, alerty, dohoz, útok, přihlášení, přepočty a vzhled) se uloží do souboru soubor <code>&lt;jméno&gt;.json</code> v samostatné větvi <code>sdilena-data</code> (mimo kód aplikace), takže se odesláním přenese na druhý počítač. Tam po pullu aplikace novější profil sama načte.</p>
-        <p class="muted"><b>Do profilu nejde nic tajného:</b> token aplikace, token Telegram bota, webhook Discordu, heslo do hry ani port. Ty zůstávají na každém počítači zvlášť a zadáš je tam jednou. Profil je ale čitelný soubor v repozitáři (prahy, názvy hráčů, ID chatů).</p>
-        <label for="profName">Profil</label>
-        <select id="profName"></select>
-        <label class="swrow"><span class="sw"><input type="checkbox" id="profAutoSave"><span></span></span> Průběžně ukládat změny do profilu (před pushem je vždy aktuální)</label>
-        <label class="swrow"><span class="sw"><input type="checkbox" id="profAutoLoad"><span></span></span> Po pullu automaticky načíst novější profil (při startu a každou minutu)</label>
-        <p id="profStatus" class="muted" style="margin:8px 0"></p>
-        <button class="ghost" id="profSave" type="button">Uložit do profilu teď</button> <button class="ghost" id="profLoad" type="button">Načíst z profilu</button>
-        <div id="profWarn" class="muted" style="color:var(--bad);margin-top:8px" hidden></div>
-      </div>
-      <div class="chan">
-        <div class="chan-head"><span>Přepočty hráčů</span></div>
-        <p class="muted" style="margin-top:0">Aplikace z dat ras zjišťuje, kdy se hráči přepočítávají: <b>⟳ vojenský</b> (v celou hodinu se mu ve sloupci Dobyt vynuluje počet) a <b>💰 ekonomický</b> (odhad: hráči po přihlášení vzroste populace, aniž by se změnil počet planet). Zachycené časy se ukládají a ukazují se pod jménem.</p>
-        <label class="swrow"><span class="sw"><input type="checkbox" id="rcShared"><span></span></span> <b>Sdílet zachycené přepočty mezi počítači a profily</b> (přes git)</label>
-        <small class="muted" style="display:block;margin:-2px 0 10px 54px">Každý počítač ukládá to, co nasbíral, do vlastního souboru <code>data-&lt;počítač&gt;.json</code> ve větvi <code>sdilena-data</code> a čte soubory ostatních. S commitem a pushem tak obě strany mají všechna data. Soubory se jen sjednocují (nic se nepřepisuje, nevznikají konflikty při pullu).</small>
-        <p class="muted" id="rcSharedStatus" style="margin:0 0 10px"></p>
-        <label for="rcSyncMin" style="margin-top:6px">Pravidelně odesílat a stahovat data každých N minut (0 = jen při startu a zastavení)</label>
-        <input type="number" id="rcSyncMin" min="0" max="1440" step="1" style="max-width:140px;margin-bottom:8px">
-        <label class="swrow"><span class="sw"><input type="checkbox" id="rcPushOnStop"><span></span></span> Při zastavení aplikace (stop.cmd) data a profil automaticky odeslat ostatním (commit + push)</label>
-        <label class="swrow"><span class="sw"><input type="checkbox" id="rcPullOnStart"><span></span></span> Při spuštění (start.cmd) stáhnout aktualizace a data od ostatních (git pull)</label>
-        <p style="margin:0 0 10px"><button class="ghost" id="rcPush" type="button">Poslat data a profil ostatním teď (commit + push)</button> <span class="muted" id="rcPushNote"></span></p>
-        <label class="swrow"><span class="sw"><input type="checkbox" id="rcMil"><span></span></span> Sbírat vojenské přepočty ⟳</label>
-        <label class="swrow"><span class="sw"><input type="checkbox" id="rcEco"><span></span></span> Sbírat ekonomické přepočty 💰 (odhad)</label>
-        <label class="swrow"><span class="sw"><input type="checkbox" id="rcShowMil"><span></span></span> Ukazovat ⟳ u jmen</label>
-        <label class="swrow"><span class="sw"><input type="checkbox" id="rcShowEco"><span></span></span> Ukazovat 💰 u jmen</label>
-        <div class="two"><div><label for="rcMinGrowth">Ekonomický: nejmenší růst populace (%)</label><input type="number" id="rcMinGrowth" min="0.01" max="5" step="0.01"></div>
-          <div><label for="rcHideDays">Skrýt přepočty starší než (dní, 0 = nikdy)</label><input type="number" id="rcHideDays" min="0" max="365" step="1"></div></div>
-        <small class="muted" style="display:block;margin-top:8px">Menší růst populace = citlivější (víc falešných poplachů), větší = jistější, ale mohou se minout drobné přepočty. Vypnuté sbírání jen přestane přidávat nová data, uložené časy zůstanou.</small>
-        <p class="muted" id="rcStats" style="margin:8px 0"></p>
-        <button class="ghost" id="rcSync" type="button">Sloučit s ostatními teď</button> <button class="ghost" id="rcClearMil" type="button">Vymazat vojenské</button> <button class="ghost" id="rcClearEco" type="button">Vymazat ekonomické</button>
-      </div>
-      <div class="chan">
-        <div class="chan-head"><span>Nový věk – vymazat rasy</span></div>
-        <p class="muted" style="margin-top:0">Rasy a hráči se každý věk mění. Tlačítko smaže seznam načtených ras, <b>nastavení hlídání u ras a hráčů</b> (režimy, prahy ras, vlastní prahy a vypnutí u hráčů) a rozložení panelů. Výchozí hranice, pravidla a kanály zůstanou.</p>
-        <p class="muted">Rasy, které máš zrovna otevřené v prohlížeči, se po chvíli načtou znovu jako vypnuté.</p>
-        <button id="clearRaces" style="background:var(--bad);color:#190808">Vymazat rasy</button>
-      </div>
-      <div class="chan">
-        <div class="chan-head"><span>Historie alertů</span></div>
-        <p class="muted" style="margin-top:0">Smaže seznam posledních alertů v aplikaci. Nic neodvolá a nic neposílá.</p>
+        <div class="chan-head"><span><b>Historie alertů</b></span></div>
+        <p class="muted" style="margin-top:0">Smaže seznam posledních alertů v aplikaci (ikona v Menu → Poslední alerty). Nic neodvolá a nic neposílá.</p>
         <button class="ghost" id="clearAlerts2">Vymazat historii alertů</button>
       </div>
     </div>
-
     <div class="pane" id="pane-login">
       <div class="chan" style="border-color:var(--acc)">
         <div class="chan-head"><span><b>Automatické přihlášení po odhlášení ze hry</b></span><label class="sw"><input type="checkbox" id="sesEnabled"><span></span></label></div>
@@ -402,6 +370,7 @@
         <label for="loginPass" style="margin-top:10px">Heslo <span class="muted" id="loginPassState"></span></label>
         <div style="display:flex;gap:8px"><input type="password" id="loginPass" autocomplete="new-password" placeholder="nech prázdné = beze změny"><button class="ghost" id="loginClear" type="button" style="white-space:nowrap">Smazat heslo</button></div>
       </div>
+      <details class="adv"><summary>Časování a pokusy (pokročilé)</summary>
       <div class="chan">
         <div class="chan-head"><span><b>Kdy se přihlásit</b></span></div>
         <div class="two"><div><label for="sesReactMin">Po odhlášení: nejdřív po (s)</label><input type="number" id="sesReactMin" min="0.5" max="30" step="0.1"></div>
@@ -433,6 +402,7 @@
         <div class="two"><div><label for="sesReloadMin">Obnovit nejdřív za (s)</label><input type="number" id="sesReloadMin" min="0" max="60" step="0.5"></div>
           <div><label for="sesReloadMax">nejpozději za (s)</label><input type="number" id="sesReloadMax" min="0" max="60" step="0.5"></div></div>
       </div>
+      </details>
       <div class="chan">
         <div class="chan-head"><span><b>Zprávy do servisního chatu</b></span></div>
         <label class="swrow"><span class="sw"><input type="checkbox" id="sesNExpired"><span></span></span> 🔑 Odhlášeno, přihlašuji se</label>
@@ -444,7 +414,70 @@
         <small class="muted">Chyby doporučuju nechat zapnuté. Zprávy chodí jen do servisního chatu a respektují vypínač Systémové zprávy v Alertech.</small>
       </div>
     </div>
-
+    <div class="pane" id="pane-stats">
+      <div class="chan">
+        <div class="chan-head"><span><b>Přepočty hráčů</b></span></div>
+        <p class="muted" style="margin-top:0">Aplikace z dat ras zjišťuje, kdy se hráči přepočítávají: <b>⟳ vojenský</b> (v celou hodinu se mu ve sloupci Dobyt vynuluje počet) a <b>💰 ekonomický</b> (odhad: hráči po přihlášení vzroste populace, aniž by se změnil počet planet). Zachycené časy se ukládají a ukazují se pod jménem.</p>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="rcMil"><span></span></span> Sbírat vojenské přepočty ⟳</label>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="rcEco"><span></span></span> Sbírat ekonomické přepočty 💰 (odhad)</label>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="rcShowMil"><span></span></span> Ukazovat ⟳ u jmen</label>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="rcShowEco"><span></span></span> Ukazovat 💰 u jmen</label>
+        <div class="two"><div><label for="rcMinGrowth">Ekonomický: nejmenší růst populace (%)</label><input type="number" id="rcMinGrowth" min="0.01" max="5" step="0.01"></div>
+          <div><label for="rcHideDays">Skrýt přepočty starší než (dní, 0 = nikdy)</label><input type="number" id="rcHideDays" min="0" max="365" step="1"></div></div>
+        <small class="muted" style="display:block;margin-top:8px">Menší růst populace = citlivější (víc falešných poplachů), větší = jistější, ale mohou se minout drobné přepočty. Vypnuté sbírání jen přestane přidávat nová data, uložené časy zůstanou.</small>
+        <p class="muted" id="rcStats" style="margin:8px 0"></p>
+        <p style="margin:6px 0 0"><button class="ghost" id="rcClearMil" type="button">Vymazat vojenské</button> <button class="ghost" id="rcClearEco" type="button">Vymazat ekonomické</button></p>
+      </div>
+      <div class="chan">
+        <div class="chan-head"><span><b>Statistika dohozů</b></span><label class="sw"><input type="checkbox" id="stEnabled"><span></span></label></div>
+        <p class="muted" style="margin-top:0">Zapisuje každé dohazování hráče (od pádu pod práh): kdy spadl, jak dlouho byl pod prahem, za jak dlouho se odeslal 1. dohoz, další kola a jejich účinek, a kdo dohazoval (automat, nebo tlačítko Dohodit). Najdeš ji v nabídce pohledů nahoře (📊 Statistiky). Ukládá se jen na tomto počítači.</p>
+        <label for="stKeepInput">Kolik posledních dohazování držet (20–1000)</label>
+        <input type="number" id="stKeepInput" min="20" max="1000" step="10">
+        <small class="muted" style="display:block;margin-top:6px">Víc než pár set záznamů nemá smysl a aplikaci nezpomaluje (každý záznam je pár set bajtů).</small>
+        <p style="margin:10px 0 0"><button class="ghost" id="stClear" type="button">Vymazat statistiku dohozů</button></p>
+      </div>
+    </div>
+    <div class="pane" id="pane-sync">
+      <div class="chan" style="border-color:var(--acc)">
+        <div class="chan-head"><span><b>Profil nastavení</b></span></div>
+        <p class="muted" style="margin-top:0">Vyber svůj profil (Jarmil nebo Čmajz). Celé nastavení aplikace (prahy, rasy, alerty, dohoz, útok, přihlášení, přepočty a vzhled) se průběžně ukládá do souboru <code>&lt;jméno&gt;.json</code> v samostatné větvi gitu <code>sdilena-data</code>, takže se nemíchá s kódem. Na druhém počítači ho aplikace po stažení sama načte.</p>
+        <p class="muted"><b>Do profilu nejde nic tajného:</b> token aplikace, token Telegram bota, webhook Discordu, heslo do hry ani port. Ty zůstávají na každém počítači zvlášť a zadáš je tam jednou. Profil je ale čitelný soubor v repozitáři (prahy, názvy hráčů, ID chatů).</p>
+        <label for="profName">Profil</label>
+        <select id="profName"></select>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="profAutoSave"><span></span></span> Průběžně ukládat změny do profilu (před pushem je vždy aktuální)</label>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="profAutoLoad"><span></span></span> Po pullu automaticky načíst novější profil (při startu a každou minutu)</label>
+        <p id="profStatus" class="muted" style="margin:8px 0"></p>
+        <button class="ghost" id="profSave" type="button">Uložit do profilu teď</button> <button class="ghost" id="profLoad" type="button">Načíst z profilu</button>
+        <div id="profWarn" class="muted" style="color:var(--bad);margin-top:8px" hidden></div>
+      </div>
+      <div class="chan">
+        <div class="chan-head"><span><b>Sdílení dat mezi počítači</b></span></div>
+        <p class="muted" style="margin-top:0">Zachycené přepočty hráčů se mezi počítači (a lidmi) sdílejí přes samostatnou větev gitu. Každý počítač zapisuje jen svůj soubor a čte soubory ostatních, takže nevznikají konflikty.</p>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="rcShared"><span></span></span> <b>Sdílet zachycené přepočty</b></label>
+        <small class="muted" style="display:block;margin:-2px 0 10px 54px">Soubory se jen sjednocují, nic se nepřepisuje.</small>
+        <p class="muted" id="rcSharedStatus" style="margin:0 0 10px"></p>
+        <label for="rcSyncMin" style="margin-top:6px">Pravidelně odesílat a stahovat data každých N minut (0 = jen při startu a zastavení)</label>
+        <input type="number" id="rcSyncMin" min="0" max="1440" step="1" style="max-width:140px;margin-bottom:8px">
+        <label class="swrow"><span class="sw"><input type="checkbox" id="rcPushOnStop"><span></span></span> Při zastavení aplikace (stop.cmd) data a profil automaticky odeslat ostatním (commit + push)</label>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="rcPullOnStart"><span></span></span> Při spuštění (start.cmd) stáhnout aktualizace a data od ostatních (git pull)</label>
+        <p style="margin:0 0 10px"><button class="ghost" id="rcPush" type="button">Poslat data a profil ostatním teď (commit + push)</button> <span class="muted" id="rcPushNote"></span></p>
+        <p style="margin:6px 0 0"><button class="ghost" id="rcSync" type="button">Sloučit s ostatními teď</button></p>
+      </div>
+    </div>
+    <div class="pane" id="pane-look">
+      <p class="muted" style="margin-top:0">Velikost panelů ras se pamatuje <b>zvlášť pro každý monitor</b> (poznává ho podle rozlišení a polohy okna). Tenhle monitor: <b id="lookMon"></b>. Změny platí hned, nemusíš ukládat.</p>
+      <div class="field"><label>Velikost tabulky hráčů</label>
+        <div class="seg" id="uiDens"><button type="button" data-v="s">Malá</button><button type="button" data-v="m">Střední</button><button type="button" data-v="l">Velká</button></div>
+        <small>Písmo a výška řádků. Platí jen v tomhle prohlížeči.</small></div>
+      <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0"><span class="sw"><input type="checkbox" id="uiShort"><span></span></span> Zkrácená čísla síly (927,5 mil)</label>
+        <small>Čísla se lépe porovnávají. Přesná hodnota je v bublině po najetí myší.</small></div>
+      <div class="field"><label for="lookW">Výchozí šířka panelu: <b id="lookWv"></b> px</label><input type="range" id="lookW" min="320" max="1100" step="10">
+        <small>Platí pro panely, které sis neroztáhl ručně.</small></div>
+      <div class="field"><label for="lookH">Výchozí výška tabulky: <b id="lookHv"></b></label><input type="range" id="lookH" min="0" max="1600" step="20">
+        <small>0 = automaticky (panel se vejde do výšky okna). Vyšší hodnota drží výšku pevnou.</small></div>
+      <div class="field"><button class="ghost" id="lookReset">Vrátit všechny panely na výchozí velikost</button></div>
+      <p class="muted">Panel můžeš měnit i tažením pravého dolního rohu (dvojklik na roh = výchozí velikost) a sbalit tlačítkem ▾ v hlavičce (nebo dvojklikem na název). Sbalený panel ukáže jen souhrn, třeba počet hráčů k dobytí.</p>
+    </div>
     <div class="pane" id="pane-scripts">
       <p class="muted" style="margin-top:0">Skripty pro Tampermonkey. Seznam i kód se načítají přímo ze serveru, takže tu vždy najdeš aktuální verzi. Po každé změně skriptu porovnej číslo verze tady s číslem v Tampermonkey (Přehled).</p>
       <div class="chan" style="border-color:var(--acc)">
@@ -455,35 +488,13 @@
       <details open><summary>Když se po kliknutí na „Instalovat odkazem“ nic nestane</summary><p>
         Nejjistější je <b>Stáhnout soubor</b> a v Tampermonkey Přehled → Nástroje → <b>Importovat ze souboru</b>. Nebo použij <b>Zkopírovat kód</b>: ikona Tampermonkey → Přehled → klikni na název skriptu → <code>Ctrl+A</code>, <code>Ctrl+V</code>, <code>Ctrl+S</code> → obnov stránku hry (<code>F5</code>).
         Pokud skript pořád nic nedělá, zkontroluj v <code>chrome://extensions</code> u Tampermonkey přepínač <b>Povolit uživatelské skripty</b>.</p></details>
-    </div>
-
-    <div class="pane" id="pane-channels">
-      <div class="chan">
-        <div class="chan-head"><span>Discord <span class="saved" id="dSaved"></span></span><label class="sw"><input type="checkbox" id="dEnabled"><span></span></label></div>
-        <label for="dUrl">Webhook URL</label><input type="password" id="dUrl" autocomplete="off">
-        <details><summary>Jak získat webhook</summary><p>Nastavení kanálu → Integrace → Webhooky → Nový webhook → Kopírovat URL webhooku.</p></details>
+      <div class="chan" style="border-color:var(--bad)">
+        <div class="chan-head"><span><b>Zavřít aplikaci</b></span></div>
+        <p class="muted" style="margin-top:0">Totéž co <code>stop.cmd</code>: když je zapnuté sdílení, odešle data a profil ostatním (commit + push), pak zastaví hlídače i server. Hra a skripty v prohlížeči zůstanou, jen přestanou posílat data.</p>
+        <button id="closeApp" type="button" style="background:var(--bad);color:#190808">Zavřít aplikaci</button> <span class="muted" id="closeAppNote"></span>
       </div>
-      <div class="chan">
-        <div class="chan-head"><span>Telegram <span class="saved" id="tSaved"></span></span><label class="sw"><input type="checkbox" id="tEnabled"><span></span></label></div>
-        <label for="tToken">Token bota</label><input type="password" id="tToken" autocomplete="off">
-        <label for="tChat" style="margin-top:10px">ID skupiny</label>
-        <div style="display:flex;gap:8px"><input type="text" id="tChat" placeholder="např. -1001234567890"><button class="ghost" id="findChats" style="white-space:nowrap">Najít skupinu</button></div>
-        <label for="tService" style="margin-top:10px">ID servisního chatu <span class="muted">(systémové zprávy)</span></label>
-        <div style="display:flex;gap:8px"><input type="text" id="tService" placeholder="prázdné = systémové zprávy na Telegram nechodí"><button class="ghost" id="findServiceChats" style="white-space:nowrap">Najít skupinu</button></div>
-        <small class="muted" style="display:block;margin-top:5px">Sem jdou jen systémové věci: výpadek dat ras a mapy, tlačítko bdělosti, teleskop, stavění, auto-dohoz a přihlášení. Do hlavní skupiny jen OP, síla a k dobytí.</small>
-        <div id="chatList" style="margin-top:8px"></div>
-        <details open><summary>Postup</summary><p>
-          1) V Telegramu najdi <b>@BotFather</b>, napiš mu <code>/newbot</code> a dostaneš <b>token</b>, vlož ho výše.<br>
-          2) Najdi svého bota (hledej podle jeho jména), otevři skupinu → <b>Přidat členy</b> → přidej bota.<br>
-          3) Ve skupině napiš <code>/start</code> (nebo zmiň bota, např. <code>@jmeno_bota ahoj</code>) a tady klikni <b>Najít skupinu</b> → vyber ji. Obyčejné zprávy bot nevidí.<br>
-          4) Zapni přepínač, dej Uložit a pak „Poslat testovací zprávu“.<br><br>
-          <b>Servisní chat</b> (jen pro pár lidí): v Telegramu ☰ → <b>Nová skupina</b>, přidej ty lidi a svého bota, skupinu pojmenuj (např. „Dominator – servis“). Ve skupině napiš <code>/start</code>, tady klikni <b>Najít skupinu</b> a u ní dej <b>→ servisní</b>. Ulož a pošli testovací zprávu.</p></details>
-      </div>
-      <p class="muted">Uložené tokeny se z bezpečnostních důvodů znovu nezobrazují. Prázdné pole = ponechat uložené.</p>
-      <button class="ghost" id="test">Poslat testovací zprávu</button>
-      <button class="ghost" id="testSvc">Test do servisního chatu</button>
-      <span class="muted"> (použije uložené nastavení)</span>
     </div>
+  </div>
   </div>
   <div class="d-foot"><button id="save">Uložit</button><button class="ghost" id="cancel">Zrušit</button><span class="muted" id="dirtyNote"></span></div>
 </aside>

@@ -21,7 +21,7 @@ function healthItems() {
   return items;
 }
 function renderHealth() {
-  renderSessionStatus(); renderRecalcStats(); if (typeof statsCheck === 'function') statsCheck(); if ($('pane-data')?.classList.contains('on')) renderProfile(); checkProfileUi();
+  renderSessionStatus(); renderRecalcStats(); if (typeof statsCheck === 'function') statsCheck(); if ($('pane-sync')?.classList.contains('on')) renderProfile(); checkProfileUi();
   if (!S.serverTime) return;
   renderChannels();
   const items = healthItems();

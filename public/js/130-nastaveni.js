@@ -160,7 +160,7 @@ $('profLoad').onclick = async () => {
     cfg = r.config; renderProfile(r); fillForm(); renderChips(); toast('Načteno z profilu'); refresh();
   } catch (e) { toast(e.message, true); }
 };
-document.querySelector('[data-tab="data"]').addEventListener('click', async () => { try { renderProfile(await api('/api/profile')); } catch { /* bez serveru nic */ } });
+document.querySelector('[data-tab="sync"]').addEventListener('click', async () => { try { renderProfile(await api('/api/profile')); } catch { /* bez serveru nic */ } });
 
 /** Zavření aplikace z rozhraní (jako stop.cmd): tlačítko v hlavičce i v Nastavení → Data. */
 let closingApp = false;

@@ -628,3 +628,23 @@
   .ctl .sep { display:none; }
   @media (max-width:700px) { .mbtn .mlbl { display:none; } .mbtn { padding:0 10px; } }
   .anch .addwrap .menu { left:auto; right:0; } .anch .menu, .anch .ntmenu { max-width:calc(100vw - 16px); }
+
+  /* ===== Nastavení: levý panel kategorií (na úzkém okně se zalomí do štítků nahoře) ===== */
+  #drawer { width:min(920px,100%); }
+  .d-main { display:flex; flex:1 1 auto; min-height:0; }
+  .d-main .d-body { flex:1 1 auto; min-width:0; }
+  .d-main .tabs { flex:0 0 190px; flex-direction:column; flex-wrap:nowrap; gap:2px; padding:12px 10px; border-bottom:0; border-right:1px solid var(--line); overflow:auto; }
+  .tgroup { font-size:11px; letter-spacing:.07em; text-transform:uppercase; color:var(--mut); padding:12px 10px 4px; opacity:.8; } .tgroup:first-child { padding-top:2px; }
+  .d-main .tab { display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:0; border-left:2px solid transparent; border-radius:7px; padding:8px 10px; font-size:14px; background:transparent; color:var(--mut); }
+  .d-main .tab i { font-style:normal; width:20px; text-align:center; font-size:15px; }
+  .d-main .tab:hover { color:var(--fg); background:rgba(255,255,255,.04); } .d-main .tab.on { color:var(--fg); background:rgba(224,184,76,.1); border-left-color:var(--acc); }
+  .sect { display:flex; align-items:baseline; gap:8px; margin:22px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--line); font-size:15px; color:var(--fg); text-transform:none; letter-spacing:0; } .sect:first-child { margin-top:0; }
+  .sect small { color:var(--mut); font-weight:400; font-size:12px; } .sect .sic { font-size:16px; }
+  details.adv { margin:0 0 14px; border:1px solid var(--line); border-radius:10px; padding:2px 12px 8px; } details.adv > summary { cursor:pointer; padding:10px 0; font-weight:600; color:var(--fg); } details.adv .chan { margin-top:10px; }
+  @media (max-width:760px) {
+    #drawer { width:min(520px,100%); }
+    .d-main { flex-direction:column; } .d-main .tabs { flex:0 0 auto; flex-direction:row; flex-wrap:wrap; gap:6px; padding:10px 12px; border-right:0; border-bottom:1px solid var(--line); overflow:visible; }
+    .tgroup { display:none; }
+    .d-main .tab { width:auto; border:1px solid var(--line); border-radius:999px; padding:6px 12px; font-size:13px; } .d-main .tab.on { border-color:var(--acc); }
+  }
+  #drawer select { background:var(--card2); color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:8px 10px; font:inherit; max-width:100%; color-scheme:dark; } #drawer select:focus { outline:1px solid var(--acc); }

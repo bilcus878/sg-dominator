@@ -285,12 +285,12 @@ test('Nastavení → Přihlášení: heslo se uloží, v rozhraní se ukáže je
 });
 
 test('Nastavení → Data: přepočty hráčů se dají vypnout a ukázat statistika; uloží se na server', { skip, timeout: 30_000 }, async () => {
-  await b.eval(`document.getElementById('openSettings').click(); document.querySelector('[data-tab=data]').click(); 1`); await sleep(300);
+  await b.eval(`document.getElementById('openSettings').click(); document.querySelector('[data-tab=stats]').click(); 1`); await sleep(300);
   assert.match(await b.eval(`document.getElementById('rcStats').textContent`), /Zachyceno/);
   await b.eval(`document.getElementById('rcEco').click(); document.getElementById('rcShowMil').click(); document.getElementById('save').click(); 1`); await sleep(800);
   const r = (await app.api('/api/config')).recalc;
   assert.equal(r.economic, false); assert.equal(r.showMilitary, false); assert.equal(r.military, true);
-  await b.eval(`document.getElementById('openSettings').click(); document.querySelector('[data-tab=data]').click(); document.getElementById('rcEco').click(); document.getElementById('rcShowMil').click(); document.getElementById('save').click(); document.getElementById('closeSettings').click(); 1`); await sleep(700);
+  await b.eval(`document.getElementById('openSettings').click(); document.querySelector('[data-tab=stats]').click(); document.getElementById('rcEco').click(); document.getElementById('rcShowMil').click(); document.getElementById('save').click(); document.getElementById('closeSettings').click(); 1`); await sleep(700);
   assert.equal((await app.api('/api/config')).recalc.economic, true);
 });
 
@@ -312,7 +312,7 @@ test('Profil nastavení: uložení do souboru bez tajných věcí, změna a nač
   assert.equal(ld.ok, true); assert.equal(ld.config.dropPct, 11); assert.equal((await app.api('/api/config')).dropPct, 11);
   // po načtení profilu si prohlížeč převezme vzhled a obnoví stránku
   await sleep(2500);
-  await b.eval(`document.getElementById('openSettings').click(); document.querySelector('[data-tab=data]').click(); 1`); await sleep(600);
+  await b.eval(`document.getElementById('openSettings').click(); document.querySelector('[data-tab=sync]').click(); 1`); await sleep(600);
   assert.equal(await b.eval(`document.getElementById('profName').value`), 'tester');
   assert.match(await b.eval(`document.getElementById('profStatus').textContent`), /tester/);
   await b.eval(`document.getElementById('closeSettings').click(); 1`);
@@ -340,7 +340,7 @@ test('Statistiky dohozů: pohled v nabídce, přehled, tabulka s rozbalením kol
   await b.eval(`document.querySelector('#stSource [data-v=""]').click(); 1`); await sleep(700);
   assert.ok(await b.eval(`document.querySelectorAll('.st-row').length`) >= 1);
   // nastavení
-  await b.eval(`document.getElementById('openSettings').click(); document.querySelector('[data-tab=data]').click(); 1`); await sleep(300);
+  await b.eval(`document.getElementById('openSettings').click(); document.querySelector('[data-tab=stats]').click(); 1`); await sleep(300);
   assert.equal(await b.eval(`document.getElementById('stEnabled').checked`), true);
   await b.eval(`document.getElementById('closeSettings').click(); document.querySelector('[data-nav=watch]').click(); 1`);
 });

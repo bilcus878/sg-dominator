@@ -75,7 +75,7 @@ async function loadAtkInfo() {
   } catch (e) { $('atkReport').textContent = 'Nelze načíst: ' + e.message; }
 }
 $('atkRefresh').onclick = loadAtkInfo;
-document.querySelector('[data-tab="attack"]').addEventListener('click', loadAtkInfo);
+document.querySelector('[data-tab="army"]').addEventListener('click', loadAtkInfo);
 
 
 /* ---------- Automatický dohoz: vypínač v hlavičce a stav ---------- */
