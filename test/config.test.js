@@ -120,3 +120,11 @@ test('nastavení přepočtů hráčů: přepínače, meze citlivosti a stáří'
   assert.equal(a.econMinGrowthPct, 5); assert.equal(a.hideOlderDays, 0);
   assert.equal(sanitizeUpdate(base, { recalc: { econMinGrowthPct: 0 } }).recalc.econMinGrowthPct, 0.01);
 });
+
+test('nastavení přepočtů: sdílení, odeslání při zastavení a stažení při startu jsou přepínače (výchozí zapnuto)', async () => {
+  const { sanitizeUpdate, DEFAULTS } = await import('../src/config.js');
+  const base = { ...DEFAULTS, token: 'x' };
+  assert.deepEqual([base.recalc.shared, base.recalc.pushOnStop, base.recalc.pullOnStart], [true, true, true]);
+  const r = sanitizeUpdate(base, { recalc: { pullOnStart: false, pushOnStop: false } }).recalc;
+  assert.deepEqual([r.shared, r.pushOnStop, r.pullOnStart], [true, false, false]);
+});

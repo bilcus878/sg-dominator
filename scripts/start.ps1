@@ -8,6 +8,9 @@ if (-not $node) {
 }
 New-Item -ItemType Directory -Force $DataDir | Out-Null
 
+# nejdřív aktualizace od ostatních (jen když aplikace ještě neběží, ať se soubory nemění pod běžícím serverem)
+if (-not (Test-Server)) { Sync-Git }
+
 # hlídač (skrytě na pozadí) spustí server a při pádu nebo zaseknutí ho spustí znovu
 $pidFile = Join-Path $DataDir 'hlidac.pid'
 $hlidacPid = if (Test-Path $pidFile) { [int](Get-Content $pidFile -ErrorAction SilentlyContinue | Select-Object -First 1) } else { 0 }

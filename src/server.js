@@ -1,6 +1,6 @@
 ﻿import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { readFileSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, mkdirSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { hostname } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -631,7 +631,22 @@ async function sharePush() {
   return shareBusy;
 }
 
+/** Zavření aplikace z rozhraní (totéž co stop.cmd): odešle data ostatním (když je zapnuto), zastaví hlídače (jinak by server hned spustil znovu) a ukončí se. */
+async function shutdownApp() {
+  const share = cfg.recalc.pushOnStop && cfg.recalc.shared ? await sharePush() : { ok: true, skipped: true };
+  try { writeFileSync(join(DATA_DIR, 'hlidac.stop'), '1'); } catch { /* bez značky by hlídač server spustil znovu */ }
+  try {
+    const pid = parseInt(readFileSync(join(DATA_DIR, 'hlidac.pid'), 'utf8'), 10);
+    if (pid > 0 && pid !== process.pid) process.kill(pid);
+    unlinkSync(join(DATA_DIR, 'hlidac.pid'));
+  } catch { /* hlídač neběží */ }
+  console.log('[aplikace] zavřeno z rozhraní');
+  setTimeout(() => process.exit(0), 500);
+  return { ok: true, share };
+}
+
 const routes = {
+  'POST /api/shutdown': async () => [200, await shutdownApp()],
   'POST /api/share/push': async () => [200, await sharePush()],
   // volá stop.cmd: odešle data jen když je to zapnuté (Nastavení → Data → Přepočty hráčů)
   'POST /api/share/stop': async () => [200, cfg.recalc.pushOnStop && cfg.recalc.shared ? await sharePush() : { ok: true, skipped: true }],

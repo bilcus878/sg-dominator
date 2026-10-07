@@ -74,3 +74,35 @@ function Open-InChrome([string[]]$urls) {
     }
     if ($chrome) { Start-Process $chrome -ArgumentList $urls } else { foreach ($u in $urls) { Start-Process $u } }
 }
+
+# git pull při startu: nové profily, sdílená data o přepočtech i kód od ostatních. Rozdělané změny se uloží a vrátí (autostash),
+# při chybě se rebase vrátí zpět a aplikace se spustí s tím, co je tady. Nikdy se nic nevynucuje.
+function Sync-Git {
+    $cfgPath = Join-Path $DataDir 'config.json'
+    try {
+        if (Test-Path $cfgPath) {
+            $c = Get-Content $cfgPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($c.recalc -and $c.recalc.pullOnStart -eq $false) { Say 'Stahování aktualizací při startu je vypnuté.'; return }
+        }
+    } catch { }
+    $git = Get-Command git -ErrorAction SilentlyContinue
+    if (-not $git) { Say 'Git nenalezen, aktualizace z GitHubu se přeskakují.' Yellow; return }
+    if (-not (Test-Path (Join-Path $Root '.git'))) { return }
+    Say 'Stahuji aktualizace z GitHubu (git pull)...'
+    $env:GIT_TERMINAL_PROMPT = '0'
+    $out = Join-Path $env:TEMP 'sgd-pull.out'; $err = Join-Path $env:TEMP 'sgd-pull.err'
+    try {
+        $p = Start-Process -FilePath $git.Source -ArgumentList '-C', ('"' + $Root + '"'), 'pull', '--rebase', '--autostash' -NoNewWindow -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+        $null = $p.Handle   # bez tohoto zůstává ExitCode u přesměrovaného procesu ve Windows PowerShellu prázdný
+        if (-not $p.WaitForExit(60000)) { try { $p.Kill() } catch { }; Say 'Stahování aktualizací trvalo moc dlouho, pokračuji bez něj.' Yellow; return }
+        $p.WaitForExit()
+        if ($p.ExitCode -ne 0) {
+            try { & $git.Source -C $Root rebase --abort 2>$null } catch { }
+            Say 'Aktualizace se nepovedla, aplikace se spustí s tím, co je tady:' Yellow
+            if (Test-Path $err) { Get-Content $err -Tail 4 | ForEach-Object { Say ('  ' + $_) } }
+        } else {
+            $last = if (Test-Path $out) { (Get-Content $out -Tail 1) } else { '' }
+            Say ('Aktualizace: ' + $last) Green
+        }
+    } catch { Say 'Aktualizace se nepovedla, pokračuji bez ní.' Yellow }
+}

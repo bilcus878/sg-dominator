@@ -307,6 +307,11 @@
     </div>
 
     <div class="pane" id="pane-data">
+      <div class="chan" style="border-color:var(--bad)">
+        <div class="chan-head"><span><b>Zavřít aplikaci</b></span></div>
+        <p class="muted" style="margin-top:0">Totéž co <code>stop.cmd</code>: když je zapnuté sdílení, odešle data a profil ostatním (commit + push), pak zastaví hlídače i server. Hra a skripty v prohlížeči zůstanou, jen přestanou posílat data.</p>
+        <button id="closeApp" type="button" style="background:var(--bad);color:#190808">Zavřít aplikaci</button> <span class="muted" id="closeAppNote"></span>
+      </div>
       <div class="chan">
         <div class="chan-head"><span>Hlídač výpadku dat</span><label class="sw"><input type="checkbox" id="wdEnabled"><span></span></label></div>
         <p class="muted" style="margin-top:0">Když hlídaná rasa (nebo mapa při zapnutém OP) přestane dodávat data, pošle se zpráva do <b>servisního chatu</b>, a další, až se data vrátí. Do hlavní skupiny nejde. Ticho z prohlížeče tak nevypadá jako klid.</p>
@@ -331,6 +336,7 @@
         <small class="muted" style="display:block;margin:-2px 0 10px 54px">Každý počítač ukládá to, co nasbíral, do vlastního souboru <code>profiles/data-&lt;počítač&gt;.json</code> a čte soubory ostatních. S commitem a pushem tak obě strany mají všechna data. Soubory se jen sjednocují (nic se nepřepisuje, nevznikají konflikty při pullu).</small>
         <p class="muted" id="rcSharedStatus" style="margin:0 0 10px"></p>
         <label class="swrow"><span class="sw"><input type="checkbox" id="rcPushOnStop"><span></span></span> Při zastavení aplikace (stop.cmd) data a profil automaticky odeslat ostatním (commit + push)</label>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="rcPullOnStart"><span></span></span> Při spuštění (start.cmd) stáhnout aktualizace a data od ostatních (git pull)</label>
         <p style="margin:0 0 10px"><button class="ghost" id="rcPush" type="button">Poslat data a profil ostatním teď (commit + push)</button> <span class="muted" id="rcPushNote"></span></p>
         <label class="swrow"><span class="sw"><input type="checkbox" id="rcMil"><span></span></span> Sbírat vojenské přepočty ⟳</label>
         <label class="swrow"><span class="sw"><input type="checkbox" id="rcEco"><span></span></span> Sbírat ekonomické přepočty 💰 (odhad)</label>

@@ -90,14 +90,14 @@ $('loginClear').onclick = async () => {
 
 /** Přepočty hráčů (Nastavení → Data) */
 function fillRecalc(r) {
-  $('rcShared').checked = r.shared !== false; $('rcPushOnStop').checked = r.pushOnStop !== false;
+  $('rcShared').checked = r.shared !== false; $('rcPushOnStop').checked = r.pushOnStop !== false; $('rcPullOnStart').checked = r.pullOnStart !== false;
   $('rcMil').checked = r.military !== false; $('rcEco').checked = r.economic !== false;
   $('rcShowMil').checked = r.showMilitary !== false; $('rcShowEco').checked = r.showEconomic !== false;
   $('rcMinGrowth').value = r.econMinGrowthPct ?? 0.1; $('rcHideDays').value = r.hideOlderDays ?? 0;
   renderRecalcStats();
 }
 function collectRecalc() {
-  return { shared: $('rcShared').checked, pushOnStop: $('rcPushOnStop').checked, military: $('rcMil').checked, economic: $('rcEco').checked, showMilitary: $('rcShowMil').checked, showEconomic: $('rcShowEco').checked, econMinGrowthPct: $('rcMinGrowth').value, hideOlderDays: $('rcHideDays').value };
+  return { shared: $('rcShared').checked, pushOnStop: $('rcPushOnStop').checked, pullOnStart: $('rcPullOnStart').checked, military: $('rcMil').checked, economic: $('rcEco').checked, showMilitary: $('rcShowMil').checked, showEconomic: $('rcShowEco').checked, econMinGrowthPct: $('rcMinGrowth').value, hideOlderDays: $('rcHideDays').value };
 }
 function renderRecalcStats() {
   const el = $('rcStats'); if (!el) return;
@@ -159,3 +159,14 @@ $('profLoad').onclick = async () => {
   } catch (e) { toast(e.message, true); }
 };
 document.querySelector('[data-tab="data"]').addEventListener('click', async () => { try { renderProfile(await api('/api/profile')); } catch { /* bez serveru nic */ } });
+
+/** Zavření aplikace z rozhraní (jako stop.cmd). */
+$('closeApp').onclick = async () => {
+  if (!confirm('Zavřít aplikaci?' + (cfg?.recalc?.pushOnStop !== false && cfg?.recalc?.shared !== false ? '\n\nNejdřív se odešlou sdílená data a profil ostatním (git push), pak se zastaví hlídač i server.' : '') + '\n\nDokud ji znovu nespustíš (start.cmd), nebudou fungovat alerty ani dohoz.')) return;
+  const b = $('closeApp'), note = $('closeAppNote'); b.disabled = true; note.textContent = 'Odesílám data a zastavuji…';
+  try {
+    const r = await api('/api/shutdown', 'POST', {});
+    const share = r.share?.skipped ? '' : r.share?.ok ? (r.share.committed ? ' Data odeslána ostatním.' : ' Nic nového k odeslání.') : ' Odeslání dat se nepovedlo: ' + (r.share?.error ?? '?');
+    document.body.innerHTML = '<div style="max-width:560px;margin:18vh auto;padding:0 20px;font:16px system-ui;color:#e7ecf3;text-align:center"><h2>Aplikace je zastavena</h2><p>' + esc(share.trim() || 'Můžeš zavřít tuto kartu.') + '</p><p style="color:#8a94a6">Znovu ji spustíš přes start.cmd.</p></div>';
+  } catch (e) { note.textContent = 'Nepovedlo se: ' + e.message; b.disabled = false; }
+};

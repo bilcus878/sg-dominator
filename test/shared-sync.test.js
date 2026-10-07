@@ -50,3 +50,17 @@ test('stop.cmd: /api/share/stop jde volat bez tokenu z počítače; vypnuté ode
     assert.equal(r2.ok, false);
   } finally { app.stop(); rmSync(pdir, { recursive: true, force: true }); }
 });
+
+test('Zavřít aplikaci z rozhraní: odešle data (když jde), zapíše značku pro hlídače a server se ukončí', async () => {
+  const pdir = mkdtempSync(join(tmpdir(), 'sgd-shut-'));
+  const app = await startApp({ profilesDir: pdir, host: 'SHUT' });
+  try {
+    const r = await app.api('/api/shutdown', 'POST', {});
+    assert.equal(r.ok, true);
+    assert.ok(r.share && (r.share.ok === false || r.share.skipped || r.share.ok === true), 'výsledek odeslání dat je součástí odpovědi');
+    await sleep(1500);
+    let alive = true; try { await fetch(app.base + '/api/state'); } catch { alive = false; }
+    assert.equal(alive, false, 'server po zavření neodpovídá');
+    assert.ok(existsSync(join(app.dir, 'hlidac.stop')), 'hlídač dostal značku, ať server nespouští znovu');
+  } finally { app.stop(); rmSync(pdir, { recursive: true, force: true }); }
+});
