@@ -178,3 +178,10 @@ async function closeAppNow() {
 }
 $('closeApp').onclick = closeAppNow;
 $('hdrClose').onclick = closeAppNow;
+
+/** Statistika dohozů (Nastavení → Data) */
+function collectDohozStats() { return { enabled: $('stEnabled').checked, keep: $('stKeepInput').value }; }
+$('stClear').onclick = async () => {
+  if (!confirm('Vymazat celou statistiku dohozů? Nejde to vrátit.')) return;
+  try { await api('/api/stats', 'DELETE'); toast('Statistika vymazána'); if (typeof stLoad === 'function') stLoad(); } catch (e) { toast(e.message, true); }
+};
