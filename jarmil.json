@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791334963210,
+  "savedAt": 1791336329083,
   "savedBy": "JarmilPC",
   "config": {
     "threshold": 100000000,
@@ -123,7 +123,7 @@
       }
     },
     "session": {
-      "enabled": true,
+      "enabled": false,
       "reactMinSec": 1.5,
       "reactMaxSec": 3,
       "maintStart": "03:00",
@@ -286,7 +286,9 @@
           "max": false
         }
       ],
-      "types": {},
+      "types": {
+        "P": []
+      },
       "autoSubmit": false,
       "randomPlanet": true,
       "closeTab": true,
@@ -359,5 +361,43 @@
       }
     }
   },
-  "ui": null
+  "ui": {
+    "panels": [
+      "20"
+    ],
+    "pstate": {
+      "1": {
+        "filter": "",
+        "below": false,
+        "sort": "game"
+      },
+      "4": {
+        "filter": "",
+        "below": false,
+        "sort": "game",
+        "cfgOpen": false,
+        "dday": false
+      },
+      "5": {
+        "filter": "",
+        "below": false,
+        "sort": "game",
+        "cfgOpen": false,
+        "dday": true
+      },
+      "20": {
+        "filter": "",
+        "below": false,
+        "sort": "game",
+        "cfgOpen": false,
+        "dday": false,
+        "sortKey": "planets",
+        "searchOpen": false
+      }
+    },
+    "uicfg": {
+      "dens": "m",
+      "short": true
+    }
+  }
 }
