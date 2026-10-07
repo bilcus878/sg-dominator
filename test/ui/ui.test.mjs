@@ -345,8 +345,8 @@ test('Statistiky dohozů: pohled v nabídce, přehled, tabulka s rozbalením kol
   await b.eval(`document.getElementById('closeSettings').click(); document.querySelector('[data-nav=watch]').click(); 1`);
 });
 
-test('hlavička: Menu sdružuje přidání rasy, upozornění, poslední alerty, nastavení a zavření; zavření se ptá na potvrzení', { skip }, async () => {
-  assert.equal(await b.eval(`[...document.querySelectorAll('#mainMenu [data-go]')].map((e) => e.dataset.go).join('>')`), 'add>notify>alerts>settings>close');
+test('hlavička: Menu sdružuje upozornění, poslední alerty, nastavení a zavření; zavření se ptá na potvrzení', { skip }, async () => {
+  assert.equal(await b.eval(`[...document.querySelectorAll('#mainMenu [data-go]')].map((e) => e.dataset.go).join('>')`), 'notify>alerts>settings>close');
   assert.equal(await b.eval(`document.getElementById('mainMenu').hidden`), true, 'nabídka je zavřená');
   await b.eval(`document.getElementById('mainBtn').click(); 1`); await sleep(150);
   assert.equal(await b.eval(`document.getElementById('mainMenu').hidden`), false);
@@ -495,7 +495,7 @@ test('pruh ras: na široké obrazovce celý seznam (naše první, bez přeškrtn
   // úzké okno: štíhlý řádek, seznam je schovaný a rozbalí se
   await b.send('Emulation.setDeviceMetricsOverride', { width: 800, height: 900, deviceScaleFactor: 1, mobile: false }); await sleep(500);
   assert.equal(await b.eval(`getComputedStyle(document.querySelector('#raceBar .rb-strip')).display + '/' + getComputedStyle(document.querySelector('#raceBar .rb-all')).display`), 'flex/none');
-  assert.match(await b.eval(`document.getElementById('rbOpen').textContent`), /Bedrosian/, 'v řádku jsou otevřené panely');
+  assert.equal(await b.eval(`document.getElementById('raceBar').parentElement.tagName`), 'DIV', 'na úzké sedí pruh ras v horní liště');
   assert.ok(Number(await b.eval(`document.getElementById('rbCount').textContent`)) >= 2);
   await b.eval(`document.getElementById('rbToggle').click(); 1`); await sleep(250);
   assert.equal(await b.eval(`getComputedStyle(document.getElementById('rbAll')).display + '/' + document.getElementById('rbToggle').getAttribute('aria-expanded')`), 'flex/true');

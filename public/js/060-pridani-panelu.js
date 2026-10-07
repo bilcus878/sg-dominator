@@ -46,14 +46,20 @@ function renderRaceBar() {
   const sig = JSON.stringify([items, watchedOpen]);
   if (sig === raceBarSig) return;
   raceBarSig = sig;
-  bar.hidden = !items.length;
+  bar.classList.toggle('norace', !items.length);
   const watchedChip = `<button type="button" class="rchip watched${watchedOpen ? ' open' : ''}" data-race="${WATCHED}" title="Hlídaní hráči ze všech ras"><i class="rstar">★</i><span class="rname">Hlídaní</span></button>`;
   $('rbAll').innerHTML = items.map((r) => rchip(r)).join('') + watchedChip;
-  const open = items.filter((r) => r.open);
-  $('rbOpen').innerHTML = open.length ? open.map((r) => rchip(r, true)).join('') : '<span class="rb-none">žádný panel – rozbal seznam</span>';
   $('rbCount').textContent = items.length;
   $('rbLive').hidden = !items.some((r) => r.live);
 }
+// úzká obrazovka: pruh ras sedí v horní liště mezi přepínačem pohledů a přepínači (jen „Rasy 12 ▾“ s rozbalovacím seznamem); široká: celý seznam nad panely
+const rbWide = matchMedia('(min-width: 1180px)');
+function placeRaceBar() {
+  const bar = $('raceBar'), vw = document.querySelector('.viewwrap');
+  if (rbWide.matches) { const sec = document.querySelector('main section[data-view="watch"]'); if (bar.parentElement !== sec) sec.insertBefore(bar, sec.firstChild); }
+  else if (bar.parentElement !== vw.parentElement) vw.after(bar);
+}
+rbWide.addEventListener('change', placeRaceBar); placeRaceBar();
 const rbClose = () => { $('raceBar').classList.remove('expanded'); $('rbToggle').setAttribute('aria-expanded', 'false'); };
 $('rbToggle').addEventListener('click', (e) => { e.stopPropagation(); const on = !$('raceBar').classList.contains('expanded'); $('raceBar').classList.toggle('expanded', on); $('rbToggle').setAttribute('aria-expanded', String(on)); });
 document.addEventListener('click', (e) => { if (!e.target.closest('#raceBar')) rbClose(); });

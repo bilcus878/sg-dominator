@@ -451,8 +451,8 @@ function renderBoardEmpty() {
   const e = $('boardEmpty');
   e.hidden = !!(panels && panels.length);
   e.innerHTML = !S.races.length
-    ? 'Zatím žádná data.<br>Otevři v prohlížeči stránku s hráči nějaké rasy (s nainstalovaným skriptem) a pak sem klikni na <b>＋ Přidat rasu</b>.'
-    : 'Zatím tu není žádný panel.<br>Klikni na <b>＋ Přidat rasu</b> a vyber rasu, kterou máš otevřenou v prohlížeči.';
-  $('boardHint').textContent = panels && panels.length ? 'Každá rasa má svůj panel. ＋ přidá další.' : '';
+    ? 'Zatím žádná data.<br>Otevři v prohlížeči stránku s hráči nějaké rasy (s nainstalovaným skriptem) a pak sem klikni na <b>Rasy</b> nahoře.'
+    : 'Zatím tu není žádný panel.<br>Klikni na <b>Rasy</b> nahoře a vyber rasu, kterou máš otevřenou v prohlížeči.';
+  $('boardHint').textContent = panels && panels.length ? 'Každá rasa má svůj panel. Další přidáš v seznamu Rasy.' : '';
 }
 

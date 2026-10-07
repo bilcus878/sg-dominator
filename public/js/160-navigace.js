@@ -34,7 +34,7 @@ $('mainBtn').onclick = (e) => {
 };
 document.addEventListener('click', (e) => { if (!mainMenu.hidden && !e.target.closest('.mainwrap')) closeMain(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !mainMenu.hidden) closeMain(); });
-const MAIN_ACTIONS = { add: 'addPanel', notify: 'notifyCaret', alerts: 'alBtn', settings: 'openSettings', close: 'hdrClose' };
+const MAIN_ACTIONS = { notify: 'notifyCaret', alerts: 'alBtn', settings: 'openSettings', close: 'hdrClose' };
 for (const it of mainMenu.querySelectorAll('[data-go]')) {
   it.onclick = (e) => { e.stopPropagation(); closeMain(); $(MAIN_ACTIONS[it.dataset.go]).click(); };
 }

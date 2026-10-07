@@ -726,3 +726,11 @@
   .rchip.open { color:var(--fg); border-color:color-mix(in srgb, var(--acc) 55%, transparent); background:color-mix(in srgb, var(--acc) 12%, transparent); }
   .rchip.mine .rname { color:var(--acc); } .rchip.foe:not(.open) .rname { color:#9fb0cf; }
   .rflash { animation:rFlash 1.1s ease-out; } @keyframes rFlash { 0% { box-shadow:0 0 0 3px var(--acc); } 100% { box-shadow:0 0 0 0 transparent; } }
+  /* úzká obrazovka: pruh ras v horní liště (mezi přepínačem pohledů a přepínači) */
+  .racebar.norace { display:none; }
+  header .racebar { margin:0; flex:0 0 auto; }
+  header .rb-strip { min-height:0; padding:0; background:none; border:0; }
+  header .rb-toggle { padding:9px 12px; }
+  header .racebar.expanded .rb-all { left:0; right:auto; width:min(440px, calc(100vw - 24px)); top:calc(100% + 8px); }
+  @media (min-width: 1180px) { .racebar.norace { display:none; } }
+  @media (max-width:480px) { header .rb-toggle { padding:8px 7px; gap:5px; } header .rb-toggle .rb-count { display:none; } }

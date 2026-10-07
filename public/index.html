@@ -30,11 +30,10 @@
     <label class="optgl" id="opAlertTgl" title="Alerty OP"><span class="sw"><input type="checkbox" id="opAlertMaster"><span></span></span><b class="ic">📣</b><span class="lbl">Alerty</span></label>
     </div>
     <div class="mainwrap">
-      <button type="button" class="hbtn mbtn" id="mainBtn" aria-haspopup="true" aria-expanded="false" title="Menu: přidat rasu, upozornění, poslední alerty, nastavení, zavřít aplikaci">
+      <button type="button" class="hbtn mbtn" id="mainBtn" aria-haspopup="true" aria-expanded="false" title="Menu: upozornění, poslední alerty, nastavení, zavřít aplikaci">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span class="mlbl">Menu</span><b class="albadge" id="mBadge" hidden></b>
       </button>
       <div class="menu mainmenu" id="mainMenu" hidden>
-        <button type="button" class="mitem" data-go="add"><span class="mic">＋</span><span class="mtx"><b>Přidat rasu</b><small>nový panel na nástěnku</small></span></button>
         <button type="button" class="mitem" data-go="notify"><span class="mic">🔔</span><span class="mtx"><b>Upozornění a zvuk</b><small id="mBellSub">zprávy do chatu a poplach</small></span><i class="mdot" id="mBellDot"></i></button>
         <button type="button" class="mitem" data-go="alerts"><span class="mic">🕘</span><span class="mtx"><b>Poslední alerty</b><small>historie upozornění</small></span><b class="albadge inline" id="mBadge2" hidden></b></button>
         <button type="button" class="mitem" data-go="settings"><span class="mic">⚙</span><span class="mtx"><b>Nastavení</b><small>prahy, dohoz, přihlášení, data…</small></span></button>
@@ -93,13 +92,12 @@
 
 <main>
   <section data-view="watch">
-    <nav class="racebar" id="raceBar" aria-label="Rasy" hidden>
+    <nav class="racebar norace" id="raceBar" data-view="watch" aria-label="Rasy">
       <div class="rb-strip">
         <button type="button" class="rb-toggle" id="rbToggle" aria-expanded="false" aria-controls="rbAll" title="Seznam ras: klik na rasu přidá její panel nebo na něj přejde">
           <span class="rb-lbl">Rasy</span><span class="rb-count" id="rbCount"></span><i class="rdot live" id="rbLive" hidden></i>
           <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
         </button>
-        <div class="rb-open" id="rbOpen"></div>
       </div>
       <div class="rb-all" id="rbAll"></div>
     </nav>
