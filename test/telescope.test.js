@@ -197,3 +197,30 @@ test('synchronizace: šetření se při lovení OP odloží; po skončení zasta
   assert.equal(t2.snapshot().stopAt, 0, 'pozdě: šetření se zahodilo');
   assert.equal(t2.snapshot().rested, 0);
 });
+
+test('chytání OP (keepOn): bdělost se nikdy nevynechává, teleskop se nešetří a po zastavení se zapne co nejdřív; bez chytání (jen alerty) šetření a vynechání platí', () => {
+  const v = { skipMin: 0, skipMax: 0 };
+  const cfg = op({}, { reactMinSec: 10, reactMaxSec: 40 });
+  // jen alerty: vynechání bdělosti i pauza po něm fungují (první vlna OP už byla)
+  const a = withOp(createTelescope({ rand: () => 0.5 }));
+  assert.equal(a.vigilanceSeen(v, { now: 1 }).action, 'skip');
+  assert.equal(a.telescopeState({ state: 'stopped', remainingSec: 5000 }, cfg, 100_000).action, 'wait', 'pauza po vynechané bdělosti');
+  // chytání: nic z toho
+  const b = withOp(createTelescope({ rand: () => 0.5 }));
+  for (let i = 0; i < 5; i++) assert.equal(b.vigilanceSeen(v, { now: 1, keepOn: true }).action, 'click');
+  assert.equal(b.opAppeared(cfg, 0, { keepOn: true }).rest, false, 'žádné šetření po OP');
+  const st = b.telescopeState({ state: 'active', remainingSec: 5000 }, cfg, 60_000, { keepOn: true });
+  assert.deepEqual(st, { action: 'none' }, 'běžící teleskop se nezastavuje');
+  const act = b.telescopeState({ state: 'stopped', remainingSec: 5000 }, cfg, 61_000, { keepOn: true });
+  assert.equal(act.action, 'activate', 'zastavený teleskop se hned zapíná');
+  assert.ok(act.delayMs <= 6000, `krátká prodleva při chytání: ${act.delayMs}`);
+});
+
+test('chytání OP (keepOn): už naplánované šetření a pauza se zruší, jakmile se chytání zapne', () => {
+  const cfg = op({}, { reactMinSec: 10, reactMaxSec: 40, restChance: 100 });
+  const t = withOp(createTelescope({ rand: () => 0 }));
+  assert.equal(t.opAppeared(cfg, 0).rest, true); // plánuje se šetření
+  assert.equal(t.telescopeState({ state: 'stopped', remainingSec: 5000 }, cfg, 30_000).action, 'wait'); // čeká na konec šetření
+  const now = t.telescopeState({ state: 'stopped', remainingSec: 5000 }, cfg, 31_000, { keepOn: true });
+  assert.equal(now.action, 'activate', 'po zapnutí chytání se šetření ruší a teleskop se zapne');
+});

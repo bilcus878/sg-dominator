@@ -53,6 +53,7 @@ export function createTelescope({ rand = Math.random } = {}) {
   function vigilanceSeen(vCfg, ctx = {}) {
     const v = cfgV(vCfg);
     const now = ctx.now ?? Date.now();
+    if (ctx.keepOn) { st.skipPending = false; return { action: 'click' }; } // chytání OP: teleskop musí jet pořád, bdělost se nikdy nevynechává
     const busy = ctx.hold || st.stopAt > 0 || st.restUntil > now || st.downUntil > now; // lovení OP, šetření nebo pauza: nic dalšího se nevynechává
     if (!st.opSeen || !v.skipEnabled || busy) return { action: 'click' };
     if (st.untilSkip === null) st.untilSkip = randInt(v.skipMin, v.skipMax);
@@ -70,8 +71,9 @@ export function createTelescope({ rand = Math.random } = {}) {
    * Objevil se nový OP: naplánuje šetření teleskopu (zastavit po lidské prodlevě, zapnout zpět před koncem 5min okna).
    * @returns {{rest:boolean, stopAt?:number, restUntil?:number}}
    */
-  function opAppeared(opCfg, now = Date.now()) {
+  function opAppeared(opCfg, now = Date.now(), ctx = {}) {
     st.opSeen = true;
+    if (ctx.keepOn) { clearPauses(); return { rest: false }; } // chytání OP: žádné šetření
     const t = cfgT(opCfg?.telescope);
     if (!t.auto || !t.restEnabled) return { rest: false };
     if (st.restUntil > now) return { rest: false }; // už se šetří
@@ -81,6 +83,9 @@ export function createTelescope({ rand = Math.random } = {}) {
     st.restDeadline = now + OP_GAP_MS - READY_MARGIN_MS;
     return { rest: true, stopAt: st.stopAt, restUntil: st.restUntil };
   }
+
+  /** Zruší plánované šetření a pauzy (teleskop se musí hned zapnout a zůstat zapnutý). */
+  function clearPauses() { st.stopAt = 0; st.restUntil = 0; st.restDeadline = 0; st.downUntil = 0; st.skipPending = false; }
 
   /** Potvrzení proběhlo: případné čekání na zastavení po vynechání už neplatí. */
   function vigilanceClicked() {
@@ -96,6 +101,7 @@ export function createTelescope({ rand = Math.random } = {}) {
     const v = cfgV(opCfg?.vigilance);
     const t = cfgT(opCfg?.telescope);
     st.state = rep.state;
+    if (ctx.keepOn) clearPauses(); // chytání OP: žádné šetření ani pauzy po vynechané bdělosti, teleskop jede pořád
     if (rep.state === 'active') {
       st.attempts = 0;
       st.zeroAlerted = false;
@@ -120,7 +126,7 @@ export function createTelescope({ rand = Math.random } = {}) {
     }
     if (now < st.downUntil) return { action: 'wait', waitMs: st.downUntil - now };
     if (now < st.restUntil) return { action: 'wait', waitMs: st.restUntil - now };
-    let delayMs = Math.round(randRange(t.reactMinSec, t.reactMaxSec) * 1000);
+    let delayMs = ctx.keepOn ? Math.round(randRange(Math.min(t.reactMinSec, 2), Math.min(t.reactMaxSec, 6)) * 1000) : Math.round(randRange(t.reactMinSec, t.reactMaxSec) * 1000); // při chytání se zapíná co nejdřív (jen krátká lidská prodleva)
     // po šetření musí teleskop jet dřív, než může přijít další OP
     if (st.restDeadline > now) delayMs = Math.max(500, Math.min(delayMs, st.restDeadline - now - 5000));
     return { action: 'activate', delayMs };
