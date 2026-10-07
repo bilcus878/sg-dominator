@@ -25,9 +25,9 @@ after(async () => { await b?.close(); app?.stop(); });
 test('hlavička je jeden štíhlý řádek a tlačítka jsou ve správném pořadí', { skip }, async () => {
   assert.ok(await b.eval(`document.querySelector('header .bar').getBoundingClientRect().height`) < 70, 'horní technický řádek je štíhlý');
   assert.equal(await b.eval(`getComputedStyle(document.querySelector('header')).position`), 'relative', 'hlavička je statická, neposouvá se při rolování');
-  assert.equal(await b.eval(`[...document.querySelectorAll('.navrow [data-nav]')].map((e) => e.dataset.nav).join('>')`), 'watch>build>stats', 'pod ní je rozcestník');
+  assert.equal(await b.eval(`[...document.querySelectorAll('#viewMenu [data-nav]')].map((e) => e.dataset.nav).join('>')`), 'watch>build>stats', 'rozcestník nabízí všechny pohledy');
   const order = await b.eval(`[...document.querySelectorAll('.ctl > *')].map(e => e.id || e.className.split(' ')[0]).join('>')`);
-  assert.equal(order, 'hlwrap>opTgl>sep>addwrap>sep>ntwrap>alwrap>sep>openSettings>hdrClose');
+  assert.equal(order, 'statpill>mainwrap');
 });
 
 test('tabulka: záhlaví přesně nad daty, čísla na středu řádku, výška řádku se zapnutím ± nemění', { skip }, async () => {
@@ -345,17 +345,26 @@ test('Statistiky dohozů: pohled v nabídce, přehled, tabulka s rozbalením kol
   await b.eval(`document.getElementById('closeSettings').click(); document.querySelector('[data-nav=watch]').click(); 1`);
 });
 
-test('hlavička: červené tlačítko Zavřít aplikaci je vedle nastavení a ptá se na potvrzení (bez potvrzení nic nezavře)', { skip }, async () => {
-  assert.equal(await b.eval(`!!document.getElementById('hdrClose')`), true);
-  const pos = await b.eval(`(() => { const a = document.getElementById('openSettings').getBoundingClientRect(), c = document.getElementById('hdrClose').getBoundingClientRect(); return { dy: Math.abs(a.top - c.top), right: c.left > a.left }; })()`);
-  assert.ok(pos.dy < 2 && pos.right, 'je vpravo vedle nastavení na stejné výšce');
-  await b.eval(`window.__asked = 0; window.confirm = () => { window.__asked++; return false; }; document.getElementById('hdrClose').click(); 1`); await sleep(300);
+test('hlavička: Menu sdružuje přidání rasy, upozornění, poslední alerty, nastavení a zavření; zavření se ptá na potvrzení', { skip }, async () => {
+  assert.equal(await b.eval(`[...document.querySelectorAll('#mainMenu [data-go]')].map((e) => e.dataset.go).join('>')`), 'add>notify>alerts>settings>close');
+  assert.equal(await b.eval(`document.getElementById('mainMenu').hidden`), true, 'nabídka je zavřená');
+  await b.eval(`document.getElementById('mainBtn').click(); 1`); await sleep(150);
+  assert.equal(await b.eval(`document.getElementById('mainMenu').hidden`), false);
+  // položka Upozornění otevře původní nabídku zvonku (pod tlačítkem Menu) a nabídka Menu se zavře
+  await b.eval(`document.querySelector('#mainMenu [data-go=notify]').click(); 1`); await sleep(200);
+  assert.equal(await b.eval(`document.getElementById('mainMenu').hidden`), true);
+  assert.equal(await b.eval(`document.getElementById('ntMenu').hidden`), false, 'nabídka upozornění se otevřela');
+  const near = await b.eval(`(() => { const m = document.getElementById('ntMenu').getBoundingClientRect(), t = document.getElementById('mainBtn').getBoundingClientRect(); return Math.abs(m.right - t.right) < 4 && m.top >= t.bottom; })()`);
+  assert.equal(near, true, 'nabídka je zarovnaná pod tlačítkem Menu');
+  await b.eval(`document.body.click(); 1`); await sleep(150);
+  // zavření aplikace: bez potvrzení nic neudělá
+  await b.eval(`window.__asked = 0; window.confirm = () => { window.__asked++; return false; }; document.getElementById('mainBtn').click(); document.querySelector('#mainMenu [data-go=close]').click(); 1`); await sleep(300);
   assert.equal(await b.eval(`window.__asked`), 1);
   assert.ok((await app.api('/api/state')).races !== undefined, 'aplikace dál běží');
 });
 
 test('hlavička a rozcestník se vejdou do úzkého okna (420 px) a na široké obrazovce drží vystředěný sloupec', { skip }, async () => {
-  const geo = `(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(); return { closeRight: Math.round(r('#hdrClose').right), vw: document.documentElement.clientWidth, navRight: Math.round(r('.navrow [data-nav=stats]').right), barLeft: Math.round(r('header .bar').left), barRight: Math.round(r('header .bar').right), mainLeft: Math.round(r('main').left) }; })()`;
+  const geo = `(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(); return { closeRight: Math.round(r('#mainBtn').right), vw: document.documentElement.clientWidth, navRight: Math.round(r('#viewBtn').right), barLeft: Math.round(r('header .bar').left), barRight: Math.round(r('header .bar').right), mainLeft: Math.round(r('main').left) }; })()`;
   await b.send('Emulation.setDeviceMetricsOverride', { width: 420, height: 800, deviceScaleFactor: 1, mobile: false }); await sleep(400);
   const n = await b.eval(geo);
   assert.ok(n.closeRight <= n.vw && n.navRight <= n.vw, `v úzkém okně nic nepřetéká: ${JSON.stringify(n)}`);

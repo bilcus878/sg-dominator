@@ -9,6 +9,7 @@ const toggleAl = (open) => {
 function renderAlBadge() {
   const n = (S.alerts ?? []).filter((a) => a.ts > alSeen).length;
   $('alBadge').hidden = !n || !alMenu.hidden; $('alBadge').textContent = n > 9 ? '9+' : String(n);
+  for (const id of ['mBadge', 'mBadge2']) { const el = $(id); if (el) { el.hidden = !n || !alMenu.hidden; el.textContent = n > 9 ? '9+' : String(n); } } // počet nových alertů i na tlačítku Menu
 }
 $('alBtn').onclick = (e) => { e.stopPropagation(); closeMenu(); viewMenu.hidden = true; toggleNt(false); toggleAl(); };
 document.addEventListener('click', (e) => { if (!alMenu.hidden && !e.target.closest('.alwrap')) toggleAl(false); });

@@ -570,30 +570,61 @@
   /* ===== hlavička: nahoře technický řádek (stav, akce, upozornění, systém), pod ním rozcestník pohledů; hlavička je statická (neposouvá se při rolování) ===== */
   header .bar { min-height:50px; }
   .ctl .sep { width:1px; align-self:stretch; margin:7px 4px; background:var(--line); flex:0 0 1px; }
-  .navrow { border-top:1px solid var(--line); background:rgba(8,10,14,.35); }
-  .navrow .navin { display:flex; align-items:flex-end; gap:2px; padding:0 16px; min-height:40px; }
-  .navrow .navbtn { background:transparent; color:var(--mut); border:0; border-bottom:2px solid transparent; border-radius:0; padding:10px 16px 8px; font-size:14px; font-weight:600; box-shadow:none; margin-bottom:-1px; }
-  .navrow .navbtn:hover { color:var(--fg); background:rgba(255,255,255,.03); }
-  .navrow .navbtn.on { color:var(--fg); background:transparent; border-bottom-color:var(--acc); box-shadow:none; }
-  .navrow .muted { align-self:center; padding-bottom:2px; font-size:12px; }
-  @media (max-width:640px) { .navrow .navin { padding:0 8px; } .navrow .navbtn { padding:9px 10px 7px; font-size:13px; } .navrow .muted { display:none; } .ctl .sep { margin:7px 1px; } }
 
   /* ===== rozvržení stránky: hlavička, rozcestník i obsah sdílejí jeden vystředěný sloupec (na široké obrazovce se nic netáhne od kraje ke kraji) ===== */
   :root { --page-max: 1680px; }
-  header .bar, .navrow .navin, main { max-width:var(--page-max); margin-left:auto; margin-right:auto; }
+  header .bar, main { max-width:var(--page-max); margin-left:auto; margin-right:auto; }
   .board { justify-content:center; }
   .brand b { display:inline; }
   @media (max-width:460px) { .brand b { display:none; } }
   @media (max-width:700px) {
     .logo { display:block; }
     header .bar { padding:8px 10px; }
-    .navrow .navin { gap:0; padding:0; }
-    .navrow .navbtn { flex:1 1 0; text-align:center; padding:11px 6px 9px; }
-    .navrow .spacer { display:none; }
-  }
+        }
   @media (max-width:520px) {
     header .bar { padding:7px 8px; gap:6px; }
     .ctl { gap:4px; } .ctl .hbtn.sq, .ctl .hbtn.bell { width:32px; } .ctl .sep { margin:7px 0; } .ctl .hbtn.add { padding:0 9px; }
     .optgl { padding:0 7px 0 5px; gap:5px; } .optgl .lbl { font-size:12px; }
     .logo { width:22px; height:22px; }
   }
+
+  /* rozbalovací rozcestník pohledů v hlavním řádku */
+  .viewwrap { position:relative; flex:0 0 auto; }
+  .viewbtn { padding:0 10px 0 12px; gap:8px; min-width:150px; justify-content:flex-start; background:linear-gradient(180deg,#171c27,#121620); border-color:#2b3447; }
+  .viewbtn .vic { font-size:15px; line-height:1; } .viewbtn .chev { margin-left:auto; opacity:.65; transition:transform .18s; } .viewbtn[aria-expanded=true] .chev { transform:rotate(180deg); } .viewbtn[aria-expanded=true] { border-color:var(--acc); }
+  .viewmenu { left:0; right:auto; top:calc(100% + 8px); min-width:260px; padding:6px; }
+  .viewmenu .vitem { display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:transparent; color:var(--fg); border:0; border-radius:8px; padding:9px 10px; position:relative; }
+  .viewmenu .vitem:hover, .viewmenu .vitem:focus-visible { background:rgba(255,255,255,.06); }
+  .viewmenu .vitem .vic { font-size:18px; width:24px; text-align:center; flex:0 0 auto; }
+  .viewmenu .vitem .vtx { display:flex; flex-direction:column; gap:1px; min-width:0; } .viewmenu .vitem b { font-size:14px; font-weight:600; } .viewmenu .vitem small { color:var(--mut); font-size:12px; font-weight:400; }
+  .viewmenu .vitem .vck { margin-left:auto; color:var(--acc); font-weight:700; visibility:hidden; } .viewmenu .vitem.on { background:rgba(224,184,76,.08); } .viewmenu .vitem.on .vck { visibility:visible; }
+  .viewmenu .vitem .dot { display:none; width:7px; height:7px; border-radius:50%; background:var(--ok); animation:pulse 1.4s infinite; } .viewmenu .vitem .dot.on { display:inline-block; }
+  @media (max-width:700px) { .viewbtn { min-width:0; padding:0 8px 0 10px; } }
+  @media (max-width:520px) { .viewbtn #viewLbl { display:none; } .viewbtn { gap:5px; } }
+  @media (max-width:440px) { .brand { display:none; } header .bar { padding:7px 6px; gap:5px; } .optgl .lbl { display:none; } }
+  @media (max-width:400px) { .ctl { gap:3px; } .ctl .hbtn.sq, .ctl .hbtn.bell { width:29px; height:32px; } .ctl .hbtn.add { padding:0 8px; height:32px; } .optgl { height:32px; padding:0 5px 0 4px; } .viewbtn { height:32px; padding:0 6px 0 8px; } .ctl .sep { margin:6px 0; } }
+
+  /* ===== kompaktní hlavička: [pohled ▾]  ...  [stav + OP]  [Menu ▾] ===== */
+  header .bar { gap:10px; min-height:50px; }
+  .statpill { display:flex; align-items:center; height:34px; background:var(--card2); border:1px solid var(--line); border-radius:9px; overflow:visible; }
+  .statpill .hlwrap { display:flex; } .statpill .hbtn.sq { border:0; background:transparent; width:34px; height:32px; border-radius:8px 0 0 8px; } .statpill .hbtn.sq:hover { background:rgba(255,255,255,.05); }
+  .statpill .optgl { border:0; border-left:1px solid var(--line); background:transparent; border-radius:0 8px 8px 0; height:32px; }
+  .mainwrap { position:relative; }
+  .mbtn { padding:0 12px; gap:9px; min-width:0; } .mbtn[aria-expanded=true] { border-color:var(--acc); }
+  .mbtn .albadge { position:absolute; top:-7px; right:-7px; }
+  .mainmenu { right:0; left:auto; top:calc(100% + 8px); min-width:300px; padding:6px; }
+  .mitem { display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:transparent; color:var(--fg); border:0; border-radius:8px; padding:9px 10px; position:relative; }
+  .mitem:hover, .mitem:focus-visible { background:rgba(255,255,255,.06); }
+  .mitem .mic { width:24px; text-align:center; font-size:17px; flex:0 0 auto; } .mitem .mtx { display:flex; flex-direction:column; gap:1px; min-width:0; } .mitem b { font-size:14px; font-weight:600; } .mitem small { color:var(--mut); font-size:12px; font-weight:400; }
+  .mitem .mdot { margin-left:auto; width:9px; height:9px; border-radius:50%; background:#555; flex:0 0 auto; } .mitem .mdot.on { background:var(--ok); box-shadow:0 0 6px var(--ok); } .mitem .mdot.part { background:var(--acc); } .mitem .mdot.off { background:var(--bad, #ff6b6b); }
+  .mitem .albadge.inline { position:static; margin-left:auto; } .mitem .albadge[hidden] { display:none; }
+  .mitem.danger b, .mitem.danger .mic { color:#ff8a8a; } .mitem.danger:hover { background:rgba(255,90,90,.12); }
+  .msep { height:1px; background:var(--line); margin:5px 4px; }
+  /* původní tlačítka zůstávají jen jako kotvy pro své rozbalovací nabídky (otevírají se pod tlačítkem Menu) */
+  .anch { position:absolute; right:0; top:100%; width:0; height:0; }
+  .anch .addwrap, .anch .ntwrap, .anch .alwrap { position:absolute; right:0; top:0; width:0; height:0; }
+  .anch .addwrap > .hbtn, .anch .ntwrap > .hbtn, .anch .ntwrap > button, .anch .alwrap > .hbtn, .anch > #openSettings, .anch > #hdrClose { display:none; }
+  .anch .menu, .anch .ntmenu { top:8px; }
+  .ctl .sep { display:none; }
+  @media (max-width:700px) { .mbtn .mlbl { display:none; } .mbtn { padding:0 10px; } }
+  .anch .addwrap .menu { left:auto; right:0; } .anch .menu, .anch .ntmenu { max-width:calc(100vw - 16px); }

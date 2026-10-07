@@ -108,6 +108,7 @@ function renderBell() {
   const chat = cfg?.notify !== false, locked = snd.on && (!actx || actx.state !== 'running');
   const b = $('notifyCaret');
   b.classList.toggle('on', chat && snd.on && !locked); b.classList.toggle('part', (chat !== snd.on) || locked); b.classList.toggle('locked', locked);
+  const dot = $('mBellDot'); if (dot) { dot.className = 'mdot' + (b.classList.contains('on') ? ' on' : b.classList.contains('part') ? ' part' : ' off'); $('mBellSub').textContent = `chat ${chat ? 'zapnut' : 'vypnut'} · zvuk ${snd.on ? (locked ? 'čeká na kliknutí' : 'zapnut') : 'vypnut'}`; }
   b.title = `Alerty: chat ${chat ? 'zapnut' : 'VYPNUT'}, zvuk ${snd.on ? (locked ? 'zapnut (čeká na první kliknutí na stránku)' : 'zapnut') : 'VYPNUT'}`;
 }
 $('sndVol').addEventListener('input', () => { snd.vol = Number($('sndVol').value); $('sndVolTxt').textContent = snd.vol + ' %'; if (alarm) alarm.master.gain.value = (snd.vol / 100) ** 1.6; });
