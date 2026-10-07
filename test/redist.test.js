@@ -112,11 +112,12 @@ test('obří planety: víc měst nebo lidí, než je nastaveno, se nepoužijí j
   assert.deepEqual([mv.action, mv.target], ['move', 'MALA']);
 });
 
-test('přednostně planety bez lidí: při zapnutí se naplní jako první (i když jiná planeta má větší rezervu); bez zapnutí vede největší rezerva', () => {
-  const rows = [row('S', 5000, 200, 0), row('MA_LIDI', 100, 0, 2000), row('PRAZDNA', 0, 0, 800)];
-  assert.deepEqual(pickTargets(rows, 'S', 100 * M).map((r) => r.name), ['MA_LIDI', 'PRAZDNA']);
-  assert.deepEqual(pickTargets(rows, 'S', 100 * M, null, { prioEmpty: true }).map((r) => r.name), ['PRAZDNA', 'MA_LIDI']);
-  const r = createRedist(); r.start({ ...S, prioEmpty: true }, 0);
+test('přednostně planety s málo lidmi: pod nastavenou hranicí se plní první (nejprázdnější první); bez hranice vede největší rezerva', () => {
+  const rows = [row('S', 5000, 200, 0), row('MNOHO', 400, 0, 5000), row('MALO', 50, 0, 800), row('NULA', 0, 0, 600)];
+  assert.deepEqual(pickTargets(rows, 'S', 100 * M).map((r) => r.name), ['MNOHO', 'MALO', 'NULA']);
+  assert.deepEqual(pickTargets(rows, 'S', 100 * M, null, { prioBelowM: 100 }).map((r) => r.name), ['NULA', 'MALO', 'MNOHO'], 'pod 100 mil. lidí první, nejprázdnější úplně první');
+  assert.deepEqual(pickTargets(rows, 'S', 100 * M, null, { prioBelowM: 20 }).map((r) => r.name), ['NULA', 'MNOHO', 'MALO'], 'jen NULA je pod 20 mil.');
+  const r = createRedist(); r.start({ ...S, prioBelowM: 100 }, 0);
   r.report({ page: 'list', sorted: true, rows }, 1);
-  assert.equal(r.report({ page: 'planet', name: 'S', count: 200 * M, options: ['MA_LIDI', 'PRAZDNA'] }, 2).target, 'PRAZDNA');
+  assert.equal(r.report({ page: 'planet', name: 'S', count: 200 * M, options: ['MNOHO', 'MALO', 'NULA'] }, 2).target, 'NULA');
 });

@@ -19,7 +19,7 @@ export function createUnemp() {
 
   function start(now = Date.now(), settings = {}) {
     if (active()) return false;
-    run = { ...idle(), status: 'running', startedAt: now, lastSeenAt: now, settings: { ignoreCities: Number(settings.ignoreCities) || 0, ignorePeopleM: Number(settings.ignorePeopleM) || 0, prioEmpty: !!settings.prioEmpty } };
+    run = { ...idle(), status: 'running', startedAt: now, lastSeenAt: now, settings: { ignoreCities: Number(settings.ignoreCities) || 0, ignorePeopleM: Number(settings.ignorePeopleM) || 0, prioBelowM: Number(settings.prioBelowM) || 0 } };
     addLog(now, 'Spuštěno – čekám na stránku Obchod → Nezaměstnaní');
     return true;
   }
@@ -59,14 +59,14 @@ export function createUnemp() {
     }
     if (rep.page === 'list') {
       if (!rep.sorted) return { action: 'sort' };
-      const filtering = run.settings.ignoreCities > 0 || run.settings.ignorePeopleM > 0 || run.settings.prioEmpty;
+      const filtering = run.settings.ignoreCities > 0 || run.settings.ignorePeopleM > 0 || run.settings.prioBelowM > 0;
       let last = rep.last;
       if (filtering) { // omezení obřích planet: potřebuje celou tabulku, dole se vezme poslední planeta, která obří není
         if (!Array.isArray(rep.rows)) return { action: 'send-rows' };
         let cand = rep.rows.filter((r) => r.missing > 0 && !isGiant(r, run.settings));
-        if (run.settings.prioEmpty) { // přednostně planety, na kterých není celkem nikdo
-          const empty = cand.filter((r) => r.people === 0);
-          if (empty.length) { cand = empty; if (!run.emptyNoted) { run.emptyNoted = true; addLog(now, `Přednostně planety bez lidí (${empty.length})`); } }
+        if (run.settings.prioBelowM > 0) { // přednostně planety s málo lidmi (pod nastavenou hranicí); z nich ta nejprázdnější
+          const low = cand.filter((r) => r.people < run.settings.prioBelowM * 1e6);
+          if (low.length) { cand = [low.reduce((best, r) => (r.people <= best.people ? r : best))]; if (!run.emptyNoted) { run.emptyNoted = true; addLog(now, `Přednostně planety s méně než ${run.settings.prioBelowM} mil. lidí (${low.length})`); } }
         }
         const skippedGiants = rep.rows.filter((r) => r.missing > 0 && isGiant(r, run.settings)).length;
         if (skippedGiants && !run.giantNoted) { run.giantNoted = true; addLog(now, `Obří planety se přeskakují (${skippedGiants} s chybějícími lidmi)`); }

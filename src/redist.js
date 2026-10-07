@@ -12,7 +12,7 @@
 const STALE_MS = 120_000; // skript se tak dlouho neozval = běh se zastaví
 const MAX_RELOADS = 3; // tolikrát se znovu načte seznam, když ukazuje stará data (po návratu zpět z mezipaměti prohlížeče)
 
-export const REDIST_DEFAULTS = { minM: 100, maxM: 300, freeMaxM: 0, dry: true, maxMoves: 100, pace: 1, pauseMinSec: 4, pauseMaxSec: 10, ignoreCities: 0, ignorePeopleM: 0, prioEmpty: false }; // pace = násobek tempa skriptu (menší = rychlejší), pauza = náhodná prodleva mezi planetami (s); platí pro přerozdělení i doplňování // v milionech lidí; dry = zkušební běh (nic se nepřesouvá)
+export const REDIST_DEFAULTS = { minM: 100, maxM: 300, freeMaxM: 0, dry: true, maxMoves: 100, pace: 1, pauseMinSec: 4, pauseMaxSec: 10, ignoreCities: 0, ignorePeopleM: 0, prioBelowM: 0 }; // prioBelowM: přednostně planety s méně lidmi než tolik mil. (0 = vypnuto) // pace = násobek tempa skriptu (menší = rychlejší), pauza = náhodná prodleva mezi planetami (s); platí pro přerozdělení i doplňování // v milionech lidí; dry = zkušební běh (nic se nepřesouvá)
 
 const fmtM = (n) => `${(Number(n) / 1e6).toLocaleString('cs-CZ', { maximumFractionDigits: 1 })} mil.`;
 
@@ -27,12 +27,14 @@ export const acceptance = (r) => Math.floor((r.free - r.people) / 2);
 
 /** Cíle, kam se vejde celý přesun `amount`: největší rezerva první. `allowed` = názvy planet, které jsou v nabídce na detailu zdroje. */
 /** Obří planety (víc měst / víc lidí, než je nastaveno; 0 = bez omezení) se jako cíl ani k doplňování nepoužijí. */
+/** Planeta má méně lidí, než je „přednostní“ hranice (0 = vypnuto)? */
+const low = (r, s = {}) => (s.prioBelowM > 0 && r.people < s.prioBelowM * 1e6 ? 1 : 0);
 export const isGiant = (r, s = {}) => (s.ignoreCities > 0 && r.cities > s.ignoreCities) || (s.ignorePeopleM > 0 && r.people > s.ignorePeopleM * 1e6);
 
 export function pickTargets(rows, source, amount, allowed = null, s = {}) {
   return rows
     .filter((r) => r.name !== source && !isGiant(r, s) && acceptance(r) >= amount && (!allowed || allowed.has(r.name)))
-    .sort((a, b) => (s.prioEmpty ? Number(b.people === 0) - Number(a.people === 0) : 0) || acceptance(b) - acceptance(a)); // přednostně planety bez lidí (když je to zapnuté), jinak největší rezerva
+    .sort((a, b) => (low(b, s) - low(a, s)) || (low(a, s) && a.people - b.people) || acceptance(b) - acceptance(a)); // přednostně planety s málo lidmi (nejprázdnější první), jinak největší rezerva
 }
 
 export function createRedist() {
