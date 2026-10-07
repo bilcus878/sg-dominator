@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791336329083,
+  "savedAt": 1791337297857,
   "savedBy": "JarmilPC",
   "config": {
     "threshold": 100000000,
@@ -396,8 +396,12 @@
       }
     },
     "uicfg": {
-      "dens": "m",
-      "short": true
+      "dens": "l",
+      "short": false,
+      "theme": "night",
+      "accent": "#e0b84c",
+      "dot": true,
+      "fx": true
     }
   }
 }
