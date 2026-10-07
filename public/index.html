@@ -465,18 +465,54 @@
       </div>
     </div>
     <div class="pane" id="pane-look">
-      <p class="muted" style="margin-top:0">Velikost panelů ras se pamatuje <b>zvlášť pro každý monitor</b> (poznává ho podle rozlišení a polohy okna). Tenhle monitor: <b id="lookMon"></b>. Změny platí hned, nemusíš ukládat.</p>
-      <div class="field"><label>Velikost tabulky hráčů</label>
-        <div class="seg" id="uiDens"><button type="button" data-v="s">Malá</button><button type="button" data-v="m">Střední</button><button type="button" data-v="l">Velká</button></div>
-        <small>Písmo a výška řádků. Platí jen v tomhle prohlížeči.</small></div>
-      <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0"><span class="sw"><input type="checkbox" id="uiShort"><span></span></span> Zkrácená čísla síly (927,5 mil)</label>
-        <small>Čísla se lépe porovnávají. Přesná hodnota je v bublině po najetí myší.</small></div>
-      <div class="field"><label for="lookW">Výchozí šířka panelu: <b id="lookWv"></b> px</label><input type="range" id="lookW" min="320" max="1100" step="10">
-        <small>Platí pro panely, které sis neroztáhl ručně.</small></div>
-      <div class="field"><label for="lookH">Výchozí výška tabulky: <b id="lookHv"></b></label><input type="range" id="lookH" min="0" max="1600" step="20">
-        <small>0 = automaticky (panel se vejde do výšky okna). Vyšší hodnota drží výšku pevnou.</small></div>
-      <div class="field"><button class="ghost" id="lookReset">Vrátit všechny panely na výchozí velikost</button></div>
-      <p class="muted">Panel můžeš měnit i tažením pravého dolního rohu (dvojklik na roh = výchozí velikost) a sbalit tlačítkem ▾ v hlavičce (nebo dvojklikem na název). Sbalený panel ukáže jen souhrn, třeba počet hráčů k dobytí.</p>
+      <div class="lk-preview">
+        <div class="lk-prevhead"><b>Náhled</b><span class="muted">takhle bude vypadat tabulka hráčů</span></div>
+        <div id="lookPrev"></div>
+      </div>
+
+      <div class="chan">
+        <div class="chan-head"><span><b>Barvy</b></span></div>
+        <div class="lk-lab">Téma</div>
+        <div class="lk-themes" id="lkTheme" role="radiogroup" aria-label="Téma">
+          <button type="button" data-v="night" role="radio"><span class="th night"><i></i><i></i><i></i></span><b>Noc</b><small>výchozí, tmavě modrošedé</small></button>
+          <button type="button" data-v="oled" role="radio"><span class="th oled"><i></i><i></i><i></i></span><b>Černá</b><small>čistě černé pozadí (OLED)</small></button>
+          <button type="button" data-v="slate" role="radio"><span class="th slate"><i></i><i></i><i></i></span><b>Břidlice</b><small>chladnější, méně kontrastní</small></button>
+        </div>
+        <div class="lk-lab">Akcentní barva <small class="muted" id="lkAccentName"></small></div>
+        <div class="lk-acc" id="lkAccent" role="radiogroup" aria-label="Akcentní barva"></div>
+        <label class="lk-custom">Vlastní barva <input type="color" id="lkCustom" value="#e0b84c"></label>
+        <small class="muted" style="display:block;margin-top:8px">Barva tlačítek, přepínačů, aktivní záložky a zvýraznění. Barvy hodností hráčů (vůdce, zástupce…) se nemění.</small>
+      </div>
+
+      <div class="chan">
+        <div class="chan-head"><span><b>Tabulka hráčů</b></span></div>
+        <div class="lk-lab">Velikost</div>
+        <div class="lk-dens" id="uiDens" role="radiogroup" aria-label="Velikost tabulky">
+          <button type="button" data-v="s" role="radio"><span style="font-size:12px">Aa</span><small>Malá</small></button>
+          <button type="button" data-v="m" role="radio"><span style="font-size:14px">Aa</span><small>Střední</small></button>
+          <button type="button" data-v="l" role="radio"><span style="font-size:16px">Aa</span><small>Velká</small></button>
+          <button type="button" data-v="xl" role="radio"><span style="font-size:19px">Aa</span><small>Největší</small></button>
+        </div>
+        <small class="muted" style="display:block;margin:6px 0 12px">Písmo a výška řádků. Platí jen v tomhle prohlížeči.</small>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="uiShort"><span></span></span> Zkrácená čísla síly <span class="muted">(927,5 mil)</span></label>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="uiDot"><span></span></span> Zelená tečka u hráčů, kteří jsou online</label>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="uiFx"><span></span></span> Animace a efekty <span class="muted">(záblesky při změně síly, pád a návrat nad práh)</span></label>
+      </div>
+
+      <div class="chan">
+        <div class="chan-head"><span><b>Panely</b></span></div>
+        <p class="muted" style="margin-top:0">Velikost panelů ras se pamatuje <b>zvlášť pro každý monitor</b> (poznává ho podle rozlišení a polohy okna). Tenhle monitor: <b id="lookMon"></b>. Změny platí hned.</p>
+        <label for="lookW" class="lk-lab" style="display:block">Výchozí šířka panelu: <b id="lookWv"></b> px</label>
+        <input type="range" id="lookW" min="320" max="1100" step="10">
+        <div class="lk-presets"><button type="button" class="ghost" data-w="420">Úzký</button><button type="button" class="ghost" data-w="600">Běžný</button><button type="button" class="ghost" data-w="820">Široký</button></div>
+        <label for="lookH" class="lk-lab" style="display:block;margin-top:14px">Výchozí výška tabulky: <b id="lookHv"></b></label>
+        <input type="range" id="lookH" min="0" max="1600" step="20">
+        <small class="muted" style="display:block;margin-top:6px">0 = automaticky (panel se vejde do výšky okna). Vyšší hodnota drží výšku pevnou. Platí pro panely, které sis neroztáhl ručně.</small>
+        <p style="margin:12px 0 0"><button class="ghost" id="lookReset">Vrátit všechny panely na výchozí velikost</button></p>
+        <p class="muted" style="margin:10px 0 0">Panel jde měnit i tažením pravého dolního rohu (dvojklik na roh = výchozí velikost) a sbalit tlačítkem ▾ nebo dvojklikem na název.</p>
+      </div>
+
+      <p style="margin:6px 0 0"><button class="ghost" id="lkResetAll" type="button">Obnovit výchozí vzhled</button> <span class="muted">barvy, velikost a efekty (panely se nemění)</span></p>
     </div>
     <div class="pane" id="pane-scripts">
       <p class="muted" style="margin-top:0">Skripty pro Tampermonkey. Seznam i kód se načítají přímo ze serveru, takže tu vždy najdeš aktuální verzi. Po každé změně skriptu porovnej číslo verze tady s číslem v Tampermonkey (Přehled).</p>

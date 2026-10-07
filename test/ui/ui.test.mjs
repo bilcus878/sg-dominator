@@ -374,3 +374,21 @@ test('hlavička a rozcestník se vejdou do úzkého okna (420 px) a na široké 
   assert.ok(Math.abs(w.barLeft - w.mainLeft) <= 2, 'hlavička i obsah mají stejný levý okraj');
   await b.send('Emulation.setDeviceMetricsOverride', { width: 900, height: 900, deviceScaleFactor: 1, mobile: false }); await sleep(300);
 });
+
+test('Nastavení → Vzhled: živý náhled, téma, akcentní barva, největší velikost, tečka a efekty se použijí hned, uloží a jdou vrátit', { skip, timeout: 30_000 }, async () => {
+  await b.eval(`document.getElementById('openSettings').click(); document.querySelector('[data-tab=look]').click(); 1`); await sleep(400);
+  assert.ok(await b.eval(`document.querySelectorAll('#lookPrev tbody tr').length`) >= 3, 'náhled má vzorové řádky');
+  const acc0 = await b.eval(`getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()`);
+  await b.eval(`document.querySelector('#lkTheme [data-v=oled]').click(); document.querySelector('#lkAccent [data-c="#74a8ff"]').click(); document.querySelector('#uiDens [data-v=xl]').click(); 1`); await sleep(300);
+  assert.equal(await b.eval(`document.body.dataset.theme + '/' + document.body.dataset.dens`), 'oled/xl');
+  assert.equal(await b.eval(`getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()`), '#74a8ff');
+  assert.equal(await b.eval(`getComputedStyle(document.body).backgroundColor`), 'rgb(0, 0, 0)', 'černé téma');
+  assert.equal(await b.eval(`JSON.parse(localStorage.getItem('uicfg')).accent`), '#74a8ff', 'uloženo');
+  await b.eval(`document.getElementById('uiDot').click(); document.getElementById('uiFx').click(); 1`); await sleep(200);
+  assert.equal(await b.eval(`document.body.dataset.dot + '/' + document.body.dataset.fx`), 'off/off');
+  assert.equal(await b.eval(`getComputedStyle(document.querySelector('td.pname .nl1 .on')).display`), 'none', 'tečka online je schovaná');
+  await b.eval(`document.getElementById('lkResetAll').click(); 1`); await sleep(300);
+  assert.equal(await b.eval(`document.body.dataset.theme + '/' + document.body.dataset.dens + '/' + document.body.dataset.dot + '/' + document.body.dataset.fx`), 'night/l/on/on');
+  assert.equal(await b.eval(`getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()`), acc0, 'výchozí barva zpět');
+  await b.eval(`document.getElementById('closeSettings').click(); 1`);
+});

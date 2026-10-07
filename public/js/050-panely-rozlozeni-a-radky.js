@@ -3,8 +3,8 @@
 const monKey = () => `${screen.width}x${screen.height}@${screen.availLeft ?? 0},${screen.availTop ?? 0}`;
 const readLayouts = () => loadJson('layouts', {});
 let layouts = readLayouts();
-const ui = (() => { const c = (() => { try { return JSON.parse(store.get('uicfg')) ?? {}; } catch { return {}; } })(); return { dens: ['s', 'm', 'l'].includes(c.dens) ? c.dens : 'l', short: !!c.short }; })();
-const saveUi2 = () => { store.set('uicfg', JSON.stringify(ui)); document.body.dataset.dens = ui.dens; };
+const ui = (() => { const c = (() => { try { return JSON.parse(store.get('uicfg')) ?? {}; } catch { return {}; } })(); return { dens: ['s', 'm', 'l', 'xl'].includes(c.dens) ? c.dens : 'l', short: !!c.short, theme: ['night', 'oled', 'slate'].includes(c.theme) ? c.theme : 'night', accent: /^#[0-9a-f]{6}$/i.test(c.accent ?? '') ? c.accent : '#e0b84c', dot: c.dot !== false, fx: c.fx !== false }; })();
+const saveUi2 = () => { store.set('uicfg', JSON.stringify(ui)); document.body.dataset.dens = ui.dens; if (typeof applyLook === 'function') applyLook(); };
 document.body.dataset.dens = ui.dens;
 const lay = () => (layouts[monKey()] ??= { defW: 600, defH: 0, panels: {} });
 const lp = (id) => (lay().panels[id] ??= {});

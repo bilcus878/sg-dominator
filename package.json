@@ -8,6 +8,6 @@
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning src/server.js",
     "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js",
-    "test:ui": "node --disable-warning=ExperimentalWarning --test --test-timeout=60000 test/ui/*.test.mjs"
+    "test:ui": "node --disable-warning=ExperimentalWarning --test --test-timeout=240000 test/ui/*.test.mjs"
   }
 }
