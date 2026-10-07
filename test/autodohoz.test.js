@@ -1080,3 +1080,15 @@ test('zastaralá stránka armády: obnovuje se jen jednou na dohazování; když
   assert.equal(io.sent.length, 2);
   assert.ok(ev.some((e) => e.type === 'stall' && e.notify));
 });
+
+test('zpráva o hotovém dohozu obsahuje, jak dlouho to trvalo od poklesu pod práh do prvního dohozu a do návratu', () => {
+  const state = { power: 60 };
+  const a = createAutoArmy({ rand: () => 0 });
+  const io = mkTopIo(state, { boost: 200 });
+  a.onAlert(alert('X'), TOP, 0);
+  const ev = run(a, io, 0, 60_000);
+  const done = ev.find((e) => e.type === 'done');
+  assert.match(done.text, /⏱ Pod prahem → první dohoz za \d+(,\d)? s, → zpět nad prahem za (\d+(,\d)? s|\d+ min \d+ s)/);
+  const first = Number(done.text.match(/první dohoz za (\d+(?:,\d)?) s/)[1].replace(',', '.'));
+  assert.ok(first >= 0 && first < 20, `první dohoz za ${first} s`);
+});
