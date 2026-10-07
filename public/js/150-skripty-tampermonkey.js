@@ -1,7 +1,7 @@
 /* ---------- skripty pro Tampermonkey ---------- */
 (() => {
   const SCRIPTS = [
-    ['Stavění', '/stavby.user.js', 'vyplňuje a staví na planetách'],
+    ['Stavby', '/stavby.user.js', 'vyplňuje a staví na planetách'],
     ['Mapa', '/mapa.user.js', 'OP, tlačítko bdělosti, teleskop'],
     ['Síla hráčů', '/userscript.user.js', 'posílá sílu hráčů do hlídání'],
     ['Rasová armáda', '/armada.user.js', 'tlačítko Dohodit u našich hráčů'],

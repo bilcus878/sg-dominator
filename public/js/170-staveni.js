@@ -89,11 +89,11 @@
     const st = $('bStatus');
     st.textContent = STATUS[r.status] + (r.dry && on ? ' (zkušebně)' : '');
     st.className = 'pill' + (on ? ' ok' : r.status === 'error' ? ' bad' : '');
-    $('navDot').classList.toggle('on', on); $('viewDot').classList.toggle('on', on);
+    viewBusy.build = on; refreshViewDot();
     $('bStart').disabled = on; $('bStop').disabled = !on;
     $('bStart').style.opacity = on ? .5 : 1;
     const stale = on && B.serverTime - r.lastSeenAt > 20000;
-    $('bHint').textContent = stale ? '⚠ skript neodpovídá – je otevřená stránka Stavění?' : '';
+    $('bHint').textContent = stale ? '⚠ skript neodpovídá – je otevřená stránka Stavby?' : '';
 
     const done = q ? q.total - q.left : 0;
     const pct = q && q.total ? Math.min(100, (done / q.total) * 100) : r.status === 'finished' ? 100 : 0;
@@ -120,10 +120,10 @@
 
     const p = r.preview;
     $('bPreview').innerHTML = B.run.scanPending
-      ? '⏳ Čekám na stránku Stavění (musí být otevřená ve hře)…'
+      ? '⏳ Čekám na stránku Stavby (musí být otevřená ve hře)…'
       : on && q ? `<b>Fronta:</b> ${reasonsText(q.reasons) || 'nic'}<br><span class="muted">Vyloučeno ${q.excluded} planet (CP/DP/PP, neobyvatelné), přeskočeno ${q.skipped} hotových.</span>`
       : p ? `<b>Náhled (${ago(p.at)}):</b> z ${p.tableSize} planet by se navštívilo <b>${p.visit}</b>, přeskočilo ${p.skipped}, vyloučeno ${p.excluded}.${p.visit ? `<br><span class="muted">Důvody: ${reasonsText(p.reasons)}</span>` : ''}`
-      : '<span class="muted">Náhled ukáže, kolik planet bot navštíví a proč, bez spuštění. Potřebuje otevřenou stránku Stavění ve hře.</span>';
+      : '<span class="muted">Náhled ukáže, kolik planet bot navštíví a proč, bez spuštění. Potřebuje otevřenou stránku Stavby ve hře.</span>';
 
     $('bKnown').textContent = `Historie planet: ${B.knownPlanets} známých`;
     $('bPlanetsHint').textContent = r.total ? `zpracováno ${r.total}, zobrazeno posledních ${r.planets.length}` : '';

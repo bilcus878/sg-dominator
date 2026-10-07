@@ -687,3 +687,7 @@
 @media (max-width:820px) { #opChipAge { display:none; } .dstat { flex:0 0 auto; } }
 
   .viewbtn .dot { display:none; width:7px; height:7px; border-radius:50%; background:var(--ok); animation:pulse 1.4s infinite; flex:0 0 auto; } .viewbtn .dot.on { display:inline-block; }
+
+  /* pohled Obchod */
+  .shopgrid { display:grid; grid-template-columns:repeat(auto-fit, minmax(380px, 1fr)); gap:16px; align-items:start; }
+  .viewmenu .vitem .dot { margin-left:auto; } .viewmenu .vitem .dot + .vck { margin-left:8px; }

@@ -25,7 +25,7 @@ after(async () => { await b?.close(); app?.stop(); });
 test('hlavička je jeden štíhlý řádek a tlačítka jsou ve správném pořadí', { skip }, async () => {
   assert.ok(await b.eval(`document.querySelector('header .bar').getBoundingClientRect().height`) < 70, 'horní technický řádek je štíhlý');
   assert.equal(await b.eval(`getComputedStyle(document.querySelector('header')).position`), 'relative', 'hlavička je statická, neposouvá se při rolování');
-  assert.equal(await b.eval(`[...document.querySelectorAll('#viewMenu [data-nav]')].map((e) => e.dataset.nav).join('>')`), 'watch>build>stats', 'rozcestník nabízí všechny pohledy');
+  assert.equal(await b.eval(`[...document.querySelectorAll('#viewMenu [data-nav]')].map((e) => e.dataset.nav).join('>')`), 'watch>build>shop>stats', 'rozcestník nabízí všechny pohledy');
   const order = await b.eval(`[...document.querySelectorAll('.ctl > *')].map(e => e.id || e.className.split(' ')[0]).join('>')`);
   assert.equal(order, 'statpill>mainwrap');
 });
@@ -429,4 +429,15 @@ test('Nastavení → Mapa a OP: přepínače Chytat a Alerty jsou propojené s h
   assert.deepEqual(r.a, { head: [true, false], set: [true, false] }, 'jen chytání');
   assert.deepEqual(r.b2, { head: [false, true], set: [false, true] }, 'jen alerty');
   assert.equal(r.panes, false, 'text o starém hlavním přepínači OP zmizel');
+});
+
+test('pohledy se jmenují jako ve hře (Vesmír, Stavby, Obchod) a Nezaměstnaní jsou v Obchodu, ne ve Stavbách', { skip }, async () => {
+  assert.equal(await b.eval(`[...document.querySelectorAll('#viewMenu .vitem b')].map((e) => e.textContent).join(' | ')`), 'Vesmír | Stavby | Obchod | Statistiky');
+  assert.equal(await b.eval(`document.getElementById('viewLbl').textContent`), 'Vesmír');
+  assert.equal(await b.eval(`!!document.querySelector('#shopBox #uStart') && !document.querySelector('#buildBox #uStart')`), true, 'Nezaměstnaní jsou v Obchodu');
+  await b.eval(`document.querySelector('[data-nav=shop]').click(); 1`); await sleep(300);
+  assert.equal(await b.eval(`document.getElementById('shopBox').hidden + '/' + document.getElementById('buildBox').hidden + '/' + document.getElementById('viewLbl').textContent`), 'false/true/Obchod');
+  await b.eval(`document.querySelector('[data-nav=build]').click(); 1`); await sleep(200);
+  assert.equal(await b.eval(`document.getElementById('viewLbl').textContent`), 'Stavby');
+  await b.eval(`document.querySelector('[data-nav=watch]').click(); 1`);
 });

@@ -9,10 +9,11 @@
 <body>
 <header><div class="bar">
   <div class="viewwrap">
-    <button type="button" class="hbtn viewbtn" id="viewBtn" aria-haspopup="true" aria-expanded="false" title="Přepnout pohled"><span class="vic" id="viewIc">👁</span><span id="viewLbl">Sledování</span><span class="dot" id="viewDot" title="Stavění běží"></span><svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+    <button type="button" class="hbtn viewbtn" id="viewBtn" aria-haspopup="true" aria-expanded="false" title="Přepnout pohled"><span class="vic" id="viewIc">🌌</span><span id="viewLbl">Vesmír</span><span class="dot" id="viewDot" title="Stavby nebo Obchod právě něco dělá"></span><svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
     <div class="menu viewmenu" id="viewMenu" hidden>
-      <button type="button" class="vitem on" data-nav="watch"><span class="vic">👁</span><span class="vtx"><b>Sledování</b><small>panely ras, hlídání a dohoz</small></span><span class="vck">✓</span></button>
-      <button type="button" class="vitem" data-nav="build"><span class="vic">🏗</span><span class="vtx"><b>Stavění</b><small>automatické stavění na planetách</small></span><span class="dot" id="navDot"></span><span class="vck">✓</span></button>
+      <button type="button" class="vitem on" data-nav="watch"><span class="vic">🌌</span><span class="vtx"><b>Vesmír</b><small>panely ras, hlídání a dohoz</small></span><span class="vck">✓</span></button>
+      <button type="button" class="vitem" data-nav="build"><span class="vic">🏗</span><span class="vtx"><b>Stavby</b><small>automatické stavění na planetách</small></span><span class="dot" id="navDot"></span><span class="vck">✓</span></button>
+      <button type="button" class="vitem" data-nav="shop"><span class="vic">🛒</span><span class="vtx"><b>Obchod</b><small>nezaměstnaní a další</small></span><span class="dot" id="shopDot"></span><span class="vck">✓</span></button>
       <button type="button" class="vitem" data-nav="stats"><span class="vic">📊</span><span class="vtx"><b>Statistiky</b><small>dohozy, časy a výsledky</small></span><span class="vck">✓</span></button>
     </div>
   </div>
@@ -98,8 +99,21 @@
 
   <section id="statsBox" data-view="stats" hidden></section>
 
+  <section id="shopBox" data-view="shop" hidden>
+    <div class="bhead"><h2>Obchod</h2><span class="muted">věci z herního Obchodu</span></div>
+    <div class="shopgrid">
+      <div class="card">
+        <div class="card-head"><h2>👥 Nezaměstnaní</h2></div>
+        <p class="muted" style="margin-top:0">Doplní nezaměstnané na planety, kterým chybí lidé (červená čísla v Obchod → Nezaměstnaní): seřadí seznam, otevře poslední planetu, klikne na Přesunout a vrátí se zpět – dokud někde chybí lidé. Když dojdou nezaměstnaní („zbývá“ 0 nebo nestačí na celou planetu), skončí. Potřebuje otevřenou stránku <b>Obchod → Nezaměstnaní</b> a skript Nezaměstnaní.</p>
+        <div class="brun"><button id="uStart">▶ Doplnit nezaměstnané</button><button class="ghost" id="uStop">■ Zastavit</button></div>
+        <div class="muted" id="uState" style="margin-top:6px">nečinné</div>
+        <div class="muted" id="uLog" style="margin-top:6px;max-height:160px;overflow:auto;font-size:12px"></div>
+      </div>
+    </div>
+  </section>
+
   <section id="buildBox" data-view="build" hidden>
-    <div class="bhead"><h2>Stavění planet</h2><span class="pill" id="bStatus">nečinné</span><span class="muted" id="bHint"></span></div>
+    <div class="bhead"><h2>Stavby</h2><span class="muted">automatické stavění na planetách</span><span class="pill" id="bStatus">nečinné</span><span class="muted" id="bHint"></span></div>
     <div id="bWarn"></div>
     <div class="bgrid">
       <div class="card">
@@ -118,19 +132,12 @@
         <div class="card">
           <div class="card-head"><h2>Běh</h2></div>
           <div class="brun"><button id="bStart">▶ Spustit</button><button class="ghost" id="bStop">■ Zastavit</button>
-            <button class="ghost" id="bScan" title="Spočítá, kolik planet by se navštívilo a proč, bez spuštění. Potřebuje otevřenou stránku Stavění ve hře.">🔍 Náhled fronty</button></div>
+            <button class="ghost" id="bScan" title="Spočítá, kolik planet by se navštívilo a proč, bez spuštění. Potřebuje otevřenou stránku Stavby ve hře.">🔍 Náhled fronty</button></div>
           <div class="bbar" id="bBarWrap"><i id="bBar"></i></div>
           <div class="muted" id="bProg">Čeká na spuštění.</div>
           <div class="bnow" id="bNow"></div>
           <div class="bstats" id="bStats"></div>
           <div class="bpreview" id="bPreview"></div>
-        </div>
-        <div class="card">
-          <div class="card-head"><h2>👥 Nezaměstnaní</h2></div>
-          <p class="muted" style="margin-top:0">Doplní nezaměstnané na planety, kterým chybí lidé (červená čísla v Obchod → Nezaměstnaní): seřadí seznam, otevře poslední planetu, klikne na Přesunout a vrátí se zpět – dokud někde chybí lidé. Když dojdou nezaměstnaní („zbývá“ 0 nebo nestačí na celou planetu), skončí. Potřebuje otevřenou stránku <b>Obchod → Nezaměstnaní</b> a skript Nezaměstnaní.</p>
-          <div class="brun"><button id="uStart">▶ Doplnit nezaměstnané</button><button class="ghost" id="uStop">■ Zastavit</button></div>
-          <div class="muted" id="uState" style="margin-top:6px">nečinné</div>
-          <div class="muted" id="uLog" style="margin-top:6px;max-height:160px;overflow:auto;font-size:12px"></div>
         </div>
         <div class="card">
           <div class="card-head"><h2>Chování</h2></div>

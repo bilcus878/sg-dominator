@@ -1,10 +1,11 @@
-/* ---------- Nezaměstnaní: doplnění lidí na planety, kterým chybí (karta na stránce Stavění) ---------- */
+/* ---------- Nezaměstnaní: doplnění lidí na planety, kterým chybí (karta v pohledu Obchod) ---------- */
 (() => {
   const STATUS = { idle: 'nečinné', running: 'běží', stopped: 'zastaveno', finished: 'hotovo', error: 'chyba' };
   let U = null;
   function render() {
     if (!U) return;
     const on = U.status === 'running';
+    viewBusy.shop = on; refreshViewDot();
     $('uStart').disabled = on; $('uStart').style.opacity = on ? 0.5 : 1;
     $('uStop').disabled = !on;
     const fmtN = (n) => Number(n || 0).toLocaleString('cs-CZ');

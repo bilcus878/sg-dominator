@@ -1,6 +1,12 @@
 /* ---------- navigace mezi pohledy ---------- */
 const viewMenu = $('viewMenu');
-const VIEWS = { watch: ['👁', 'Sledování'], build: ['🏗', 'Stavění'], stats: ['📊', 'Statistiky'] };
+const VIEWS = { watch: ['🌌', 'Vesmír'], build: ['🏗', 'Stavby'], shop: ['🛒', 'Obchod'], stats: ['📊', 'Statistiky'] };
+/** Která část právě něco dělá (stavění / nezaměstnaní): zelená tečka u položky v nabídce i u tlačítka pohledu. */
+const viewBusy = { build: false, shop: false };
+function refreshViewDot() {
+  $('navDot').classList.toggle('on', viewBusy.build); $('shopDot').classList.toggle('on', viewBusy.shop);
+  $('viewDot').classList.toggle('on', viewBusy.build || viewBusy.shop);
+}
 $('viewBtn').onclick = (e) => { e.stopPropagation(); viewMenu.hidden = !viewMenu.hidden; $('viewBtn').setAttribute('aria-expanded', String(!viewMenu.hidden)); };
 document.addEventListener('click', (e) => { if (!viewMenu.hidden && !e.target.closest('.viewwrap')) { viewMenu.hidden = true; $('viewBtn').setAttribute('aria-expanded', 'false'); } });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !viewMenu.hidden) { viewMenu.hidden = true; $('viewBtn').setAttribute('aria-expanded', 'false'); } });
@@ -13,7 +19,7 @@ function setView(v) {
   document.querySelectorAll('[data-nav]').forEach((b) => b.classList.toggle('on', b.dataset.nav === v));
 }
 document.querySelectorAll('[data-nav]').forEach((b) => { b.onclick = () => setView(b.dataset.nav); });
-setView(['build', 'stats'].includes(store.get('view')) ? store.get('view') : 'watch');
+setView(['build', 'stats', 'shop'].includes(store.get('view')) ? store.get('view') : 'watch');
 
 
 /* ---------- hlavní nabídka (Menu): přidat rasu, upozornění, poslední alerty, nastavení, zavřít ----------
