@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791373367951,
+  "savedAt": 1791374875753,
   "savedBy": "Jaroslav-ntb",
   "config": {
     "threshold": 100000000,
@@ -163,10 +163,10 @@
         "minSec": 7,
         "maxSec": 13,
         "skipEnabled": true,
-        "skipMin": 37,
-        "skipMax": 49,
+        "skipMin": 49,
+        "skipMax": 50,
         "downMin": 3,
-        "downMax": 11
+        "downMax": 9
       },
       "telescope": {
         "auto": true,
