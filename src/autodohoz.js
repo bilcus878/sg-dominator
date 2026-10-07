@@ -128,7 +128,7 @@ export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS, sta
       ? `✅ Auto-dohoz: ${name} je zpět nad prahem (síla ${fmt(p)}) po ${ep.rounds}. dohozu.`
       : `✅ Auto-dohoz: ${name} je na ${fmt(p)} (nad hranicí ${fmt(ep.target)}) po ${ep.rounds}. dohozu.`;
     // jak rychle to šlo: od prvního čtení pod prahem do prvního dohozu a do návratu nad práh
-    const timing = ep.fellAt && ep.firstSentAt ? `
+    const timing = ep.fellAt != null && ep.firstSentAt != null ? `
 ⏱ Pod prahem → první dohoz za ${fmtDur(ep.firstSentAt - ep.fellAt)}, → zpět nad prahem za ${fmtDur(now - ep.fellAt)}.` : '';
     return head + timing;
   };
