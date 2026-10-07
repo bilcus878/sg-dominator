@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – OP na mapě
 // @namespace    sg-dominator
-// @version      1.4.1
+// @version      1.4.2
 // @description  Hledá na mapě galaxie svítící tečky (opuštěné planety) a hlásí je lokálnímu notifikátoru; potvrzuje tlačítko bdělosti (po náhodné prodlevě), zapíná zastavený teleskop a (je-li zapnutý automat na OP) opuštěnou planetu sám osídlí
 // @match        https://stargate-game.cz/mapa.php*
 // @match        https://www.stargate-game.cz/mapa.php*
@@ -173,7 +173,24 @@
   let mouse = { x: 300 + Math.random() * 400, y: 200 + Math.random() * 200 };
   const rnd = (a, b) => a + Math.random() * (b - a);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const fire = (el, type, init = {}) => el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, ...init }));
+  // skutečná myš posílá vedle mouse* událostí i pointer* (pointerover/move/down/up); stránka, která události sleduje, by jejich absenci poznala
+  const POINTER_OF = { mouseover: 'pointerover', mousemove: 'pointermove', mousedown: 'pointerdown', mouseup: 'pointerup' };
+  const fire = (el, type, init = {}) => {
+    const pt = POINTER_OF[type];
+    if (pt && typeof PointerEvent === 'function') {
+      try { el.dispatchEvent(new PointerEvent(pt, { bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', isPrimary: true, pressure: type === 'mousedown' ? 0.5 : 0, ...init })); } catch { /* bez pointer událostí */ }
+    }
+    return el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, ...init }));
+  };
+
+  // Všechny klikací akce (bdělost, teleskop, lovení OP) jdou jednou frontou: člověk má jednu myš, takže se dva pohyby nikdy neprolnou
+  // a mezi akcemi je lidská pauza.
+  let clickChain = Promise.resolve();
+  const exclusive = (fn) => {
+    const run = clickChain.then(fn, fn);
+    clickChain = run.then(() => sleep(rnd(700, 2200)), () => sleep(rnd(700, 2200)));
+    return run;
+  };
   const isVisible = (el) => !!(el && (el.offsetWidth || el.offsetHeight) && !el.disabled);
 
   /** POST na server; vrací Promise s odpovědí (JSON) nebo null při chybě. */
@@ -193,7 +210,8 @@
   }
 
   /** Doscrolluje k prvku, přejede k němu myší po zakřivené dráze a klikne (stisk, pauza, puštění, klik se souřadnicemi). */
-  async function humanClick(el) {
+  const humanClick = (el) => exclusive(() => humanClickRaw(el));
+  async function humanClickRaw(el) {
     for (let i = 0; i < 40; i++) {
       const r = el.getBoundingClientRect();
       if (r.top > 80 && r.bottom < innerHeight - 80) break;
@@ -238,7 +256,8 @@
     vigSeen = true;
     const lo = Math.max(1, Number(vig.minSec) || 5);
     const hi = Math.max(lo, Number(vig.maxSec) || 10);
-    const delay = rnd(lo, hi) * 1000;
+    // člověk reaguje většinou rychle a občas se zdrží; rovnoměrná prodleva je strojová. Maximálně o ~35 s víc (hra dává minuty)
+    const delay = (lo + (hi - lo) * Math.pow(Math.random(), 1.6) + (Math.random() < 0.08 ? rnd(8, 25) : 0)) * 1000;
     const dec = await postJson('/vigilance', { event: 'seen', delayMs: Math.round(delay) });
     if (dec?.action === 'ignore') { setTimeout(() => { vigSeen = false; }, 4000); return; } // OP je vypnuté; za chvíli se zeptá znovu
     if (dec?.action === 'skip') return; // záměrně vynecháno; vigSeen zůstane, dokud tlačítko nezmizí
@@ -318,7 +337,8 @@
   }
 
   /** Klik na bod obrázku s mapou (area se v elementFromPoint nevrací, proto se události posílají přímo na area). */
-  async function humanClickAt(img, target, x, y) {
+  const humanClickAt = (img, target, x, y) => exclusive(() => humanClickAtRaw(img, target, x, y));
+  async function humanClickAtRaw(img, target, x, y) {
     for (let i = 0; i < 40; i++) {
       const py = img.getBoundingClientRect().top + y;
       if (py > 90 && py < innerHeight - 90) break;

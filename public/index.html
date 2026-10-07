@@ -305,7 +305,7 @@
           <div><label for="opVigMax">Nejpozději po (s)</label><input type="number" id="opVigMax" min="1" max="120"></div></div>
         <div class="field" style="margin-top:14px"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
           <span class="sw"><input type="checkbox" id="opVigSkip"><span></span></span> Občas záměrně nepotvrdit (jako člověk)</label>
-          <small>Člověk to taky ne vždy stihne. Jednou za několik potvrzení (náhodně v tomto rozmezí) bot tlačítko vynechá, hra teleskop zastaví a bot ho nechá nějakou dobu vypnutý. <b>Po tuto dobu se OP nehlídají.</b></small></div>
+          <small>Člověk to taky ne vždy stihne. Jednou za několik potvrzení (náhodně v tomto rozmezí) bot tlačítko vynechá, hra teleskop zastaví a bot ho nechá nějakou dobu vypnutý. <b>Po tuto dobu se OP nehlídají.</b> Bot ho nikdy nevynechá, když svítí OP a loví se, když probíhá šetření teleskopu nebo když už je teleskop v pauze, ať se slepá okna nenaskládají na sebe.</small></div>
         <div class="two"><div><label for="opSkipMin">Vynechat jednou za (min. potvrzení)</label><input type="number" id="opSkipMin" min="1" max="50"></div>
           <div><label for="opSkipMax">… až za (max. potvrzení)</label><input type="number" id="opSkipMax" min="1" max="50"></div></div>
         <div class="two" style="margin-top:10px"><div><label for="opDownMin">Teleskop pak nechat vypnutý od (min)</label><input type="number" id="opDownMin" min="1" max="240"></div>
@@ -320,7 +320,7 @@
           <div><label for="opReactMax">… nejpozději po (s)</label><input type="number" id="opReactMax" min="1" max="600"></div></div>
         <div class="field" style="margin-top:14px"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
           <span class="sw"><input type="checkbox" id="opRestEnabled"><span></span></span> Šetřit teleskop po OP</label>
-          <small>Další OP se objeví nejdřív 5 minut po předchozím. Po objevení OP proto bot teleskop po lidské prodlevě <b>zastaví</b> a v náhodném čase ho zase <b>zapne</b> – vždycky tak, aby jel dřív než za 5 minut. Ne pokaždé (podle šance níže), ať to nemá pravidelný vzorec.</small></div>
+          <small>Další OP se objeví nejdřív 5 minut po předchozím. Po objevení OP proto bot teleskop po lidské prodlevě <b>zastaví</b> a v náhodném čase ho zase <b>zapne</b> – vždycky tak, aby jel dřív než za 5 minut. Ne pokaždé (podle šance níže), ať to nemá pravidelný vzorec. Zastavení se <b>odloží</b>, když čeká tlačítko bdělosti nebo bot loví OP (a zahodí, kdyby už nestihl zapnout zpět včas).</small></div>
         <div class="two"><div><label for="opRestChance">Šance, že šetří (%)</label><input type="number" id="opRestChance" min="0" max="100"></div><div></div></div>
         <div class="two" style="margin-top:10px"><div><label for="opRestStopMin">Zastavit po OP nejdřív za (s)</label><input type="number" id="opRestStopMin" min="5" max="240"></div>
           <div><label for="opRestStopMax">… nejpozději za (s)</label><input type="number" id="opRestStopMax" min="5" max="240"></div></div>

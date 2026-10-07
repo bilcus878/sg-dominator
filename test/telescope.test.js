@@ -152,8 +152,48 @@ test('než se po zapnutí hlídání objeví první vlna OP, bdělost se nevynec
   const tele = createTelescope({ rand: () => 0 });
   const v = { skipMin: 0, skipMax: 0 };
   for (let i = 0; i < 5; i++) assert.equal(tele.vigilanceSeen(v).action, 'click');
-  tele.opAppeared(op(), 0);
+  tele.opAppeared(op({}, { restEnabled: false }), 0);
   assert.equal(tele.vigilanceSeen(v).action, 'skip');
   tele.resetOp();
   assert.equal(tele.vigilanceSeen(v).action, 'click');
+});
+
+test('synchronizace: bdělost se nevynechává při šetření, v pauze ani při lovení OP', () => {
+  const mk = () => createTelescope({ rand: () => 0 });
+  const v = { skipMin: 0, skipMax: 0 };
+  // šetření naplánované (stopAt) i probíhající (restUntil): nevynechat
+  let t = mk(); t.opAppeared(op(), 0);
+  assert.equal(t.vigilanceSeen(v, { now: 1 }).action, 'click', 'šetření čeká na zastavení');
+  const rest = t.snapshot();
+  assert.equal(t.vigilanceSeen(v, { now: rest.restUntil - 1000 }).action, 'click', 'šetření probíhá');
+  t.telescopeState({ state: 'active', remainingSec: 5000 }, op(), rest.restUntil + 10 * MIN); // plán šetření se vyhodnotí (už je po něm)
+  assert.equal(t.vigilanceSeen(v, { now: rest.restUntil + 10 * MIN }).action, 'skip', 'po šetření už ano');
+  // lovení OP / čekající tlačítko: nevynechat ani nezastavit
+  t = mk(); t.opAppeared(op({}, { restEnabled: false }), 0);
+  assert.equal(t.vigilanceSeen(v, { now: 1, hold: true }).action, 'click');
+  assert.equal(t.vigilanceSeen(v, { now: 1 }).action, 'skip');
+  // pauza po vynechání: další vynechání se do ní nekryje
+  t = mk(); t.opAppeared(op({}, { restEnabled: false }), 0);
+  assert.equal(t.vigilanceSeen(v, { now: 0 }).action, 'skip');
+  t.telescopeState({ state: 'stopped', remainingSec: 900 }, op({ downMin: 4, downMax: 4 }), 1000);
+  assert.equal(t.vigilanceSeen(v, { now: 2000 }).action, 'click', 'v pauze se nevynechává');
+});
+
+test('synchronizace: šetření se při lovení OP odloží; po skončení zastaví, nebo se zahodí, když už je pozdě', () => {
+  const cfg = op({}, { restStopMin: 20, restStopMax: 20, restResumeMin: 200, restResumeMax: 200 });
+  const t = createTelescope({ rand: () => 0 });
+  t.opAppeared(cfg, 0);
+  const s = t.snapshot();
+  assert.equal(s.stopAt, 20_000);
+  // čas zastavit, ale loví se: nic se nezastaví a plán zůstává
+  assert.deepEqual(t.telescopeState({ state: 'active', remainingSec: 5000 }, cfg, 25_000, { hold: true }), { action: 'none', hold: true });
+  assert.equal(t.snapshot().stopAt, 20_000, 'plán šetření zůstal');
+  // po lovení (pořád v okně šetření) se zastaví
+  assert.equal(t.telescopeState({ state: 'active', remainingSec: 5000 }, cfg, 60_000, { hold: false }).action, 'stop');
+  // jiný běh: lovení se protáhne až za okno šetření -> šetření se zahodí a teleskop jede dál
+  const t2 = createTelescope({ rand: () => 0 });
+  t2.opAppeared(cfg, 0);
+  assert.equal(t2.telescopeState({ state: 'active', remainingSec: 5000 }, cfg, 190_000, { hold: true }).action, 'none');
+  assert.equal(t2.snapshot().stopAt, 0, 'pozdě: šetření se zahodilo');
+  assert.equal(t2.snapshot().rested, 0);
 });

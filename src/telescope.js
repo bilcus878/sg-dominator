@@ -4,6 +4,15 @@
  * Šetření po OP: další OP se objeví nejdřív 5 minut po předchozím, takže po objevení OP se teleskop (občas ne,
  * ať to nemá vzorec) po lidské prodlevě zastaví a v náhodném čase se zapne zpět, vždy tak, aby jel dřív než za 5 minut.
  * Stav drží server (ne stránka), protože hra po nepotvrzení stránku sama přenačte.
+ *
+ * Synchronizace (aby se funkce navzájem nerušily). Pořadí důležitosti, nejdůležitější první:
+ *   1. lovení OP / čekající tlačítko bdělosti / svítící OP, které se loví (kontext `hold`): teleskop se nezastavuje a bdělost se
+ *      nevynechává; plánované šetření se jen odloží (a zahodí, kdyby už nemělo smysl);
+ *   2. „pauza“ po záměrně vynechané bdělosti (downUntil): teleskop zůstává vypnutý, nic ho nezapíná;
+ *   3. šetření po OP (restUntil): teleskop zůstává vypnutý do času zapnutí, ale nejpozději do restDeadline (OP + 5 min);
+ *   4. automatická aktivace (reakční prodleva).
+ * Záměrné vynechání bdělosti se nikdy nekryje se šetřením ani s pauzou a nevynechává se při OP, který se loví,
+ * ať se slepé okno (teleskop vypnutý) nenaskládá na sebe a nepřijde se o OP kvůli „lidskosti“.
  * Čistá logika bez sítě a DOM; skript v prohlížeči jen hlásí, co vidí, a dostane instrukci.
  */
 
@@ -41,9 +50,11 @@ export function createTelescope({ rand = Math.random } = {}) {
   const cfgT = (t) => ({ ...TELESCOPE_DEFAULTS, ...t });
 
   /** Objevilo se tlačítko bdělosti: potvrdit, nebo (jednou za skipMin–skipMax potvrzení) záměrně vynechat? */
-  function vigilanceSeen(vCfg) {
+  function vigilanceSeen(vCfg, ctx = {}) {
     const v = cfgV(vCfg);
-    if (!st.opSeen || !v.skipEnabled) return { action: 'click' };
+    const now = ctx.now ?? Date.now();
+    const busy = ctx.hold || st.stopAt > 0 || st.restUntil > now || st.downUntil > now; // lovení OP, šetření nebo pauza: nic dalšího se nevynechává
+    if (!st.opSeen || !v.skipEnabled || busy) return { action: 'click' };
     if (st.untilSkip === null) st.untilSkip = randInt(v.skipMin, v.skipMax);
     if (st.untilSkip <= 0) {
       st.skipPending = true;
@@ -81,7 +92,7 @@ export function createTelescope({ rand = Math.random } = {}) {
    * rep: { state: 'active'|'stopped', remainingSec: číslo|null }
    * @returns {{action: 'none'|'wait'|'activate', delayMs?: number, waitMs?: number, alert?: string}}
    */
-  function telescopeState(rep, opCfg, now = Date.now()) {
+  function telescopeState(rep, opCfg, now = Date.now(), ctx = {}) {
     const v = cfgV(opCfg?.vigilance);
     const t = cfgT(opCfg?.telescope);
     st.state = rep.state;
@@ -89,6 +100,7 @@ export function createTelescope({ rand = Math.random } = {}) {
       st.attempts = 0;
       st.zeroAlerted = false;
       if (st.stopAt && now >= st.stopAt) { // šetření po OP: teď zastavit
+        if (ctx.hold && now < st.restUntil - 30_000) return { action: 'none', hold: true }; // čeká tlačítko bdělosti / loví se OP: zastavení se odloží
         st.stopAt = 0;
         if (t.auto && now < st.restUntil - 30_000) { st.rested++; return { action: 'stop', delayMs: Math.round(randRange(400, 1800)) }; }
       }

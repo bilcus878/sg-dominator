@@ -473,13 +473,21 @@ const tele = createTelescope();
 const hunt = createHunt(); // automat na OP: zakázky na sektory s OP
 const VIG_ALERT_MS = 150_000; // hra dává ~5 minut, upozornit dřív, než je pozdě
 
+/**
+ * Teleskop se nezastavuje (šetření po OP) a bdělost se záměrně nevynechává, když: se právě loví OP, nebo čeká nepotvrzené tlačítko bdělosti,
+ * nebo svítí OP a chytání je zapnuté (bez teleskopu by tečka zmizela dřív, než se stihne osídlit).
+ */
+function opHold(now) {
+  return hunt.active(now) || vig.pending || (cfg.op.enabled && !!cfg.op.hunt?.enabled && op.current(now).length > 0);
+}
+
 async function handleVigilance(req) {
   if (!authOk(req)) return [401, { error: 'bad token' }];
   const body = await readJson(req);
   const now = Date.now();
   if (body.event === 'seen') {
     if (!cfg.op.enabled) { tele.resetOp(); return [200, { ok: true, action: 'ignore' }]; } // OP vypnuto: bot nic nepotvrzuje
-    const d = tele.vigilanceSeen(cfg.op.vigilance); // občas záměrně vynechat, ať to nevypadá jako stroj
+    const d = tele.vigilanceSeen(cfg.op.vigilance, { now, hold: opHold(now) }); // občas záměrně vynechat, ať to nevypadá jako stroj (ne při lovení OP, šetření a pauze)
     if (d.action === 'skip') {
       vig.pending = false;
       console.log('[bdělost] tlačítko se objevilo, tentokrát ho záměrně nepotvrdím (teleskop se zastaví a chvíli zůstane vypnutý)');
@@ -522,8 +530,7 @@ async function handleTelescope(req) {
   const remaining = Number.isFinite(Number(body.remainingSec)) && body.remainingSec !== null ? Number(body.remainingSec) : null;
   const state = body.state === 'stopped' ? 'stopped' : 'active';
   if (!cfg.op.enabled) { tele.resetOp(); tele.noteState(state); return [200, { action: 'none' }]; } // OP vypnuto: teleskop se nezapíná
-  const r = tele.telescopeState({ state, remainingSec: remaining }, cfg.op, now, { opLit: op.current(now).length });
-  if (r.action === 'stop' && hunt.active(now)) { r.action = 'none'; r.hold = true; } // během lovení OP teleskop jede (bez něj nejsou OP vidět)
+  const r = tele.telescopeState({ state, remainingSec: remaining }, cfg.op, now, { hold: opHold(now) });
   if (r.action === 'stop') console.log('[teleskop] šetření po OP: zastavuji');
   if (state !== teleLast) { teleLast = state; console.log(`[teleskop] ${state === 'active' ? 'aktivní' : 'zastavený'}`); }
   if (r.alert === 'zero') { console.log('[teleskop] nezbývá žádný čas'); sendService(cfg, '⚠️ Teleskop je zastavený a nezbývá mu žádný čas, nelze ho aktivovat.'); }
