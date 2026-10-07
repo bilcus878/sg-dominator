@@ -37,8 +37,13 @@ test('celý průběh: start, sektor, dvě tečky, úspěch; zprávy jen při vý
   h.event({ id: spec.id, event: 'no-button' }, cfg(), 8000);
   h.event({ id: spec.id, event: 'try', x: 78, y: 132 }, cfg(), 9000);
   assert.equal(h.snapshot(9000).job.tries, 2);
-  const r = h.event({ id: spec.id, event: 'success', text: 'Hotovo' }, cfg(), 12000);
-  assert.match(r.notify, /osídlena/);
+  const r = h.event({ id: spec.id, event: 'success', cost: '85 860 368', have: '114 011 183' }, cfg(), 12000);
+  assert.match(r.notify, /OP CHYCENA/);
+  assert.match(r.notify, /sektoru 27/);
+  assert.match(r.notify, /85\s860\s368 kg/);
+  assert.match(r.notify, /zbývá asi 28\s150\s815 kg/);
+  assert.match(r.notify, /Dnes chyceno: 1×/);
+  assert.equal(h.snapshot(12000).caughtTotal, 1);
   assert.equal(h.active(12000), false);
   assert.equal(h.snapshot(12000).last.result, 'success');
 });

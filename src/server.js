@@ -453,7 +453,7 @@ async function handleOpHunt(req) {
   if (!authOk(req)) return [401, { error: 'bad token' }];
   const body = await readJson(req, 8192);
   const now = Date.now();
-  const r = hunt.event({ id: Number(body.id), event: String(body.event ?? ''), x: body.x, y: body.y, text: typeof body.text === 'string' ? body.text : '' }, cfg.op.hunt, now);
+  const r = hunt.event({ id: Number(body.id), event: String(body.event ?? ''), x: body.x, y: body.y, cost: body.cost, have: body.have, text: typeof body.text === 'string' ? body.text : '' }, cfg.op.hunt, now);
   if (hunt.active(now)) op.hold(now + 20_000);
   if (r.event !== undefined) delete r.event;
   if (body.event !== 'state') console.log(`[op-lov] ${body.event}${body.text ? `: ${String(body.text).slice(0, 120)}` : ''}${r.ok ? '' : ' (zakázka už neexistuje)'}`);

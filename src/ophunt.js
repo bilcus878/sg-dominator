@@ -33,6 +33,8 @@ export function createHunt({ rand = Math.random } = {}) {
   const cool = new Map(); // sektor -> do kdy se nezkouší
   let starts = []; // časy spuštěných zakázek (limit za hodinu)
   let limitNotified = false;
+  let caught = []; // časy osídlených OP (statistika „dnes / za hodinu / celkem“ od spuštění aplikace)
+  let caughtTotal = 0;
 
   const cfgH = (h) => ({ ...HUNT_DEFAULTS, ...h });
   const range = (a, b) => a + rand() * (b - a);
@@ -119,7 +121,17 @@ export function createHunt({ rand = Math.random } = {}) {
         return { ok: true, notify: t };
       }
       case 'success': {
-        const t = finish('success', `✅ Automat OP: OP v ${sectorName(job)} je osídlena!${ev.text ? ` ${String(ev.text).slice(0, 200)}` : ''}`, now, {}, h);
+        caught.push(now); caughtTotal++;
+        const num = (v) => { const n = Number(String(v ?? '').replace(/\D/g, '')); return Number.isFinite(n) && n > 0 ? n : null; };
+        const fmt = (n) => n.toLocaleString('cs-CZ');
+        const cost = num(ev.cost), have = num(ev.have);
+        const midnight = new Date(now); midnight.setHours(0, 0, 0, 0);
+        const today = caught.filter((t) => t >= midnight.getTime()).length;
+        const lines = [`✅🟠 OP CHYCENA! V sektoru ${job.sector}${/^\d+$/.test(job.label) || !job.label ? '' : ` (${job.label})`} je osídlena nová planeta.`];
+        if (cost) lines.push(`Stálo to ${fmt(cost)} kg naquadahu${have && have >= cost ? `, zbývá asi ${fmt(have - cost)} kg` : ''}.`);
+        lines.push(`Dnes chyceno: ${today}× (od spuštění aplikace celkem ${caughtTotal}×).`);
+        if (ev.text && !cost) lines.push(String(ev.text).slice(0, 200));
+        const t = finish('success', lines.join('\n'), now, {}, h);
         return { ok: true, notify: t };
       }
       case 'no-naquadah': {
@@ -146,6 +158,8 @@ export function createHunt({ rand = Math.random } = {}) {
       last,
       cooling: [...cool].filter(([, t]) => t > now).map(([sector, t]) => ({ sector, inSec: Math.ceil((t - now) / 1000) })),
       startsLastHour: starts.filter((t) => now - t < 3_600_000).length,
+      caughtTotal,
+      caughtToday: caught.filter((t) => t >= new Date(now).setHours(0, 0, 0, 0)).length,
     };
   }
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – OP na mapě
 // @namespace    sg-dominator
-// @version      1.4.2
+// @version      1.4.3
 // @description  Hledá na mapě galaxie svítící tečky (opuštěné planety) a hlásí je lokálnímu notifikátoru; potvrzuje tlačítko bdělosti (po náhodné prodlevě), zapíná zastavený teleskop a (je-li zapnutý automat na OP) opuštěnou planetu sám osídlí
 // @match        https://stargate-game.cz/mapa.php*
 // @match        https://www.stargate-game.cz/mapa.php*
@@ -471,7 +471,8 @@
     if (spec.dryRun) { await hEvent(job.id, 'dry', { text: cost ? `cena ${cost} kg naquadahu` : '' }); await huntHome(); return; }
     await pauseSec(spec.claimMinSec, spec.claimMaxSec);
     const base = redTexts();
-    hSet({ ...job, stage: 'claim' });
+    const have = (document.body.innerText.match(/m[aá]me\s+([\d\s\u00a0]+?)\s*kg\s+naquadahu/i) || [])[1]?.replace(/\s+/g, ' ').trim(); // kolik naquadahu máme (pro zprávu: zůstatek)
+    hSet({ ...job, stage: 'claim', cost: cost ?? null, have: have ?? null });
     await humanClick(btn);
     const until = Date.now() + 12_000; // hra mohla hlášku vypsat bez přenačtení stránky
     while (Date.now() < until) {
@@ -486,10 +487,10 @@
   async function huntAfterClaim() {
     const job = hGet();
     if (!job || job.stage !== 'claim') return false;
-    if (document.getElementById('galaxie')) { await hEvent(job.id, 'success'); hClear(); return true; }
+    if (document.getElementById('galaxie')) { await hEvent(job.id, 'success', { cost: job.cost, have: job.have }); hClear(); return true; }
     await sleep(1500);
     if (claimButton()) { await claimFailed(job, redTexts().join(' | ') || `tlačítko zůstalo: ${snippet()}`); return true; }
-    await hEvent(job.id, 'success', { text: snippet() });
+    await hEvent(job.id, 'success', { cost: job.cost, have: job.have, text: snippet() });
     await huntHome();
     return true;
   }
