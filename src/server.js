@@ -23,6 +23,7 @@ import { createRecalc } from './recalc.js';
 import { createEcon } from './econ.js';
 import { createAutoArmy } from './autodohoz.js';
 import { pushShared } from './gitshare.js';
+import { createDohozStats, summarize, filterEpisodes } from './dohoz-stats.js';
 import { mergeRecalc, mergeEcon, sharedFileName, buildShared, sameShared, readAllShared, writeShared } from './shared-data.js';
 import { DEFAULT_PROFILES, validName, buildProfile, mergeProfileConfig, sameContent, readProfile, writeProfile, listProfiles, cleanUi } from './profiles.js';
 import { mergeSeenUnits, sanitizeReport, sanitizeSeenUnits, unitsFor, ATTACK_TYPES } from './attack.js';
@@ -61,10 +62,10 @@ function trackBelow(list, raceId, now) {
     if (!p.watched || !(p.threshold > 0) || !Number.isFinite(p.power)) { belowState.delete(p.name); continue; }
     const below = p.power < p.threshold;
     const st = belowState.get(p.name);
-    if (!st) { belowState.set(p.name, { below, streak: below ? 1 : 0, countedAt: now }); continue; } // první čtení: nevíme, jestli jde o pád
+    if (!st) { belowState.set(p.name, { below, streak: below ? 1 : 0, countedAt: now, since: below ? now : null }); continue; } // první čtení: nevíme, jestli jde o pád
     if (!below) { st.below = false; st.streak = 0; st.countedAt = now; continue; }
     if (!st.below) { // přechod nad -> pod prahem = pád
-      st.below = true; st.streak = 1; st.countedAt = now;
+      st.below = true; st.streak = 1; st.countedAt = now; st.since = now;
       const auto = cfg.army.auto;
       if (auto.enabled) {
         const own = cfg.players[p.name]?.topTarget;
@@ -72,6 +73,30 @@ function trackBelow(list, raceId, now) {
       }
     } else if (now - st.countedAt >= 400) { st.streak += 1; st.countedAt = now; } // další čtení (dvě okna v téže vteřině se nepočítají dvakrát)
   }
+}
+// statistika dohozů (posledních N dohazování; ukládá se mimo repozitář)
+const STATS_PATH = join(DATA_DIR, 'dohoz-stats.json');
+let statsSaveTimer = null;
+const dohozStats = createDohozStats({
+  keep: cfg.dohozStats.keep,
+  saved: (() => { try { return JSON.parse(readFileSync(STATS_PATH, 'utf8')); } catch { return []; } })(),
+  onChange: (episodes) => {
+    clearTimeout(statsSaveTimer);
+    statsSaveTimer = setTimeout(() => {
+      try { mkdirSync(DATA_DIR, { recursive: true }); writeFileSync(`${STATS_PATH}.tmp`, JSON.stringify(episodes)); renameSync(`${STATS_PATH}.tmp`, STATS_PATH); }
+      catch (e) { console.error('statistika dohozů se neuložila:', e.message); }
+    }, 3000);
+  },
+});
+const statsOn = () => !!cfg.dohozStats.enabled;
+/** Zaznamená zadání dohozu (auto-dohoz i tlačítko) do statistiky: síla před dohozem, kdy hráč spadl pod práh, práh. */
+function statsRequest(name, source, reqId) {
+  if (!statsOn()) return;
+  const f = freshPlayer(name);
+  const raceId = f?.raceId ?? playerRace.get(name);
+  const threshold = raceId ? resolveWatch(cfg, raceId, name).threshold : null;
+  const b = belowState.get(name);
+  dohozStats.requestStarted({ name, source, at: Date.now(), id: reqId ?? null, powerBefore: f?.p.power ?? null, fallAt: b?.below ? b.since ?? null : null, threshold: threshold > 0 ? threshold : null });
 }
 const autoArmyIo = {
   belowStreak(name) { return belowState.get(name)?.streak ?? null; },
@@ -95,10 +120,10 @@ const autoArmyIo = {
     return r && r.id === id ? { status: r.status, error: r.error } : null;
   },
   /** Dohoz nezabral: stránka Rasová armáda se nechá obnovit (po odhlášení/přihlášení bývá zastaralá). */
-  reloadPage() { army.requestReload(); console.log('[dohodit] nezabralo: obnovuji stránku Rasová armáda'); wakeArmy(); },
+  reloadPage(name) { if (statsOn() && name) dohozStats.reloaded(name, Date.now()); army.requestReload(); console.log('[dohodit] nezabralo: obnovuji stránku Rasová armáda'); wakeArmy(); },
   request(name) {
     const r = army.request(name);
-    if (r.ok) { console.log(`[dohodit] auto: ${name}`); wakeArmy(); }
+    if (r.ok) { console.log(`[dohodit] auto: ${name}`); statsRequest(name, 'auto', r.id); wakeArmy(); }
     return r;
   },
 };
@@ -129,7 +154,9 @@ setInterval(() => {
     if (cfg.army.auto.enabled) sendService(cfg, citizen ? '⏸ Auto-dohoz pozastaven: ztratil jsi hodnost (občan nemůže dohazovat). Rozběhne se sám, až ji budeš mít zpět.' : '▶️ Auto-dohoz znovu běží: hodnost je zpět.');
     pushState();
   }
+  if (statsOn()) dohozStats.sweep(Date.now());
   for (const ev of autoArmy.tick(Date.now(), autoArmyIo, !!cfg.army.auto.enabled && !rankPaused)) {
+    if (statsOn() && ev.name && ['done', 'stall', 'max', 'fail'].includes(ev.type)) dohozStats.end(ev.name, Date.now(), ev.type, ev.type === 'done' ? '' : String(ev.error ?? ev.text ?? '').slice(0, 160));
     if (ev.type === 'fail') console.log(`[dohodit] auto selhal (${ev.name}): ${ev.error}`);
     else if (['done', 'stall', 'max', 'breaker'].includes(ev.type)) console.log(`[dohodit] auto ${ev.type}: ${ev.name ?? ''} ${ev.text ?? ''}`);
     if (ev.type === 'breaker') { // pojistka: auto-dohoz se vypne i v nastavení, ať je to vidět a nezapne se samo
@@ -331,7 +358,8 @@ async function handleIngest(req) {
     return { ...p, watched, threshold, critical };
   });
   // cizí rasa: hlídá se „k dobytí“, ne pokles pod práh (stav pravidel se ale vede dál, ať přepnutí nespamuje)
-  if (!attack) trackBelow(resolved, raceId, now); // rychlá větev auto-dohozu: pád se zachytí hned při prvním čtení
+  if (!attack) trackBelow(resolved, raceId, now);
+  if (statsOn()) for (const p of resolved) if (dohozStats.hasOpen(p.name)) dohozStats.power(p.name, p.power, now); // účinek dohozu a návrat nad práh // rychlá větev auto-dohozu: pád se zachytí hned při prvním čtení
   const alerts = evaluate(state, attack ? resolved.map((p) => ({ ...p, watched: false })) : resolved, cfg, now);
   if (attack) {
     for (const ev of conquest.evaluate(raceId, resolved, conquestFor(raceId), now)) {
@@ -483,7 +511,7 @@ function buildState() {
     vigilance: { count: vig.count, lastClickedAt: vig.clickedAt, pendingSince: vig.pending ? vig.seenAt : 0 },
     telescope: tele.snapshot(),
   };
-  return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState, autoArmy: { ...autoArmy.snapshot(now), rankPaused }, sound: cfg.sound, sendStatus: { ...sendStatus }, sessionLog: sessionLog.slice(0, 12), profile: { name: prof.name, uiRev: profRt.uiRev, conflict: profRt.conflict, syncedAt: prof.syncedAt, fileAt: profRt.fileAt }, recalcStats: { military: recalc.count(), economic: econ.count() }, shared: sharedView() };
+  return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState, autoArmy: { ...autoArmy.snapshot(now), rankPaused }, sound: cfg.sound, sendStatus: { ...sendStatus }, sessionLog: sessionLog.slice(0, 12), statsRev: dohozStats.rev, profile: { name: prof.name, uiRev: profRt.uiRev, conflict: profRt.conflict, syncedAt: prof.syncedAt, fileAt: profRt.fileAt }, recalcStats: { military: recalc.count(), economic: econ.count() }, shared: sharedView() };
 }
 
 /** Hlídač výpadku: hlídané rasy a mapa (když je OP alert zapnutý) musí dodávat data. */
@@ -646,6 +674,16 @@ async function shutdownApp() {
 }
 
 const routes = {
+  // statistika dohozů; filtry: source=auto|manual|mixed, name, outcome=ok|bad|…, hours (jen posledních N hodin), slow (jen první dohoz pomalejší než N s)
+  'GET /api/stats': async (req) => {
+    const q = new URL(req.url, 'http://x').searchParams;
+    const snap = dohozStats.snapshot();
+    const now = Date.now();
+    const f = { source: q.get('source') || '', name: q.get('name') || '', outcome: q.get('outcome') || '', sinceMs: q.get('hours') ? now - Number(q.get('hours')) * 3_600_000 : 0, slowMs: q.get('slow') ? Number(q.get('slow')) * 1000 : 0 };
+    const list = filterEpisodes(snap.episodes, f);
+    return [200, { rev: snap.rev, keep: snap.keep, enabled: statsOn(), total: snap.episodes.length, open: filterEpisodes(snap.open, { ...f, outcome: '' }), episodes: list, summary: summarize(list), serverTime: now }];
+  },
+  'DELETE /api/stats': async () => { dohozStats.clear(); pushState(); return [200, { ok: true }]; },
   'POST /api/shutdown': async () => [200, await shutdownApp()],
   'POST /api/share/push': async () => [200, await sharePush()],
   // volá stop.cmd: odešle data jen když je to zapnuté (Nastavení → Data → Přepočty hráčů)
@@ -735,13 +773,19 @@ const routes = {
     if (!authOk(req)) return [401, { error: 'bad token' }];
     const body = await readJson(req);
     army.report({ id: Number(body.id), ok: !!body.ok, error: body.error, retry: !!body.retry });
+    if (statsOn()) {
+      const rid = Number(body.id), nowT = Date.now();
+      if (body.ok) dohozStats.sent(rid, nowT);
+      else if (body.retry && army.status().req?.status === 'pending') dohozStats.retried(rid, nowT);
+      else dohozStats.failed(rid, nowT, body.error);
+    }
     wakeArmy();
     console.log(`[dohodit] ${body.ok ? 'odesláno' : `neodesláno: ${String(body.error ?? '').slice(0, 120)}`}`);
     return [200, { ok: true }];
   },
   'POST /api/army': async (req) => {
     const r = army.request((await readJson(req)).name);
-    if (r.ok) { console.log(`[dohodit] požadavek: ${army.status().req?.name}`); wakeArmy(); }
+    if (r.ok) { console.log(`[dohodit] požadavek: ${army.status().req?.name}`); statsRequest(army.status().req?.name, 'manual', r.id); wakeArmy(); }
     return [r.ok ? 200 : 409, r];
   },
   'GET /api/army': async () => [200, army.status()],
@@ -793,6 +837,7 @@ const routes = {
       playersOfRace: (id) => [...playerRace].filter(([, rid]) => rid === id).map(([name]) => name),
     });
     saveConfig(cfg);
+    dohozStats.setKeep(cfg.dohozStats.keep);
     rebaseline(
       state,
       (name) => resolveWatch(cfg, playerRace.get(name), name).threshold,

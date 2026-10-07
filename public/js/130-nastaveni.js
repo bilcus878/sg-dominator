@@ -24,6 +24,7 @@ function fillForm() {
   fillSession(cfg.session ?? {});
   fillLogin(cfg.login ?? {});
   fillRecalc(cfg.recalc ?? {});
+  $('stEnabled').checked = cfg.dohozStats?.enabled !== false; $('stKeepInput').value = cfg.dohozStats?.keep ?? 200;
   $('opVigEnabled').checked = vg.enabled; $('opVigMin').value = vg.minSec; $('opVigMax').value = vg.maxSec;
   $('opVigSkip').checked = vg.skipEnabled ?? true; $('opSkipMin').value = vg.skipMin ?? 5; $('opSkipMax').value = vg.skipMax ?? 10;
   $('opDownMin').value = vg.downMin ?? 3; $('opDownMax').value = vg.downMax ?? 15;
@@ -169,4 +170,10 @@ $('closeApp').onclick = async () => {
     const share = r.share?.skipped ? '' : r.share?.ok ? (r.share.committed ? ' Data odeslána ostatním.' : ' Nic nového k odeslání.') : ' Odeslání dat se nepovedlo: ' + (r.share?.error ?? '?');
     document.body.innerHTML = '<div style="max-width:560px;margin:18vh auto;padding:0 20px;font:16px system-ui;color:#e7ecf3;text-align:center"><h2>Aplikace je zastavena</h2><p>' + esc(share.trim() || 'Můžeš zavřít tuto kartu.') + '</p><p style="color:#8a94a6">Znovu ji spustíš přes start.cmd.</p></div>';
   } catch (e) { note.textContent = 'Nepovedlo se: ' + e.message; b.disabled = false; }
+};
+
+function collectDohozStats() { return { enabled: $('stEnabled').checked, keep: $('stKeepInput').value }; }
+$('stClear').onclick = async () => {
+  if (!confirm('Vymazat celou statistiku dohozů? Nejde to vrátit.')) return;
+  try { await api('/api/stats', 'DELETE'); toast('Statistika vymazána'); if (typeof stLoad === 'function') stLoad(); } catch (e) { toast(e.message, true); }
 };

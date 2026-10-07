@@ -16,6 +16,7 @@
     <button type="button" class="hbtn" id="viewBtn" aria-haspopup="true" title="Přepnout pohled"><span id="viewLbl">Sledování</span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg><i class="vdot" id="viewDot"></i></button>
     <div class="menu viewmenu" id="viewMenu" hidden>
       <button type="button" class="item navbtn on" data-nav="watch">👁 Sledování</button>
+      <button type="button" class="item navbtn" data-nav="stats">📊 Statistiky</button>
       <button type="button" class="item navbtn" data-nav="build">🏗 Stavění<span class="dot" id="navDot"></span></button>
     </div>
   </div>
@@ -78,6 +79,8 @@
     <div class="board" id="board"></div>
     <div class="card empty big" id="boardEmpty" hidden></div>
   </section>
+
+  <section id="statsBox" data-view="stats" hidden></section>
 
   <section id="buildBox" data-view="build" hidden>
     <div class="bhead"><h2>Stavění planet</h2><span class="pill" id="bStatus">nečinné</span><span class="muted" id="bHint"></span></div>
@@ -317,6 +320,14 @@
         <p class="muted" style="margin-top:0">Když hlídaná rasa (nebo mapa při zapnutém OP) přestane dodávat data, pošle se zpráva do <b>servisního chatu</b>, a další, až se data vrátí. Do hlavní skupiny nejde. Ticho z prohlížeče tak nevypadá jako klid.</p>
         <label for="wdStale">Hlásit po (s) bez dat</label><input type="number" id="wdStale" min="10">
       </div>
+      <div class="chan">
+        <div class="chan-head"><span><b>Statistika dohozů</b></span><label class="sw"><input type="checkbox" id="stEnabled"><span></span></label></div>
+        <p class="muted" style="margin-top:0">Zapisuje každé dohazování hráče (od pádu pod práh): kdy spadl, jak dlouho byl pod prahem, za jak dlouho se odeslal 1. dohoz, další kola a jejich účinek, a kdo dohazoval (automat, nebo tlačítko Dohodit). Najdeš ji v nabídce pohledů nahoře (📊 Statistiky). Ukládá se jen na tomto počítači.</p>
+        <label for="stKeepInput">Kolik posledních dohazování držet (20–1000)</label>
+        <input type="number" id="stKeepInput" min="20" max="1000" step="10">
+        <small class="muted" style="display:block;margin-top:6px">Víc než pár set záznamů nemá smysl a aplikaci nezpomaluje (každý záznam je pár set bajtů).</small>
+        <p style="margin:10px 0 0"><button class="ghost" id="stClear" type="button">Vymazat statistiku dohozů</button></p>
+      </div>
       <div class="chan" style="border-color:var(--acc)">
         <div class="chan-head"><span><b>Profil nastavení</b></span></div>
         <p class="muted" style="margin-top:0">Vyber svůj profil (Jarmil nebo Čmajz). Celé nastavení aplikace (prahy, rasy, alerty, dohoz, útok, přihlášení, přepočty a vzhled) se uloží do souboru <code>profiles/&lt;jméno&gt;.json</code> ve složce projektu, takže se s commitem a pushem přenese na druhý počítač. Tam po pullu aplikace novější profil sama načte.</p>
@@ -491,5 +502,6 @@
 <script src="/js/160-navigace.js"></script>
 <script src="/js/170-staveni.js"></script>
 <script src="/js/180-nezamestnani.js"></script>
+<script src="/js/190-statistiky.js"></script>
 </body>
 </html>

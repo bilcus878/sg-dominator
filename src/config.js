@@ -69,6 +69,7 @@ export const DEFAULTS = {
   session: { ...SESSION_DEFAULTS, notify: { ...SESSION_DEFAULTS.notify } }, // opětovné přihlášení po odhlášení ze hry (skript Přihlášení čte přes /session/config)
   op: { enabled: false, repeatSec: 10, vigilance: { ...VIGILANCE_DEFAULTS }, telescope: { ...TELESCOPE_DEFAULTS } }, // alert na tečky OP na mapě; repeatSec = připomínka, dokud svítí (0 = jen jednou); vigilance = automatické potvrzení tlačítka bdělosti po minSec až maxSec
   conquest: { ...CONQUEST_DEFAULTS }, // cizí rasy: k dobytí pod `below`, konec až nad `above`
+  dohozStats: { enabled: true, keep: 200 }, // statistika dohozů: zapisovat a kolik posledních hotových dohazování držet
   recalc: { shared: true, pushOnStop: true, pullOnStart: true, military: true, economic: true, showMilitary: true, showEconomic: true, econMinGrowthPct: 0.1, hideOlderDays: 0 }, // přepočty hráčů: co se sbírá (military = vynulování Dobyt, economic = odhad z růstu populace), co se ukazuje u jmen, citlivost a stáří
   watchdog: { enabled: true, staleSec: 30 }, // hlášení, že hlídaná rasa / mapa přestala dodávat data
   discord: { enabled: false, webhookUrl: '' },
@@ -111,6 +112,7 @@ export function normalizeConfig(stored) {
   const cfg = merge(DEFAULTS, stored);
   // uložená podobjekty se s výchozími slučují jen mělce, takže chybějící nová pole se doplní tady
   cfg.recalc = { ...DEFAULTS.recalc, ...cfg.recalc };
+  cfg.dohozStats = { ...DEFAULTS.dohozStats, ...cfg.dohozStats };
   cfg.login = { ...DEFAULTS.login, ...cfg.login };
   cfg.session = { ...DEFAULTS.session, ...cfg.session, notify: { ...SESSION_DEFAULTS.notify, ...cfg.session?.notify } };
   cfg.op.vigilance = { ...VIGILANCE_DEFAULTS, ...cfg.op.vigilance };
@@ -325,6 +327,12 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
     if ('above' in body.conquest) c.above = Math.min(1e12, num(body.conquest.above, c.above));
     if (c.above < c.below) c.above = c.below; // konec nikdy pod začátkem
     next.conquest = c;
+  }
+  if (body.dohozStats && typeof body.dohozStats === 'object') {
+    const st = { ...DEFAULTS.dohozStats, ...cur.dohozStats };
+    if ('enabled' in body.dohozStats) st.enabled = !!body.dohozStats.enabled;
+    if ('keep' in body.dohozStats) st.keep = Math.min(1000, Math.max(20, Math.round(num(body.dohozStats.keep, st.keep))));
+    next.dohozStats = st;
   }
   if (body.recalc && typeof body.recalc === 'object') {
     const r = { ...DEFAULTS.recalc, ...cur.recalc };

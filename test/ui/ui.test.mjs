@@ -315,3 +315,30 @@ test('Profil nastavení: uložení do souboru bez tajných věcí, změna a nač
   assert.match(await b.eval(`document.getElementById('profStatus').textContent`), /tester/);
   await b.eval(`document.getElementById('closeSettings').click(); 1`);
 });
+
+test('Statistiky dohozů: pohled v nabídce, přehled, tabulka s rozbalením kol, filtry a nastavení v Data', { skip, timeout: 60_000 }, async () => {
+  const { TOKEN } = await import('./harness.mjs');
+  const raw = (path, body = {}) => fetch(app.base + path, { method: 'POST', headers: { 'x-token': TOKEN, 'content-type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
+  const mk = (low) => ours.map((p, i) => (i === 0 && low ? { ...p, power: 60_000_000 } : p));
+  await app.ingest(20, 'Bedrosian', mk(true)); await sleep(500);
+  await raw('/army/poll?short=1', { inst: 'u' });
+  assert.equal((await app.api('/api/army', 'POST', { name: ours[0].name })).ok, true);
+  const s = await raw('/army/poll?short=1', { inst: 'u' });
+  await sleep(300); await raw('/army/report', { id: s.id, ok: true }); await sleep(300);
+  await app.ingest(20, 'Bedrosian', mk(false)); await sleep(4200);
+  await b.eval(`document.getElementById('viewBtn').click(); document.querySelector('[data-nav=stats]').click(); 1`); await sleep(900);
+  assert.equal(await b.eval(`document.getElementById('statsBox').hidden`), false);
+  assert.equal(await b.eval(`document.querySelectorAll('.st-row').length`) >= 1, true);
+  assert.match(await b.eval(`document.querySelector('.st-row').textContent`), /Ručně/);
+  assert.equal(await b.eval(`document.getElementById('stCards').children.length`), 7, 'přehledové karty');
+  await b.eval(`document.querySelector('.st-row').click(); 1`); await sleep(200);
+  assert.match(await b.eval(`document.querySelector('.st-detail').textContent`), /zabralo/, 'rozbalená kola');
+  await b.eval(`document.querySelector('#stSource [data-v=auto]').click(); 1`); await sleep(700);
+  assert.equal(await b.eval(`document.querySelectorAll('.st-row').length`), 0, 'filtr Auto: ruční dohoz se neukáže');
+  await b.eval(`document.querySelector('#stSource [data-v=""]').click(); 1`); await sleep(700);
+  assert.ok(await b.eval(`document.querySelectorAll('.st-row').length`) >= 1);
+  // nastavení
+  await b.eval(`document.getElementById('openSettings').click(); document.querySelector('[data-tab=data]').click(); 1`); await sleep(300);
+  assert.equal(await b.eval(`document.getElementById('stEnabled').checked`), true);
+  await b.eval(`document.getElementById('closeSettings').click(); document.getElementById('viewBtn').click(); document.querySelector('[data-nav=watch]').click(); 1`);
+});

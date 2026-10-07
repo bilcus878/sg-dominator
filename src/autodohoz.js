@@ -239,7 +239,7 @@ export function createAutoArmy({ rand = Math.random, maxRounds = MAX_ROUNDS, sta
       } else if (age > NOGAIN_MS && !reloadTried.has(name) && io.reloadPage) {
         // nezabralo: nejdřív se stránka Rasová armáda obnoví a až potom se znovu vyplní jednotky a hráč a odešle (jednou)
         reloadTried.add(name);
-        io.reloadPage();
+        io.reloadPage(name);
         watch.delete(name);
         if (ep) ep.rounds = Math.max(0, ep.rounds - 1);
         const dueAt = now + Math.round(randRange(600, 1200));

@@ -60,6 +60,7 @@ $('save').onclick = async () => {
       session: collectSession(),
       login: collectLogin(),
       recalc: collectRecalc(),
+      dohozStats: collectDohozStats(),
       discord: { enabled: $('dEnabled').checked, webhookUrl: $('dUrl').value },
       telegram: { enabled: $('tEnabled').checked, botToken: $('tToken').value, chatId: $('tChat').value, serviceChatId: $('tService').value },
     });
