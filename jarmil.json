@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791377607894,
+  "savedAt": 1791378819891,
   "savedBy": "Jaroslav-ntb",
   "config": {
     "threshold": 100000000,
@@ -315,12 +315,12 @@
       "units": [
         {
           "name": "Bedrosian",
-          "count": 1000000,
+          "count": 2500000,
           "max": false
         },
         {
           "name": "Bedrosianský křižník",
-          "count": 1000,
+          "count": 2500,
           "max": false
         },
         {
