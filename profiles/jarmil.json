@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791331220767,
+  "savedAt": 1791332986651,
   "savedBy": "JarmilPC",
   "config": {
     "threshold": 100000000,
@@ -184,6 +184,8 @@
     },
     "recalc": {
       "shared": true,
+      "pushOnStop": true,
+      "pullOnStart": true,
       "military": true,
       "economic": true,
       "showMilitary": true,
