@@ -13,7 +13,7 @@ import { openDb } from './db.js';
 import { createStore } from './store.js';
 import { createOpTracker } from './op.js';
 import { resolveWatch } from './watch.js';
-import { createWatchdog } from './watchdog.js';
+import { createWatchdog, watchItems } from './watchdog.js';
 import { BUILDINGS, createBuildRun } from './build.js';
 import { createTelescope } from './telescope.js';
 import { createHunt } from './ophunt.js';
@@ -581,14 +581,21 @@ function buildState() {
   return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState, opHunt: hunt.snapshot(now), autoArmy: { ...autoArmy.snapshot(now), rankPaused }, sound: cfg.sound, sendStatus: { ...sendStatus }, sessionLog: sessionLog.slice(0, 12), statsRev: dohozStats.rev, profile: { name: prof.name, uiRev: profRt.uiRev, conflict: profRt.conflict, syncedAt: prof.syncedAt, fileAt: profRt.fileAt }, recalcStats: { military: recalc.count(), economic: econ.count() }, shared: sharedView() };
 }
 
+/** Panely otevřené v oknech Dominatoru: okno je každých ~30 s hlásí (/api/panels); rasa bez otevřeného panelu a mimo naši rasu se nehlídá. */
+const openPanels = new Map(); // id okna -> { ids:Set, at }
+const PANELS_TTL_MS = 150_000; // skryté okno hlásí pomalu
+function panelOpen(id, now) {
+  for (const [win, w] of openPanels) {
+    if (now - w.at > PANELS_TTL_MS) { openPanels.delete(win); continue; }
+    if (w.ids.has(String(id))) return true;
+  }
+  return false;
+}
+
 /** Hlídač výpadku: hlídané rasy a mapa (když je OP alert zapnutý) musí dodávat data. */
 function watchdogTick(now = Date.now()) {
   if (!cfg.watchdog.enabled) return;
-  const items = [];
-  for (const [id, r] of Object.entries(cfg.races)) {
-    if (r.mode !== 'off') items.push({ key: `race:${id}`, name: `Rasa ${r.name}`, at: raceLastAt.get(id) ?? 0 });
-  }
-  if (cfg.op.enabled) items.push({ key: 'op', name: 'Mapa (OP)', at: opLastAt });
+  const items = watchItems(cfg, (id) => panelOpen(id, now), (id) => raceLastAt.get(id) ?? 0, opLastAt);
   for (const ev of watchdog.check(items, now, { staleMs: cfg.watchdog.staleSec * 1000 })) {
     const a = { name: ev.name, power: 0, prev: null, reason: ev.type, race: null, ageMs: ev.ageMs };
     db.recordAlert(now, a);
@@ -934,6 +941,13 @@ const routes = {
     return buildView();
   },
   'GET /api/config': async () => [200, publicConfig(cfg)],
+  'POST /api/panels': async (req) => { // okno Dominatoru hlásí, které rasy má otevřené jako panel (pro hlídání výpadku dat)
+    const body = await readJson(req, 4096);
+    const win = String(body.win ?? '').slice(0, 40);
+    if (!win || !Array.isArray(body.ids) || body.ids.length > 100) return [400, { error: 'invalid payload' }];
+    openPanels.set(win, { ids: new Set(body.ids.map(String).filter((x) => /^\d{1,6}$/.test(x))), at: Date.now() });
+    return [200, { ok: true }];
+  },
   'PUT /api/config': async (req) => {
     cfg = sanitizeUpdate(cfg, await readJson(req), {
       playersOfRace: (id) => [...playerRace].filter(([, rid]) => rid === id).map(([name]) => name),

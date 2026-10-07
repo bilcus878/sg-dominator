@@ -396,6 +396,18 @@ function updatePanel(id) {
     : !items.length ? 'Čekám na data z okna s touto rasou.' : 'Nic neodpovídá filtru.';
 }
 
+/** Okno hlásí serveru, které rasy má otevřené jako panel: server hlídá výpadek dat jen u těchto ras a u naší rasy. */
+const winId = Math.random().toString(36).slice(2, 10);
+let panelsSent = '';
+function reportPanels(force) {
+  const ids = (panels ?? []).filter((id) => /^\d+$/.test(String(id))).map(String).sort();
+  const key = ids.join(',');
+  if (!force && key === panelsSent) return;
+  panelsSent = key;
+  api('/api/panels', 'POST', { win: winId, ids }).catch(() => { panelsSent = ''; });
+}
+setInterval(() => reportPanels(true), 30_000); // průběžně, ať server pozná, že okno žije
+
 function renderBoard() {
   // první spuštění: panely pro rasy, které se už hlídají
   if (panels === null) {
@@ -406,6 +418,7 @@ function renderBoard() {
   panels = panels.filter((id, i) => panels.indexOf(id) === i);
   for (const id of panels) if (!view.has(id)) view.set(id, buildPanel(id));
   for (const [id, v] of view) if (!panels.includes(id)) { v.root.remove(); view.delete(id); }
+  reportPanels(false);
 
   // sloupce: sbalené panely drží pohromadě s následujícím rozbaleným panelem, který se jim zařadí pod ně
   // (sbalíš Aschen a Bedrosian skočí pod něj; rozbalíš a Bedrosian se vrátí doprava)

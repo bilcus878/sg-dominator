@@ -52,3 +52,15 @@ test('zdroj, který se přestal sledovat, se zapomene bez hlášení', () => {
   assert.deepEqual(w.check([], 45_000, O), []);
   assert.equal(w.isDown('race:20'), false);
 });
+
+import { watchItems } from '../src/watchdog.js';
+test('hlídají se jen naše rasa a rasy otevřené jako panel; zavřená cizí rasa (Ašeni) hlášení nevyvolá', () => {
+  const cfg = { races: { 20: { name: 'Bedrosian', mode: 'all', role: 'defend' }, 3: { name: 'Ašeni', mode: 'all', role: 'attack' }, 7: { name: 'Vyvrhel', mode: 'all', role: 'attack' }, 9: { name: 'X', mode: 'off', role: 'defend' } }, op: { enabled: false } };
+  const at = () => 1000;
+  const keys = (open) => watchItems(cfg, (id) => open.includes(String(id)), at, 0).map((i) => i.key);
+  assert.deepEqual(keys([]), ['race:20'], 'bez otevřeného panelu jen naše rasa');
+  assert.deepEqual(keys(['3']).sort(), ['race:20', 'race:3'], 'otevřený panel Ašenů se hlídá');
+  assert.deepEqual(keys(['9']), ['race:20'], 'vypnutá rasa se nehlídá ani s panelem');
+  cfg.op.enabled = true;
+  assert.ok(watchItems(cfg, () => false, at, 5).some((i) => i.key === 'op' && i.at === 5), 'mapa se hlídá, když je OP zapnuté');
+});
