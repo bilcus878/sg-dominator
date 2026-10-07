@@ -78,9 +78,10 @@ export async function sendText(cfg, text, log = console) {
  * Systémové zprávy (výpadek dat, bdělost, teleskop, stavění…) jen do servisního chatu Telegramu.
  * Bez vyplněného servisního chatu se nepošlou nikam (hlavní skupina je jen pro herní události).
  */
-export async function sendService(cfg, text, log = console) {
+export async function sendService(cfg, text, log = console, { critical = false } = {}) {
   const chatId = cfg.telegram.serviceChatId;
-  if (!notifyOn(cfg, 'service')) return { sent: 0, total: 0 }; // hlavní vypínač nebo vypnuté systémové zprávy
+  // hlavní vypínač a vypnuté systémové zprávy; kritická výstraha (ztráta hodnosti) jde i při vypnutých systémových zprávách, jen ne při hlavním ztlumení
+  if (critical ? cfg.notify === false : !notifyOn(cfg, 'service')) return { sent: 0, total: 0 };
   if (!cfg.telegram.enabled || !cfg.telegram.botToken || !chatId) return { sent: 0, total: 0 };
   try {
     await post(`https://api.telegram.org/bot${cfg.telegram.botToken}/sendMessage`, { chat_id: chatId, text: `🛠 ${text}` });

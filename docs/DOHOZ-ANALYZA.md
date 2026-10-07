@@ -81,6 +81,8 @@ neposouvají termíny. Ostatní pojistky (čerstvá data, ověřování, hodinov
 
 **Hodnost.** Občan (modré jméno) nemůže posílat armádu, takže se při ztrátě hodnosti zastaví dohazování VŠEM hráčům (odesílá se mým účtem). Když je moje jméno vedené jako občan, auto-dohoz se pozastaví (zruší rozjeté dohozy, v Nastavení → Dohoz je vidět „Pozastaveno“, do servisního chatu přijde zpráva) a samo se rozběhne, až budu zase ministr/zástupce/vůdce. Neznámá hodnost nepozastavuje.
 
+**Výstraha při ztrátě hodnosti.** Ve chvíli, kdy se stanu občanem, přijde do servisního chatu velká zpráva (🚨🚨🚨 POZOR, občan nemůže posílat armádu, auto-dohoz zastaven pro všechny). Opakuje se každých 10 minut, dokud hodnost není zpět; když odeslání selže, zkouší se po 30 s znovu. Jde i když je auto-dohoz vypnutý a i když mám vypnuté systémové zprávy (kritická zpráva je obchází; platí jen hlavní ztlumení). Po návratu hodnosti přijde potvrzení. V aplikaci svítí červeně přepínač AUTO v panelech.
+
 ## 4c. Co se píše do chatu
 
 Do hlavní skupiny se o auto-dohozu **nikdy nic neposílá**: tam jdou jen herní alerty (pád pod práh apod.) jako dřív, takže to vypadá, že dohazuje člověk.

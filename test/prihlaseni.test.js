@@ -70,3 +70,21 @@ test('uložené heslo ke hře: prázdné pole nic nemění, smazání funguje a 
   const c = sanitizeUpdate(b, { login: { clearPassword: true, enabled: false } });
   assert.equal(c.login.password, ''); assert.equal(c.login.enabled, false);
 });
+
+import { sendService } from '../src/notifiers.js';
+test('kritická výstraha (ztráta hodnosti) obejde vypnuté systémové zprávy, ne hlavní ztlumení', async () => {
+  const cfg = (extra) => ({ notify: true, notifyTypes: { service: false }, telegram: { enabled: false, botToken: '', serviceChatId: '' }, ...extra });
+  // bez nastaveného Telegramu se nic neposílá, ale nepadá to; rozdíl je v tom, co se dostane k odeslání
+  assert.deepEqual(await sendService(cfg(), 'x'), { sent: 0, total: 0 });
+  assert.deepEqual(await sendService(cfg(), 'x', console, { critical: true }), { sent: 0, total: 0 });
+  const calls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (u, o) => { calls.push(JSON.parse(o.body).text); return { ok: true, json: async () => ({ ok: true }), text: async () => '{}' }; };
+  try {
+    const tg = { enabled: true, botToken: 't', serviceChatId: '1' };
+    assert.equal((await sendService(cfg({ telegram: tg }), 'běžná')).sent, 0, 'běžná servisní zpráva při vypnutých systémových zprávách nejde');
+    assert.equal((await sendService(cfg({ telegram: tg }), 'KRITICKÁ', console, { critical: true })).sent, 1, 'kritická jde');
+    assert.equal((await sendService(cfg({ telegram: tg, notify: false }), 'ticho', console, { critical: true })).sent, 0, 'hlavní ztlumení platí');
+  } finally { globalThis.fetch = realFetch; }
+  assert.equal(calls.length, 1);
+});

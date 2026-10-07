@@ -146,14 +146,41 @@ function ownRankIsCitizen() {
   if (!raceId) return false;
   return store.snapshot(raceId, Date.now()).players.find((x) => x.name === me)?.rank === 'obcan';
 }
-setInterval(() => {
+/**
+ * Výstraha ve chvíli, kdy přijdu o hodnost: velká zpráva do servisního chatu hned, opakuje se každých 10 min, dokud hodnost není zpět,
+ * a když odeslání selže (Telegram nedostupný), zkouší se dál po 30 s. Posílá se i když je auto-dohoz vypnutý (bez hodnosti nejde dohazovat ani ručně).
+ */
+const RANK_REMIND_MS = 10 * 60_000, RANK_RETRY_MS = 30_000;
+let rankLostAt = 0, rankNextWarn = 0, rankWarnBusy = false;
+function rankWarning(now) {
+  const mins = Math.round((now - rankLostAt) / 60_000);
+  const first = rankNextWarn === rankLostAt;
+  return `🚨🚨🚨 POZOR! ${first ? 'ZTRATIL JSI HODNOST' : `STÁLE BEZ HODNOSTI (už ${mins} min)`}: jsi OBČAN (modré jméno), a občan NEMŮŽE POSÍLAT ARMÁDU!\n`
+    + (cfg.army.auto.enabled ? '⛔ AUTO-DOHOZ JE ZASTAVENÝ pro všechny hráče, nikdo se nedohodí, dokud si hodnost nevrátíš (ministr/zástupce/vůdce).' : 'Dohazovat nejde ani ručně, dokud si hodnost nevrátíš.')
+    + '\nAuto-dohoz se po návratu hodnosti rozběhne sám.';
+}
+function rankTick(now) {
   const citizen = ownRankIsCitizen();
   if (citizen !== rankPaused) {
     rankPaused = citizen;
-    console.log(`[dohodit] auto ${citizen ? 'pozastaven: nemáš hodnost (občan)' : 'znovu spuštěn: hodnost je zpět'}`);
-    if (cfg.army.auto.enabled) sendService(cfg, citizen ? '⏸ Auto-dohoz pozastaven: ztratil jsi hodnost (občan nemůže dohazovat). Rozběhne se sám, až ji budeš mít zpět.' : '▶️ Auto-dohoz znovu běží: hodnost je zpět.');
+    console.log(`[dohodit] ${citizen ? 'POZOR: ztráta hodnosti (občan), auto-dohoz pozastaven' : 'hodnost je zpět, auto-dohoz znovu běží'}`);
+    if (citizen) { rankLostAt = now; rankNextWarn = now; } // varování se odešle níže
+    else {
+      rankNextWarn = 0;
+      sendService(cfg, `✅ Hodnost je zpět${cfg.army.auto.enabled ? ', auto-dohoz znovu běží' : ''}.`, console, { critical: true });
+    }
     pushState();
   }
+  if (rankPaused && now >= rankNextWarn && !rankWarnBusy) {
+    rankWarnBusy = true;
+    const text = rankWarning(now);
+    sendService(cfg, text, console, { critical: true }).then((r) => {
+      rankNextWarn = r.sent > 0 || r.total === 0 ? now + RANK_REMIND_MS : now + RANK_RETRY_MS; // nic se neposílá (není chat/ztlumeno) = nezkoušet dokola; selhání = zkusit brzy znovu
+    }).catch(() => { rankNextWarn = now + RANK_RETRY_MS; }).finally(() => { rankWarnBusy = false; });
+  }
+}
+setInterval(() => {
+  rankTick(Date.now());
   if (statsOn()) dohozStats.sweep(Date.now());
   for (const ev of autoArmy.tick(Date.now(), autoArmyIo, !!cfg.army.auto.enabled && !rankPaused)) {
     if (statsOn() && ev.name && ['done', 'stall', 'max', 'fail'].includes(ev.type)) dohozStats.end(ev.name, Date.now(), ev.type, ev.type === 'done' ? '' : String(ev.error ?? ev.text ?? '').slice(0, 160));
