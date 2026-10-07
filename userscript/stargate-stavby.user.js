@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – stavění
 // @namespace    sg-dominator
-// @version      1.5.0
+// @version      1.6.0
 // @description  Na pokyn z aplikace vyplní počty staveb, klikne na Postavit a přejde na další planetu klikem v tabulce planet (pomalu a nepravidelně, jako člověk)
 // @match        https://stargate-game.cz/stavby.php*
 // @match        https://www.stargate-game.cz/stavby.php*
@@ -30,7 +30,7 @@
   const pause = (ms) => sleep(Math.max(40, ms * (1 + gauss() * 0.3)) + (Math.random() < 0.06 ? rnd(1500, 4500) * Math.min(1, tempo) : 0));
 
   // ---------- komunikace se serverem ----------
-  const VERSION = '1.5.0'; // stejné jako @version; server podle ní pozná zastaralý skript
+  const VERSION = '1.6.0'; // stejné jako @version; server podle ní pozná zastaralý skript
 
   /** Hláška přímo na stránce (např. zastaralý skript). Stejný text se neopakuje; křížek ji zavře. */
   let bannerText = '';
@@ -165,7 +165,12 @@
       const mCell = tr.cells[TABLE_COLS.mesto];
       const mestaLink = !!mCell?.querySelector('a.stavby-max');
       const mestaMax = mestaLink ? num(mCell.querySelector('a.stavby-max').textContent) : undefined;
-      return { id: tr.id.slice(3), name: tr.querySelector('.nazev-planety a')?.textContent.trim(), tag, uninhabitable, free: num(tr.cells[1]?.textContent), c, mestaLink, mestaMax };
+      // Výrobny „70 345 / 74 983“: stejně zelené číslo (odkaz .stavby-max) postaví maximum výroben jedním klikem
+      const vCell = tr.cells[TABLE_COLS.vyrobna];
+      const vLink = vCell?.querySelector('a.stavby-max');
+      const vyrobnaLink = !!vLink;
+      const vyrobnaMax = vyrobnaLink ? num(vLink.textContent) : undefined;
+      return { id: tr.id.slice(3), name: tr.querySelector('.nazev-planety a')?.textContent.trim(), tag, uninhabitable, free: num(tr.cells[1]?.textContent), c, mestaLink, mestaMax, vyrobnaLink, vyrobnaMax };
     }).filter((r) => r.id && r.name);
   }
 
@@ -322,11 +327,13 @@
   /** Přechod na jinou planetu klikem na její název v tabulce pod stavěním. */
   async function goPlanet(ins) {
     const speed = Math.min(2.5, Math.max(0.25, Number(ins.speed) || 1));
-    // města přes zelené číslo v tabulce: jedním klikem postaví maximum měst a zároveň otevře planetu
-    const cityLink = ins.viaCities ? document.querySelector(`#pl-${CSS.escape(String(ins.plId))} a.stavby-max`) : null;
-    if (cityLink && cityLink.closest('td') === document.querySelector(`#pl-${CSS.escape(String(ins.plId))}`)?.cells[TABLE_COLS.mesto]) {
-      const add = Math.max(0, Number(ins.cityAdd) || 0);
-      const price = num(document.getElementById('mesto')?.closest('.stavba')?.querySelector('.cena')?.textContent);
+    // zelené číslo v tabulce (města / výrobny): jedním klikem postaví maximum a zároveň otevře planetu; jde to jen u měst a výroben
+    const via = ins.viaMines ? { id: 'vyrobna', col: TABLE_COLS.vyrobna, add: ins.mineAdd } : ins.viaCities ? { id: 'mesto', col: TABLE_COLS.mesto, add: ins.cityAdd } : null;
+    const viaRow = via ? document.querySelector(`#pl-${CSS.escape(String(ins.plId))}`) : null;
+    const viaLink = viaRow?.cells[via.col]?.querySelector('a.stavby-max');
+    if (viaLink) {
+      const add = Math.max(0, Number(via.add) || 0);
+      const price = num(document.getElementById(via.id)?.closest('.stavba')?.querySelector('.cena')?.textContent);
       const nq = naquadah();
       if (nq !== null && Number.isFinite(price) && add * price > nq) {
         return await post('/build/report', { phase: 'nofunds', cost: add * price, naquadah: nq, planet: ins.name, plId: ins.plId, buildings: {}, uninhabitable: false });
@@ -334,7 +341,7 @@
       if (!(await stillActive())) return null;
       await pause(rnd(900, 2600) * speed);
       holdUntil = Date.now() + 25000;
-      await clickEl(cityLink, speed);
+      await clickEl(viaLink, speed);
       return null;
     }
     const a = document.querySelector(`#pl-${CSS.escape(String(ins.plId))} .nazev-planety a`);

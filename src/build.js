@@ -184,6 +184,16 @@ export function buildQueue(table, cfgBuild, ledgerPlanets = {}, forceAll = false
     if (why.includes('mesto') && row.mestaLink && wantsMax && Number.isFinite(row.mestaMax) && row.c.mesto >= 0) {
       item.viaCities = true;
       item.cityAdd = Math.max(0, row.mestaMax - row.c.mesto);
+      item.cityBefore = row.c.mesto; item.cityMax = row.mestaMax;
+    }
+    // jen výrobny (nic jiného na planetě netřeba): rychle klikem na zelené maximum v seznamu, bez otevírání formuláře a psaní čísel;
+    // když je na planetě potřeba i něco dalšího (parky, ostatní stavby), jde se na planetu a staví se normálně (výrobny se doplní nakonec)
+    const pv = cfgBuild.plan?.vyrobna;
+    const minesMax = pv?.mode === 'max' || (pv?.mode === 'target' && Number.isFinite(row.vyrobnaMax) && pv.n >= row.vyrobnaMax);
+    if (why.length === 1 && why[0] === 'vyrobna' && stage !== 'cities' && row.vyrobnaLink && minesMax && Number.isFinite(row.vyrobnaMax) && row.c.vyrobna >= 0 && row.vyrobnaMax > row.c.vyrobna) {
+      item.viaMines = true;
+      item.mineAdd = row.vyrobnaMax - row.c.vyrobna;
+      item.mineBefore = row.c.vyrobna; item.mineMax = row.vyrobnaMax;
     }
     if (stage === 'auto' && why.includes('mesto')) cityItems.push({ ...item, why: ['mesto'], phases: [0] });
     queue.push(item);
@@ -205,6 +215,7 @@ function normalizeTable(raw) {
     sat: r.sat === undefined ? undefined : r.sat === null ? null : opt(r.sat) ?? undefined,
     c: Object.fromEntries(COUNT_IDS.map((id) => [id, Number.isFinite(Number(r.c?.[id])) && r.c?.[id] !== null ? Number(r.c[id]) : -1])),
     mestaLink: r.mestaLink === true, mestaMax: opt(r.mestaMax), // zelené číslo u měst v tabulce = postavit maximum jedním klikem
+    vyrobnaLink: r.vyrobnaLink === true, vyrobnaMax: opt(r.vyrobnaMax), // totéž u výroben (naquadahového dolu)
   }));
   return { table, valid: valid.length, excluded: valid.length - allowed.length };
 }
@@ -306,8 +317,10 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
         addLog(`${head.name}: nepodařilo se na ni přejít, přeskočeno`, now);
         continue;
       }
-      const via = head.viaCities && tries === 1 ? { viaCities: true, cityAdd: head.cityAdd } : {}; // při opakovaném pokusu už normálně přes název
-      if (via.viaCities) addLog(`${head.name}: města přes zelené maximum v tabulce (+${head.cityAdd})`, now);
+      let via = {}; // při opakovaném pokusu už normálně přes název
+      if (tries === 1 && head.viaCities) { via = { viaCities: true, cityAdd: head.cityAdd }; addLog(`${head.name}: města přes zelené maximum v tabulce (+${head.cityAdd})`, now); }
+      else if (tries === 1 && head.viaMines) { via = { viaMines: true, mineAdd: head.mineAdd }; addLog(`${head.name}: výrobny přes zelené maximum v tabulce (+${head.mineAdd}), bez otevírání formuláře`, now); }
+      run.via = via.viaCities || via.viaMines ? { plId: head.id, id: via.viaMines ? 'vyrobna' : 'mesto', phase: via.viaMines ? 2 : 0, before: via.viaMines ? head.mineBefore : head.cityBefore, max: via.viaMines ? head.mineMax : head.cityMax } : null;
       return { action: 'goto', plId: head.id, name: head.name, speed: speed(cfgBuild), ...via };
     }
   }
@@ -468,6 +481,19 @@ export function createBuildRun({ notify = () => {}, rand = Math.random, ledger =
       run.cur = { id: plId, name, sat, phase: 0, grew: [], dry: [], failed: null, note: '', noted: false, tried: {}, phases: head.phases ?? null };
     }
     const cur = run.cur;
+    if (run.via && run.via.plId === plId && !cur.viaChecked) { // planeta se otevřela po kliku na zelené maximum: zkontrolovat, že se opravdu postavilo
+      const v = run.via; run.via = null; cur.viaChecked = true;
+      const now_ = rep.buildings[v.id]?.cur;
+      if (Number.isFinite(now_) && Number.isFinite(v.before)) {
+        if (now_ > v.before) {
+          cur.grew.push(v.phase);
+          if (Number.isFinite(v.max) && now_ < v.max) { cur.tried[v.id] = v.max; cur.note = `${PHASES[v.phase].name}: jen část (${now_}/${v.max})`; }
+        } else if (!cur.phases || cur.phases.includes(v.phase)) {
+          cur.failed = `${PHASES[v.phase].name}: zelené maximum v tabulce nic nepostavilo (málo surovin?)`;
+          return completePlanet(cfgBuild, now, rep);
+        }
+      }
+    }
 
     if (rep.phase === 'filled' && run.pending?.id === plId) { // zkušební běh: vyplněno, nic se neodeslalo
       cur.dry.push(run.pending.phase);

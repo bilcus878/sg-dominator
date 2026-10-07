@@ -524,3 +524,64 @@ test('města přes zelené maximum: při cíli pod maximem se odkaz nepoužije (
   assert.equal(ins.action, 'goto');
   assert.equal(ins.viaCities, undefined);
 });
+
+// ---------- výrobny přes zelené maximum v seznamu planet ----------
+
+test('výrobny přes zelené maximum: když planeta potřebuje JEN výrobny a plán chce maximum, jde se klikem v seznamu (bez formuláře)', () => {
+  const run = mkRun();
+  const c = cfg({ plan: { vyrobna: { mode: 'max', n: 0 } } });
+  run.start(c, 0);
+  run.report(rep('1', { phase: 'load' }), c, 1);
+  const t = [{ ...row('2', { vyrobna: 70_345 }), vyrobnaLink: true, vyrobnaMax: 74_983 }];
+  const ins = run.report(rep('1', { phase: 'table', table: t }), c, 2);
+  assert.equal(ins.action, 'goto');
+  assert.equal(ins.plId, '2');
+  assert.equal(ins.viaMines, true);
+  assert.equal(ins.mineAdd, 4_638);
+});
+
+test('výrobny přes zelené maximum: když je na planetě potřeba i něco dalšího (parky, laboratoř…), jde se na planetu a staví se normálně', () => {
+  const run = mkRun();
+  const c = cfg({ plan: { vyrobna: { mode: 'max', n: 0 }, laborator: { mode: 'target', n: 50 } } });
+  run.start(c, 0);
+  run.report(rep('1', { phase: 'load' }), c, 1);
+  const t = [{ ...row('2', { vyrobna: 70_345, laborator: 0 }), vyrobnaLink: true, vyrobnaMax: 74_983 }];
+  const ins = run.report(rep('1', { phase: 'table', table: t }), c, 2);
+  assert.equal(ins.action, 'goto');
+  assert.equal(ins.viaMines, undefined, 'laboratoř se musí vyplnit na planetě');
+});
+
+test('výrobny přes zelené maximum: při cíli pod maximem nebo bez odkazu se nepoužije', () => {
+  for (const [plan, extra] of [[{ vyrobna: { mode: 'target', n: 60_000 } }, { vyrobnaLink: true, vyrobnaMax: 74_983 }], [{ vyrobna: { mode: 'max', n: 0 } }, { vyrobnaLink: false }]]) {
+    const run = mkRun();
+    const c = cfg({ plan });
+    run.start(c, 0);
+    run.report(rep('1', { phase: 'load' }), c, 1);
+    const ins = run.report(rep('1', { phase: 'table', table: [{ ...row('2', { vyrobna: 50_000 }), ...extra }] }), c, 2);
+    assert.equal(ins.action, 'goto');
+    assert.equal(ins.viaMines, undefined);
+  }
+});
+
+test('výrobny přes zelené maximum: po otevření planety se ověří, že se postavilo; planeta je hotová bez dalšího vyplňování; nepostavilo = selhání', () => {
+  const mk = () => {
+    const run = mkRun();
+    const c = cfg({ plan: { vyrobna: { mode: 'max', n: 0 } } });
+    run.start(c, 0);
+    run.report(rep('1', { phase: 'load' }), c, 1);
+    const ins = run.report(rep('1', { phase: 'table', table: [{ ...row('2', { vyrobna: 100 }), vyrobnaLink: true, vyrobnaMax: 500 }] }), c, 2);
+    assert.equal(ins.viaMines, true);
+    return { run, c };
+  };
+  // postavilo se na maximum
+  let { run, c } = mk();
+  let after = run.report(rep('2', { phase: 'load', buildings: page({ vyrobna: { cur: 500, max: 500 } }) }), c, 3);
+  assert.notEqual(after.action, 'build', 'nic dalšího se nevyplňuje');
+  assert.equal(run.snapshot().planets.at(-1).state, 'built');
+  assert.match(run.snapshot().planets.at(-1).note, /naquadahový důl/);
+  // nepostavilo se nic (málo surovin): selhání, ne tichý úspěch
+  ({ run, c } = mk());
+  after = run.report(rep('2', { phase: 'load', buildings: page({ vyrobna: { cur: 100, max: 500 } }) }), c, 3);
+  assert.equal(run.snapshot().planets.at(-1).state, 'failed');
+  assert.match(run.snapshot().planets.at(-1).note, /nic nepostavilo/);
+});
