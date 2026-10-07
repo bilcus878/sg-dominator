@@ -392,3 +392,25 @@ test('Nastavení → Vzhled: živý náhled, téma, akcentní barva, největší
   assert.equal(await b.eval(`getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()`), acc0, 'výchozí barva zpět');
   await b.eval(`document.getElementById('closeSettings').click(); 1`);
 });
+
+test('hlavička: přepínače OP, 🎯 chytání a 📣 alerty do skupiny jsou nezávislé a hlavička zůstane štíhlá', { skip, timeout: 30_000 }, async () => {
+  const r = await b.eval(`(() => { // vše v jednom kroku: server mezitím posílá nový stav a přepsal by testovací
+    const out = {};
+    const base = { at: Date.now(), dots: [], vigilance: { count: 0, lastClickedAt: 0, pendingSince: 0 }, telescope: {} };
+    const read = () => ({ op: $('opMaster').checked, hunt: $('opHuntMaster').checked, alert: $('opAlertMaster').checked, tag: !$('opHuntTag').hidden, dim: $('opHuntTgl').classList.contains('off') });
+    cfg.notifyTypes = { ...cfg.notifyTypes, op: undefined }; delete cfg.notifyTypes.op;
+    S.op = { ...base, enabled: true, hunt: { enabled: true, dryRun: true } }; renderOp(); out.dry = read();
+    S.op = { ...base, enabled: true, hunt: { enabled: true, dryRun: false } }; renderOp(); out.live = read();
+    S.op = { ...base, enabled: false, hunt: { enabled: true, dryRun: false } }; renderOp(); out.opOff = read();
+    S.op = { ...base, enabled: true, hunt: { enabled: false, dryRun: false } }; cfg.notifyTypes.op = false; renderOp(); out.noAlert = read();
+    out.header = document.querySelector('header').getBoundingClientRect().height;
+    out.order = [...document.querySelectorAll('.statpill > *')].map((e) => e.id || e.className).join('>');
+    return out;
+  })()`);
+  assert.deepEqual(r.dry, { op: true, hunt: true, alert: true, tag: true, dim: false }, 'chytání ve zkušebním režimu má štítek test');
+  assert.deepEqual(r.live, { op: true, hunt: true, alert: true, tag: false, dim: false });
+  assert.deepEqual(r.opOff, { op: false, hunt: false, alert: true, tag: false, dim: true }, 'bez OP chytání nejede (ani když je v nastavení zapnuté)');
+  assert.deepEqual(r.noAlert, { op: true, hunt: false, alert: false, tag: false, dim: false }, 'alerty do skupiny jdou vypnout zvlášť');
+  assert.ok(r.header < 70, 'hlavička zůstala štíhlá');
+  assert.match(r.order, /opTgl.*opHuntTgl.*opAlertTgl/);
+});

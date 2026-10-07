@@ -608,7 +608,10 @@
   header .bar { gap:10px; min-height:50px; }
   .statpill { display:flex; align-items:center; height:34px; background:var(--card2); border:1px solid var(--line); border-radius:9px; overflow:visible; }
   .statpill .hlwrap { display:flex; } .statpill .hbtn.sq { border:0; background:transparent; width:34px; height:32px; border-radius:8px 0 0 8px; } .statpill .hbtn.sq:hover { background:rgba(255,255,255,.05); }
-  .statpill .optgl { border:0; border-left:1px solid var(--line); background:transparent; border-radius:0 8px 8px 0; height:32px; }
+  .statpill .optgl { border:0; border-left:1px solid var(--line); background:transparent; border-radius:0; height:32px; }
+  .statpill .optgl:last-child { border-radius:0 8px 8px 0; }
+  .statpill .optgl.sub { padding:0 9px 0 7px; gap:6px; } .optgl.sub b { font-size:14px; letter-spacing:0; } .optgl .dtag { font-size:10px; color:var(--acc); text-transform:uppercase; letter-spacing:.04em; }
+  .optgl.sub.off { opacity:.5; }
   .mainwrap { position:relative; }
   .mbtn { padding:0 12px; gap:9px; min-width:0; } .mbtn[aria-expanded=true] { border-color:var(--acc); }
   .mbtn .albadge { position:absolute; top:-7px; right:-7px; }
@@ -680,3 +683,6 @@
   .lk-dens button:hover { border-color:#3d475a; } .lk-dens button.on { border-color:var(--acc); box-shadow:0 0 0 1px var(--acc) inset; background:var(--acc-soft, color-mix(in srgb, var(--acc) 6%, transparent)); }
   .lk-presets { display:flex; gap:8px; margin-top:10px; } .lk-presets button.on { border-color:var(--acc); color:var(--fg); }
   @media (max-width:560px) { .lk-themes { grid-template-columns:1fr; } .lk-dens { grid-template-columns:repeat(2, 1fr); } }
+
+/* úzká okna: čip OP bez stáří dat, ať se nepřekrývá s přepínači OP / 🎯 / 📣 */
+@media (max-width:820px) { #opChipAge { display:none; } .dstat { flex:0 0 auto; } }

@@ -567,7 +567,7 @@ function buildState() {
   const recent = ingestTimes.filter((t) => t > now - 10_000);
   const ratePerSec = recent.length ? recent.length / Math.min(10, (now - recent[0]) / 1000 + 1) : 0;
   const opState = {
-    enabled: cfg.op.enabled, at: opLastAt, dots: op.current(now),
+    enabled: cfg.op.enabled, at: opLastAt, dots: op.current(now), hunt: { enabled: !!cfg.op.hunt?.enabled, dryRun: cfg.op.hunt?.dryRun !== false },
     vigilance: { count: vig.count, lastClickedAt: vig.clickedAt, pendingSince: vig.pending ? vig.seenAt : 0 },
     telescope: tele.snapshot(),
   };

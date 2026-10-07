@@ -59,6 +59,15 @@ function renderOp() {
   }
   if (document.activeElement !== $('opMaster')) $('opMaster').checked = !!op.enabled;
   $('opTgl').classList.toggle('on', !!op.enabled);
+  { // chytání OP (🎯) a alerty do skupiny (📣): vlastní přepínače vedle OP
+    const h = op.hunt ?? {};
+    if (document.activeElement !== $('opHuntMaster')) $('opHuntMaster').checked = !!h.enabled && !!op.enabled;
+    $('opHuntTgl').classList.toggle('on', !!h.enabled && !!op.enabled);
+    $('opHuntTgl').classList.toggle('off', !op.enabled);
+    $('opHuntTag').hidden = !(h.enabled && op.enabled && h.dryRun);
+    $('opHuntTgl').title = 'Chytat OP: bot sám otevře sektor s OP, najde pravou tečku a osídlí planetu.' + (h.dryRun ? ' Teď je ZKUŠEBNÍ režim: bot jen projde cestu a pošle zprávu, nekliká na Získat souřadnice (vypne se v Nastavení → OP).' : ' Ostrý režim: bot opravdu osídlí.') + ' Zapnutím se zapne i OP, vypnutím OP se chytání vypne.';
+    renderOpAlertToggle();
+  }
   const v = op.vigilance;
   if (v) {
     const ago = (t) => { const m = Math.round((S.serverTime - t) / 60000); return m < 1 ? 'před chvílí' : `před ${m} min`; };
@@ -80,4 +89,13 @@ function renderOp() {
     $('opTeleStatus').textContent = parts.join(' · ') + '.';
   }
 }
-$('opMaster').onchange = () => savePartial({ op: { enabled: $('opMaster').checked } });
+function renderOpAlertToggle() {
+  const on = cfg?.notifyTypes?.op !== false;
+  if (document.activeElement !== $('opAlertMaster')) $('opAlertMaster').checked = on;
+  $('opAlertTgl').classList.toggle('on', on);
+  $('opAlertTgl').classList.toggle('off', !(S.op?.enabled));
+}
+// vypnutí OP vypne i chytání (ať se po opětovném zapnutí nezačne samo osídlovat); zapnutí chytání zapne i OP
+$('opMaster').onchange = () => { const c = $('opMaster').checked; savePartial({ op: c ? { enabled: true } : { enabled: false, hunt: { enabled: false } } }); };
+$('opHuntMaster').onchange = () => { const c = $('opHuntMaster').checked; savePartial({ op: c ? { enabled: true, hunt: { enabled: true } } : { hunt: { enabled: false } } }); };
+$('opAlertMaster').onchange = () => { const c = $('opAlertMaster').checked; cfg.notifyTypes = { ...cfg.notifyTypes, op: c }; savePartial({ notifyTypes: { op: c } }); renderOpAlertToggle(); };
