@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791367434417,
+  "savedAt": 1791369244229,
   "savedBy": "Jaroslav-ntb",
   "config": {
     "threshold": 100000000,
@@ -339,7 +339,7 @@
         }
       ],
       "auto": {
-        "enabled": false,
+        "enabled": true,
         "minSec": 1.5,
         "maxSec": 2,
         "gapMinSec": 1.5,
@@ -351,7 +351,7 @@
         "quietMinSec": 3,
         "quietMaxSec": 5,
         "topUp": true,
-        "topUpTarget": 250000000,
+        "topUpTarget": 200000000,
         "maxPerHour": 200,
         "selfName": "bilcus87",
         "selfMinSec": 1.5,
