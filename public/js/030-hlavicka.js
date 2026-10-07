@@ -56,7 +56,7 @@ function renderData() {
   const nTxt = n ? ' 🟠 ' + n : '';
   if ($('opChipN').textContent !== nTxt) $('opChipN').textContent = nTxt;
   if ($('opChipAge').textContent !== d.txt) $('opChipAge').textContent = d.txt;
-  const tip = op.enabled ? 'Mapa (mapa.php): data o OP. Klikni pro nastavení OP.' : 'OP je vypnuto (přepínač OP nahoře). Klikni pro nastavení.';
+  const tip = op.enabled ? 'Mapa (mapa.php): data o OP. Klikni pro nastavení OP.' : 'Bot na mapě je vypnutý (zapni 🎯 Chytat nebo 📣 Alerty nahoře). Klikni pro nastavení.';
   if (chip.title !== tip) chip.title = tip;
   const key = op.dots.map((x) => `${x.id}|${x.label}`).join(',');
   const pop = $('opChipPop');

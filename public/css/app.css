@@ -611,7 +611,6 @@
   .statpill .optgl { border:0; border-left:1px solid var(--line); background:transparent; border-radius:0; height:32px; }
   .statpill .optgl:last-child { border-radius:0 8px 8px 0; }
   .optgl .ic { font-size:14px; letter-spacing:0; } .optgl .lbl { font-weight:600; font-size:13px; } .optgl .dtag { font-size:10px; color:var(--acc); text-transform:uppercase; letter-spacing:.04em; }
-  .optgl.sub.off { opacity:.5; }
   .mainwrap { position:relative; }
   .mbtn { padding:0 12px; gap:9px; min-width:0; } .mbtn[aria-expanded=true] { border-color:var(--acc); }
   .mbtn .albadge { position:absolute; top:-7px; right:-7px; }

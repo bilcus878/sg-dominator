@@ -1,6 +1,6 @@
 # Automat na OP (osídlení opuštěných planet)
 
-Zapíná se v Nastavení → Mapa a OP → „Automat na OP“. Potřebuje zapnuté OP (hlídání mapy) a aktivní teleskop. Výchozí je **zkušební režim**.
+Zapíná se přepínačem **🎯 Chytat** v hlavičce (nebo v Nastavení → Mapa a OP). Vedle něj je **📣 Alerty** (zprávy o OP do hlavní skupiny); dá se zapnout jen jeden, nebo oba. Bot na mapě (hlídání, teleskop, bdělost) pracuje, když je zapnutý aspoň jeden z nich. Teleskop musí být aktivní (zapíná ho bot sám). Výchozí je **zkušební režim**.
 
 ## Jak pozná pravý OP
 Velká mapa (obrázek 711×900) ukazuje OP jako oranžovou tečku v polygonu sektoru. Sektorová mapa (obrázek 602×367) je přesně

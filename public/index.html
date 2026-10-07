@@ -64,7 +64,7 @@
         <div class="alrow"><span class="alname">✅ Návrat nad práh<small>krátké zvonění</small></span><label class="sw c1"><input type="checkbox" data-nt="recovered"><span></span></label><label class="sw c2"><input type="checkbox" data-snd="recovered"><span></span></label></div>
         <div class="alrow"><span class="alname">🎯 Hráč k dobytí<small>cizí rasy</small></span><label class="sw c1"><input type="checkbox" data-nt="target"><span></span></label><label class="sw c2"><input type="checkbox" data-snd="target"><span></span></label></div>
         <div class="alrow"><span class="alname">↩️ Už není k dobytí</span><label class="sw c1"><input type="checkbox" data-nt="released"><span></span></label><label class="sw c2"><input type="checkbox" data-snd="released"><span></span></label></div>
-        <div class="alrow"><span class="alname">🟠 OP na mapě<small>rychlé pípání (jen když je zapnuté OP)</small></span><label class="sw c1"><input type="checkbox" data-nt="op"><span></span></label><label class="sw c2"><input type="checkbox" data-snd="op"><span></span></label></div>
+        <div class="alrow"><span class="alname">🟠 OP na mapě<small>zpráva do skupiny; stejné jako přepínač 📣 v hlavičce</small></span><label class="sw c1"><input type="checkbox" data-nt="op"><span></span></label><label class="sw c2"><input type="checkbox" data-snd="op"><span></span></label></div>
         <div class="alrow"><span class="alname">🛠 Systémové zprávy<small>výpadek dat, bdělost, teleskop, stavění, auto-dohoz</small></span><label class="sw c1"><input type="checkbox" data-nt="service"><span></span></label><label class="sw c2"><input type="checkbox" data-snd="service"><span></span></label></div>
         <div class="sndtest"><button type="button" class="ghost" data-test="threshold">Zkouška: poplach</button><button type="button" class="ghost" data-test="critical">Kritický</button><button type="button" class="ghost" data-test="op">OP</button><button type="button" class="ghost" data-test="recovered">Návrat</button></div>
         <div class="ntchan" id="ntChan"></div>
@@ -286,11 +286,18 @@
     </div>
     <div class="pane" id="pane-op">
       <p class="muted" style="margin-top:0">Na mapě galaxie se na chvíli objevují svítící oranžové tečky = opuštěné planety (OP). Appka je hlídá, když máš otevřené okno <b>mapa.php</b>.</p>
-      <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
-        <span class="sw"><input type="checkbox" id="opEnabled2"><span></span></span> Zapnout OP: hlásit OP, sám zapínat teleskop a potvrzovat bdělost</label>
-        <small>Zapnuto = bot na mapě jedná sám: sám zapne zastavený teleskop, potvrzuje tlačítko bdělosti a pošle zprávu, jakmile se tečka v nějakém sektoru objeví. Vypnuto = bot nic nedělá a nehlásí. Stejný vypínač je nahoře v hlavičce. Tečky, které svítily už při zapnutí, se jako nové nehlásí.</small></div>
-      <div class="field"><label for="opRepeatSec">Připomínat, dokud tečka svítí – každých (s)</label><input type="number" id="opRepeatSec" min="0">
-        <small>Při objevení nového OP přijde jedna zpráva s celkovým počtem OP na mapě a seznamem sektorů. Dokud nějaký OP svítí, přijde po této pauze jedna připomínka „OP stále na mapě: počet“. 0 = ohlásit jen objevení.</small></div>
+      <div class="chan" style="border-color:var(--acc)">
+        <div class="chan-head"><span><b>Co má bot s OP dělat</b> <span class="muted" style="font-weight:400">– stejné přepínače jsou nahoře v hlavičce</span></span></div>
+        <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
+          <span class="sw"><input type="checkbox" id="opAlertSet"><span></span></span> 📣 Alerty: poslat zprávu o OP do hlavní skupiny</label>
+          <small>Jakmile se tečka v nějakém sektoru objeví, přijde do skupiny jedna zpráva s počtem OP a sektory (a připomínky, dokud OP svítí). Tečky, které svítily už při zapnutí, se jako nové nehlásí.</small></div>
+        <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
+          <span class="sw"><input type="checkbox" id="opHuntSet"><span></span></span> 🎯 Chytat: sám osídlit OP (automat níže)</label>
+          <small>Bot sám otevře sektor s OP, najde pravou tečku a osídlí planetu. Zpráva do skupiny se kvůli tomu neposílá, to řídí přepínač Alerty. Nové zapnutí je ve zkušebním režimu, dokud ho dole nevypneš.</small></div>
+        <p class="muted" style="margin-bottom:0">Bot na mapě <b>pracuje, když je zapnutý aspoň jeden z přepínačů</b>: hlídá mapu, sám zapíná zastavený teleskop a potvrzuje tlačítko bdělosti (nastavení níže). Když jsou vypnuté oba, nedělá na mapě nic.</p>
+      </div>
+      <div class="field"><label for="opRepeatSec">Alerty: připomínat, dokud tečka svítí – každých (s)</label><input type="number" id="opRepeatSec" min="0">
+        <small>Platí pro zprávy do skupiny (přepínač Alerty). Dokud nějaký OP svítí, přijde po této pauze jedna připomínka „OP stále na mapě: počet“. 0 = ohlásit jen objevení.</small></div>
       <div class="chan">
         <div class="chan-head"><span>Tlačítko bdělosti</span><label class="sw"><input type="checkbox" id="opVigEnabled"><span></span></label></div>
         <p class="muted" style="margin-top:0">Jednou za pár minut se na mapě objeví tlačítko <b>Povrdit</b>; bez kliknutí se obnova stránky přeruší a teleskop přestane jet. Skript ho potvrdí sám, ale <b>nikdy hned</b> po objevení, až po náhodné pauze v tomto rozmezí:</p>
@@ -322,8 +329,8 @@
         <p class="muted" id="opTeleStatus" style="margin-bottom:0"></p>
       </div>
       <div class="chan" style="border-color:var(--acc)">
-        <div class="chan-head"><span>🟠 Automat na OP (osídlení opuštěných planet)</span><label class="sw"><input type="checkbox" id="opHuntEnabled"><span></span></label></div>
-        <p class="muted" style="margin-top:0">Když na velké mapě svítí OP, bot sám otevře sektor, na sektorové mapě najde tečku na <b>stejné poloze jako na velké mapě</b> (ostatní tečky jsou falešné), otevře ji a klikne na <b>Získat souřadnice</b>. Nenajde-li tlačítko, vrátí se a zkusí další tečku, pak se vrátí na velkou mapu. Při nedostatku naquadahu pošle zprávu do servisního chatu, <b>automat vypne</b> a vrátí se na velkou mapu. Potřebuje zapnuté <b>OP</b> a aktivní teleskop (během lovení se teleskop nezastavuje). Okno mapy musí být otevřené a viditelné.</p>
+        <div class="chan-head"><span>🟠 Automat na OP (osídlení opuštěných planet) – zapíná se přepínačem 🎯 Chytat</span></div>
+        <p class="muted" style="margin-top:0">Když na velké mapě svítí OP, bot sám otevře sektor, na sektorové mapě najde tečku na <b>stejné poloze jako na velké mapě</b> (ostatní tečky jsou falešné), otevře ji a klikne na <b>Získat souřadnice</b>. Nenajde-li tlačítko, vrátí se a zkusí další tečku, pak se vrátí na velkou mapu. Při nedostatku naquadahu pošle zprávu do servisního chatu, <b>automat vypne</b> a vrátí se na velkou mapu. Teleskop musí být aktivní (zapíná ho bot sám, během lovení ho nezastavuje). Okno mapy musí být otevřené a viditelné.</p>
         <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
           <span class="sw"><input type="checkbox" id="opHuntDry"><span></span></span> Zkušební režim (nikdy neklikne na „Získat souřadnice“)</label>
           <small>Bot projde celou cestu až k tlačítku a jen <b>pošle zprávu</b>, že by ho zmáčkl. Doporučeno pro první spuštění a ověření, že vybírá správnou tečku. Pro ostré osídlování vypni.</small></div>

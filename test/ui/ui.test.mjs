@@ -405,7 +405,7 @@ test('hlavička: dva nezávislé přepínače 🎯 chytat a 📣 alerty (jen jed
     out.off = set(false, true, false, true); // bot na mapě vypnutý: nic z toho neplatí, i když jsou v nastavení příznaky
     out.header = document.querySelector('header').getBoundingClientRect().height;
     out.order = [...document.querySelectorAll('.statpill > *')].map((e) => e.id || e.className).join('>');
-    out.noMaster = document.getElementById('opMaster') === null;
+    out.noMaster = document.getElementById('opMaster') === null && document.getElementById('opEnabled2') === null && document.getElementById('opHuntEnabled') === null;
     return out;
   })()`);
   assert.deepEqual(r.both, { hunt: true, alert: true, tag: true }, 've zkušebním režimu má chytání štítek test');
@@ -415,4 +415,18 @@ test('hlavička: dva nezávislé přepínače 🎯 chytat a 📣 alerty (jen jed
   assert.equal(r.noMaster, true, 'hlavní přepínač OP je pryč');
   assert.ok(r.header < 70, 'hlavička zůstala štíhlá');
   assert.match(r.order, /opHuntTgl.*opAlertTgl/);
+});
+
+test('Nastavení → Mapa a OP: přepínače Chytat a Alerty jsou propojené s hlavičkou, starý přepínač OP je pryč', { skip, timeout: 30_000 }, async () => {
+  const r = await b.eval(`(() => { // vše v jednom kroku: server mezitím posílá nový stav a přepsal by testovací
+    const base = { at: Date.now(), dots: [], vigilance: { count: 0, lastClickedAt: 0, pendingSince: 0 }, telescope: {} };
+    S.op = { ...base, enabled: true, hunt: { enabled: true, dryRun: false } }; cfg.notifyTypes = { op: false }; renderOp();
+    const a = { head: [$('opHuntMaster').checked, $('opAlertMaster').checked], set: [$('opHuntSet').checked, $('opAlertSet').checked] };
+    S.op = { ...base, enabled: true, hunt: { enabled: false, dryRun: false } }; cfg.notifyTypes = {}; renderOp();
+    const b2 = { head: [$('opHuntMaster').checked, $('opAlertMaster').checked], set: [$('opHuntSet').checked, $('opAlertSet').checked] };
+    return { a, b2, panes: document.getElementById('pane-op').textContent.includes('Zapnout OP') };
+  })()`);
+  assert.deepEqual(r.a, { head: [true, false], set: [true, false] }, 'jen chytání');
+  assert.deepEqual(r.b2, { head: [false, true], set: [false, true] }, 'jen alerty');
+  assert.equal(r.panes, false, 'text o starém hlavním přepínači OP zmizel');
 });

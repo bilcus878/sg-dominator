@@ -132,7 +132,7 @@ document.addEventListener('click', (e) => { if (!ntMenu.hidden && !e.target.clos
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !ntMenu.hidden) toggleNt(false); });
 ntMenu.addEventListener('change', (e) => {
   const k = e.target.dataset?.nt; if (!k) return;
-  if (k === 'op') { $('opAlertMaster').checked = e.target.checked; $('opAlertMaster').onchange(); return; } // stejné jako přepínač 📣 v hlavičce (OP bot pracuje, jen když je zapnuté alerty nebo chytání)
+  if (k === 'op') { setOpAlerts(e.target.checked); return; } // stejné jako přepínač 📣 v hlavičce (OP bot pracuje, jen když je zapnuté alerty nebo chytání)
   cfg.notifyTypes = { ...cfg.notifyTypes, [k]: e.target.checked };
   savePartial({ notifyTypes: { [k]: e.target.checked } });
 });

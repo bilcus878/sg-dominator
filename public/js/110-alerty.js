@@ -89,22 +89,24 @@ function renderOpToggles() {
   const op = S.op;
   if (!op) return;
   const h = op.hunt ?? {}, a = opAlertsOn(), c = opHuntOn();
-  if (document.activeElement !== $('opHuntMaster')) $('opHuntMaster').checked = c;
-  if (document.activeElement !== $('opAlertMaster')) $('opAlertMaster').checked = a;
+  for (const id of ['opHuntMaster', 'opHuntSet']) if (document.activeElement !== $(id)) $(id).checked = c;
+  for (const id of ['opAlertMaster', 'opAlertSet']) if (document.activeElement !== $(id)) $(id).checked = a;
   $('opHuntTgl').classList.toggle('on', c);
   $('opAlertTgl').classList.toggle('on', a);
   $('opHuntTag').hidden = !(c && h.dryRun);
-  $('opHuntTgl').title = 'Chytat OP: bot sám otevře sektor s OP, najde pravou tečku a osídlí planetu.' + (h.dryRun ? ' Teď je ZKUŠEBNÍ režim: bot jen projde cestu a pošle zprávu, nekliká na Získat souřadnice (vypne se v Nastavení → OP).' : ' Ostrý režim: bot opravdu osídlí.') + ' Funguje samostatně, nebo spolu s alerty.';
+  $('opHuntTgl').title = 'Chytat OP: bot sám otevře sektor s OP, najde pravou tečku a osídlí planetu.' + (h.dryRun ? ' Teď je ZKUŠEBNÍ režim: bot jen projde cestu a pošle zprávu, nekliká na Získat souřadnice (vypne se v Nastavení → Mapa a OP).' : ' Ostrý režim: bot opravdu osídlí.') + ' Funguje samostatně, nebo spolu s alerty.';
   $('opAlertTgl').title = 'Alerty OP: při objevení OP přijde zpráva do hlavní skupiny. Funguje samostatně, nebo spolu s chytáním. Když jsou vypnuté oba přepínače, bot na mapě nic nedělá.';
 }
 /** Zapnutí z úplně vypnutého stavu zapne jen ten přepínač, na který se kliklo (druhý zůstane vypnutý). */
-$('opHuntMaster').onchange = () => {
-  const on = $('opHuntMaster').checked, a = opAlertsOn();
+function setOpHunt(on) {
+  const a = opAlertsOn();
   cfg.notifyTypes = { ...cfg.notifyTypes, op: a };
   savePartial({ op: { enabled: on || a, hunt: { enabled: on } }, notifyTypes: { op: a } });
-};
-$('opAlertMaster').onchange = () => {
-  const on = $('opAlertMaster').checked, c = opHuntOn();
+}
+function setOpAlerts(on) {
+  const c = opHuntOn();
   cfg.notifyTypes = { ...cfg.notifyTypes, op: on };
   savePartial({ op: { enabled: on || c, hunt: { enabled: c } }, notifyTypes: { op: on } });
-};
+}
+for (const id of ['opHuntMaster', 'opHuntSet']) $(id).onchange = () => setOpHunt($(id).checked);
+for (const id of ['opAlertMaster', 'opAlertSet']) $(id).onchange = () => setOpAlerts($(id).checked);
