@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – OP na mapě
 // @namespace    sg-dominator
-// @version      1.4.3
+// @version      1.4.4
 // @description  Hledá na mapě galaxie svítící tečky (opuštěné planety) a hlásí je lokálnímu notifikátoru; potvrzuje tlačítko bdělosti (po náhodné prodlevě), zapíná zastavený teleskop a (je-li zapnutý automat na OP) opuštěnou planetu sám osídlí
 // @match        https://stargate-game.cz/mapa.php*
 // @match        https://www.stargate-game.cz/mapa.php*
@@ -80,16 +80,20 @@
     return { u: clamp((x - b.minx) / Math.max(1, b.maxx - b.minx)), v: clamp((y - b.miny) / Math.max(1, b.maxy - b.miny)) };
   }
 
-  /** Velké značky (kosočtverce ~9×9 px) na sektorové mapě; planety jsou malé křížky, obrys sektoru je obří. RGBA data obrázku. */
+  /**
+   * Velké značky (kosočtverce ~9×9 px) na sektorové mapě; planety jsou malé křížky, obrys sektoru je obří. RGBA data obrázku.
+   * Červený kosočtverec je sektorová planeta (SP), kterou má každý sektor; OP to nikdy není (příznak sp).
+   */
   function findDiamonds(data, w, h) {
     const seen = new Uint8Array(w * h), out = [];
     const lit = (p) => data[p * 4] + data[p * 4 + 1] + data[p * 4 + 2] > 150;
     for (let start = 0; start < w * h; start++) {
       if (seen[start] || !lit(start)) continue;
       const st = [start]; seen[start] = 1;
-      let n = 0, sx = 0, sy = 0, x0 = Infinity, x1 = -1, y0 = Infinity, y1 = -1;
+      let n = 0, sx = 0, sy = 0, red = 0, x0 = Infinity, x1 = -1, y0 = Infinity, y1 = -1;
       while (st.length) {
         const p = st.pop(), x = p % w, y = (p - x) / w;
+        if (data[p * 4] > 170 && data[p * 4 + 1] < 80 && data[p * 4 + 2] < 100) red++;
         n++; sx += x; sy += y; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
         for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
           const nx = x + dx, ny = y + dy;
@@ -99,23 +103,27 @@
         }
       }
       const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
-      if (n >= 14 && bw >= 8 && bw <= 18 && bh >= 8 && bh <= 18) out.push({ x: sx / n, y: sy / n });
+      if (n >= 14 && bw >= 8 && bw <= 18 && bh >= 8 && bh <= 18) out.push({ x: sx / n, y: sy / n, sp: red / n > 0.25 });
     }
     return out;
   }
 
   /**
-   * Kandidáti na pravou tečku OP: kruhy (planety) z mapy sektoru, které leží poblíž očekávané polohy. Velká značka (kosočtverec)
-   * má přednost před obyčejnou planetou. Už zkoušené polohy se přeskočí.
+   * Kandidáti na pravou tečku OP: kruhy (planety) z mapy sektoru, které jsou VELKOU značkou (kosočtvercem) poblíž očekávané polohy.
+   * OP je vždy velká tečka; obyčejná planeta (malý křížek) ani sektorová planeta (červený kosočtverec) to není, na ně se neklikne.
+   * Když nezůstane žádná velká tečka, vrací se prázdný seznam (bot se rovnou vrátí na velkou mapu). `diamonds === null` = značky se
+   * nepodařilo přečíst (canvas), pak se řadí jen podle vzdálenosti. Už zkoušené polohy se přeskočí.
    */
-  function pickCandidates(circles, exp, tol, tried = [], diamonds = []) {
+  function pickCandidates(circles, exp, tol, tried = [], diamonds = null) {
+    const near = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) <= 6;
     return circles
       .map((c, i) => {
         const dist = Math.hypot(c.x - exp.x, c.y - exp.y);
-        const diamond = diamonds.some((d) => Math.hypot(d.x - c.x, d.y - c.y) <= 6);
-        return { ...c, i, dist, diamond, score: dist - (diamond ? 25 : 0) };
+        const diamond = diamonds ? diamonds.some((d) => !d.sp && near(d, c)) : null;
+        const sp = diamonds ? diamonds.some((d) => d.sp && near(d, c)) : false;
+        return { ...c, i, dist, diamond, sp, score: dist };
       })
-      .filter((c) => c.dist <= tol && !tried.some((t) => Math.hypot(t.x - c.x, t.y - c.y) <= 4))
+      .filter((c) => !c.sp && (diamonds === null || c.diamond) && c.dist <= tol && !tried.some((t) => Math.hypot(t.x - c.x, t.y - c.y) <= 4))
       .sort((a, b) => a.score - b.score);
   }
   // </hunt>
@@ -408,7 +416,7 @@
       const [x, y, rad] = (el.getAttribute('coords') || '').split(',').map(Number);
       return { el, x, y, rad };
     }).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
-    let diamonds = [];
+    let diamonds = null; // null = značky se nepodařilo přečíst
     try {
       const cv = document.createElement('canvas');
       cv.width = img.naturalWidth; cv.height = img.naturalHeight;
@@ -420,7 +428,8 @@
     const cands = pickCandidates(circles, exp, spec.tolerancePx, job.tried, diamonds);
     if (!cands.length || job.tried.length >= spec.maxTries) {
       const nearest = circles.length ? Math.round(Math.min(...circles.map((c) => Math.hypot(c.x - exp.x, c.y - exp.y)))) : null;
-      await hEvent(job.id, 'no-dot', { text: `zkoušeno ${job.tried.length}×, očekávaná poloha ${Math.round(exp.x)},${Math.round(exp.y)}, nejbližší planeta ${nearest ?? '?'} px, značek ${diamonds.length}` });
+      const big = diamonds ? diamonds.filter((d) => !d.sp).length : '?', spN = diamonds ? diamonds.filter((d) => d.sp).length : '?';
+      await hEvent(job.id, 'no-dot', { text: `zkoušeno ${job.tried.length}×, velkých teček ${big} (sektorová planeta ${spN}), očekávaná poloha ${Math.round(exp.x)},${Math.round(exp.y)}, nejbližší planeta ${nearest ?? '?'} px` });
       await huntHome();
       return;
     }

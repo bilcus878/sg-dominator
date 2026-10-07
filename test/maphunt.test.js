@@ -25,21 +25,28 @@ test('skutečný případ: OP ze screenshotu velké mapy se najde na sektorové 
   const exp = { x: u * 602, y: v * 367 };
   // planety/značky na sektorové mapě 27 (poloha kruhů z hry): pravá je (230, 84), ostatní velké značky jsou jinde
   const circles = [{ x: 322, y: 266 }, { x: 476, y: 73 }, { x: 230, y: 84 }, { x: 78, y: 132 }, { x: 560, y: 13 }, { x: 365, y: 147 }];
-  const c = pickCandidates(circles, exp, 30, [], []);
+  const c = pickCandidates(circles, exp, 30, [], [{ x: 230, y: 84, sp: false }, { x: 322, y: 266, sp: true }]);
   assert.equal(c.length, 1, 've vzdálenosti 30 px je jen pravá tečka');
   assert.deepEqual({ x: c[0].x, y: c[0].y }, { x: 230, y: 84 });
 });
 
-test('kandidáti: značka má přednost, zkoušené se přeskočí, daleké se nebere', () => {
+test('kandidáti: jen velké tečky, sektorová planeta se vynechá, zkoušené se přeskočí, daleké se nebere', () => {
   const exp = { x: 100, y: 100 };
-  const circles = [{ x: 108, y: 100 }, { x: 100, y: 118 }, { x: 300, y: 300 }];
-  const noDiamond = pickCandidates(circles, exp, 30);
-  assert.deepEqual(noDiamond.map((c) => c.i), [0, 1], 'nejbližší první');
-  const withDiamond = pickCandidates(circles, exp, 30, [], [{ x: 100, y: 118 }]);
-  assert.equal(withDiamond[0].i, 1, 'kosočtverec má přednost před blíže ležící planetou');
-  const afterTry = pickCandidates(circles, exp, 30, [{ x: 100, y: 118 }], [{ x: 100, y: 118 }]);
-  assert.deepEqual(afterTry.map((c) => c.i), [0], 'vyzkoušená tečka se nezkouší znovu');
-  assert.deepEqual(pickCandidates(circles, exp, 5), []);
+  const circles = [{ x: 108, y: 100 }, { x: 100, y: 118 }, { x: 300, y: 300 }, { x: 104, y: 96 }];
+  // jen planeta (malý křížek) 108,100 a velká tečka 100,118: bere se jen velká
+  const big = [{ x: 100, y: 118, sp: false }];
+  assert.deepEqual(pickCandidates(circles, exp, 30, [], big).map((c) => c.i), [1]);
+  // žádná velká tečka (už ji někdo osídlil): žádný kandidát, bot se vrací na velkou mapu a na nic neklikne
+  assert.deepEqual(pickCandidates(circles, exp, 30, [], []), []);
+  // červená sektorová planeta u očekávané polohy se nikdy nevybere
+  assert.deepEqual(pickCandidates(circles, exp, 30, [], [{ x: 104, y: 96, sp: true }]), []);
+  assert.deepEqual(pickCandidates(circles, exp, 30, [], [{ x: 104, y: 96, sp: true }, { x: 100, y: 118, sp: false }]).map((c) => c.i), [1]);
+  // vyzkoušená tečka se nezkouší znovu
+  assert.deepEqual(pickCandidates(circles, exp, 30, [{ x: 100, y: 118 }], big), []);
+  // daleko od očekávané polohy = falešná
+  assert.deepEqual(pickCandidates(circles, exp, 5, [], big), []);
+  // značky nejdou přečíst (null): řadí se jen podle vzdálenosti
+  assert.deepEqual(pickCandidates(circles, exp, 30, [], null).map((c) => c.i), [3, 0, 1]);
 });
 
 test('značky: kosočtverec 9×9 se pozná, malý křížek a obří obrys ne', () => {
@@ -51,4 +58,11 @@ test('značky: kosočtverec 9×9 se pozná, malý křížek a obří obrys ne', 
   const d = findDiamonds(data, w, h);
   assert.equal(d.length, 1);
   assert.ok(Math.abs(d[0].x - 60) < 1 && Math.abs(d[0].y - 40) < 1);
+  assert.equal(d[0].sp, false, 'bílý/oranžový kosočtverec není sektorová planeta');
+  // červený kosočtverec = sektorová planeta
+  const red = new Uint8ClampedArray(w * h * 4);
+  for (let dd = -4; dd <= 4; dd++) for (let e = -(4 - Math.abs(dd)); e <= 4 - Math.abs(dd); e++) { const p = ((40 + e) * w + 60 + dd) * 4; red[p] = 221; red[p + 1] = 5; red[p + 2] = 34; red[p + 3] = 255; }
+  const r2 = findDiamonds(red, w, h);
+  assert.equal(r2.length, 1);
+  assert.equal(r2[0].sp, true);
 });
