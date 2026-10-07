@@ -12,7 +12,16 @@ test('přerozdělení nezaměstnaných přes server: nastavení, spuštění, hl
   try {
     const cfg = await app.api('/api/config', 'PUT', { redist: { minM: 120, maxM: 50, freeMaxM: 0, maxMoves: 5, dry: false } });
     assert.equal(cfg.redist.minM, 120); assert.equal(cfg.redist.maxM, 120, 'horní hranice nikdy pod dolní'); assert.equal(cfg.redist.dry, false);
-    assert.deepEqual(await rep(app, { page: 'list', sorted: true }), { action: 'idle' }, 'bez spuštění nic');
+    const idle = await rep(app, { page: 'list', sorted: true });
+    assert.equal(idle.action, 'idle', 'bez spuštění nic');
+    assert.equal(idle.speed, 1, 'tempo z Obchodu je v každé odpovědi'); assert.deepEqual(idle.pause, [4, 10]);
+    const tuned = await app.api('/api/config', 'PUT', { redist: { pace: 0.4, pauseMinSec: 9, pauseMaxSec: 3 } });
+    assert.deepEqual([tuned.redist.pace, tuned.redist.pauseMinSec, tuned.redist.pauseMaxSec], [0.4, 9, 9], 'konec pauzy nikdy pod začátkem');
+    const turbo = await rep(app, { page: 'list', sorted: true });
+    assert.equal(turbo.speed, 0.4); assert.deepEqual(turbo.pause, [9, 9]);
+    await app.api('/api/config', 'PUT', { redist: { pace: 99, pauseMinSec: 4, pauseMaxSec: 10 } });
+    assert.equal((await app.api('/api/config')).redist.pace, 3, 'tempo se ořízne na rozumné meze');
+    await app.api('/api/config', 'PUT', { redist: { pace: 1 } });
     const st = await app.api('/api/redist/start', 'POST');
     assert.equal(st.status, 'running');
     const clash = await fetch(app.base + '/api/unemp/start', { method: 'POST', headers: { 'x-token': TOKEN } });

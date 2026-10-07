@@ -12,7 +12,7 @@
 const STALE_MS = 120_000; // skript se tak dlouho neozval = běh se zastaví
 const MAX_RELOADS = 3; // tolikrát se znovu načte seznam, když ukazuje stará data (po návratu zpět z mezipaměti prohlížeče)
 
-export const REDIST_DEFAULTS = { minM: 100, maxM: 300, freeMaxM: 0, dry: true, maxMoves: 100 }; // v milionech lidí; dry = zkušební běh (nic se nepřesouvá)
+export const REDIST_DEFAULTS = { minM: 100, maxM: 300, freeMaxM: 0, dry: true, maxMoves: 100, pace: 1, pauseMinSec: 4, pauseMaxSec: 10 }; // pace = násobek tempa skriptu (menší = rychlejší), pauza = náhodná prodleva mezi planetami (s); platí pro přerozdělení i doplňování // v milionech lidí; dry = zkušební běh (nic se nepřesouvá)
 
 const fmtM = (n) => `${(Number(n) / 1e6).toLocaleString('cs-CZ', { maximumFractionDigits: 1 })} mil.`;
 

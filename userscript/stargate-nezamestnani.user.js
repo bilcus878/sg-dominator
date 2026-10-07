@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – nezaměstnaní
 // @namespace    sg-dominator
-// @version      1.1.0
+// @version      1.2.0
 // @description  Na pokyn z aplikace doplní nezaměstnané na planety, kterým chybí lidé, nebo je přerozdělí z plných planet na planety s volným místem: Obchod → Nezaměstnaní, seřadit, otevřít planetu, vybrat cíl, Přesunout, zpět.
 // @match        https://stargate-game.cz/obchod.php*
 // @match        https://www.stargate-game.cz/obchod.php*
@@ -20,7 +20,10 @@
   const RETURN_KEY = 'sgd-unemp-return'; // vracíme se zpět v prohlížeči na seznam (počet kroků)
 
   const rnd = (a, b) => a + Math.random() * (b - a);
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  // tempo z aplikace (Obchod → Chování): násobek všech lidských pauz (menší = rychlejší) a náhodná pauza mezi planetami
+  let speed = 1, pauseRange = [0, 0];
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms * speed));
+  const rawSleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const num = (s) => { const d = String(s ?? '').replace(/\D/g, ''); return d ? Number(d) : NaN; };
   const ss = { get: (k) => { try { return sessionStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { sessionStorage.setItem(k, v); } catch { /* nic */ } }, del: (k) => { try { sessionStorage.removeItem(k); } catch { /* nic */ } } };
 
@@ -29,7 +32,7 @@
       GM_xmlhttpRequest({
         method: 'POST', url: `${SERVER}${path}`, headers: { 'content-type': 'application/json', 'x-token': TOKEN },
         data: JSON.stringify(data), timeout: 5000,
-        onload: (r) => { try { resolve(JSON.parse(r.responseText)); } catch { resolve(null); } },
+        onload: (r) => { try { const j = JSON.parse(r.responseText); if (Number.isFinite(j?.speed) && j.speed > 0) speed = Math.min(3, Math.max(0.25, j.speed)); if (Array.isArray(j?.pause)) pauseRange = [Number(j.pause[0]) || 0, Number(j.pause[1]) || 0]; resolve(j); } catch { resolve(null); } },
         onerror: () => resolve(null), ontimeout: () => resolve(null),
       });
     });
@@ -141,6 +144,7 @@
       if (ins?.action === 'send-rows') ins = await post('/unemp/report', { page: 'list', sorted: L.sorted, last: L.last, rows: rowsData(L.rows) }); // přerozdělení potřebuje celou tabulku
       if (ins?.action === 'sort' && L.sortLink) { await sleep(rnd(800, 2000)); await clickEl(L.sortLink); return; }
       if (ins?.action === 'open') {
+        await rawSleep(rnd(pauseRange[0], Math.max(pauseRange[0], pauseRange[1])) * 1000); // pauza mezi planetami (Obchod → Chování)
         const link = (ins.name && L.rows.find((r) => r.cells[0].textContent.trim() === ins.name)?.cells[0].querySelector('a')) || L.lastLink;
         if (link) { await sleep(rnd(800, 2000)); await clickEl(link); return; }
       }

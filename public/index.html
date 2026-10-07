@@ -102,6 +102,14 @@
   <section id="shopBox" data-view="shop" hidden>
     <div class="bhead"><h2>Obchod</h2><span class="muted">věci z herního Obchodu</span></div>
     <div class="shopgrid">
+      <div class="card" id="shopPaceCard">
+        <div class="card-head"><h2>⚙ Chování</h2></div>
+        <p class="muted" style="margin-top:0">Platí pro přerozdělení i doplňování nezaměstnaných.</p>
+        <div class="bopt"><div><b>Tempo</b><small>Rychlejší = méně pauz, ale víc to vypadá jako stroj.</small></div>
+          <div class="seg" id="rdPace"><button data-v="0.4">turbo</button><button data-v="0.7">rychlé</button><button data-v="1">normální</button><button data-v="1.6">pomalé</button><button data-v="2.5">velmi pomalé</button></div></div>
+        <div class="bopt"><div><b>Pauza mezi planetami</b><small>Náhodně od–do, než bot otevře další planetu (s).</small></div>
+          <div class="rd-pause"><input type="number" id="rdPauseMin" min="0" max="300" step="1"> – <input type="number" id="rdPauseMax" min="0" max="300" step="1"> s</div></div>
+      </div>
       <div class="card" id="redistCard">
         <div class="card-head"><h2>🔀 Přerozdělení nezaměstnaných</h2></div>
         <p class="muted" style="margin-top:0">Přesune nezaměstnané z <b>plných planet</b> (nezaměstnaných v zadaném rozmezí a zbývá málo míst) na planety s <b>hodně volným místem a málo lidmi</b>. Bot seřadí tabulku podle Nezaměstnaných, otevře planetu, v nabídce „Na vlastní planetu“ vybere cíl a klikne na Přesunout (počet nikdy nepřepisuje, pošle vše, co hra nabídne), vrátí se zpět a opakuje, dokud je co přesouvat. Do cílové planety posílá, dokud nejsou „lidé na planetě“ a „zbývá míst“ zhruba vyrovnané. Potřebuje otevřenou stránku <b>Obchod → Nezaměstnaní</b> a skript Nezaměstnaní.</p>

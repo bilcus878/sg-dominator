@@ -452,3 +452,14 @@ test('Obchod: karta Přerozdělení nezaměstnaných má výchozí podmínky (10
   assert.deepEqual([(await app.api('/api/config')).redist.minM, (await app.api('/api/config')).redist.dry], [100, true]);
   await b.eval(`document.querySelector('[data-nav=watch]').click(); 1`);
 });
+
+test('Obchod: karta Chování má tempo (turbo až velmi pomalé) a pauzu mezi planetami, uloží se na server', { skip, timeout: 30_000 }, async () => {
+  await b.eval(`document.querySelector('[data-nav=shop]').click(); 1`); await sleep(500);
+  assert.equal(await b.eval(`document.querySelectorAll('#rdPace button').length`), 5);
+  assert.equal(await b.eval(`document.querySelector('#rdPace .on').dataset.v + '/' + rdPauseMin.value + '/' + rdPauseMax.value`), '1/4/10');
+  await b.eval(`document.querySelector('#rdPace [data-v="1.6"]').click(); rdPauseMin.value = '6'; rdPauseMin.dispatchEvent(new Event('change', { bubbles: true })); 1`); await sleep(900);
+  const c = (await app.api('/api/config')).redist;
+  assert.deepEqual([c.pace, c.pauseMinSec], [1.6, 6]);
+  await b.eval(`document.querySelector('#rdPace [data-v="1"]').click(); rdPauseMin.value = '4'; rdPauseMin.dispatchEvent(new Event('change', { bubbles: true })); 1`); await sleep(900);
+  await b.eval(`document.querySelector('[data-nav=watch]').click(); 1`);
+});
