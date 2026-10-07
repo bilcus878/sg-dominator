@@ -695,3 +695,11 @@
   .rd-grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:10px 14px; margin:10px 0; } .rd-grid label { display:flex; flex-direction:column; gap:4px; color:var(--mut); font-size:12.5px; } .rd-grid input { width:100%; }
   .rd-pause { display:flex; align-items:center; gap:6px; color:var(--mut); } .rd-pause input { width:70px; text-align:center; }
   .rd-pause input { width:84px; }
+
+  /* karty v Obchodu: nastavení po blocích (nadpis, vysvětlení, pole s popiskem nad sebou) */
+  .rd-set { padding:12px 0; border-bottom:1px solid var(--line); } .rd-set:last-of-type { border-bottom:0; }
+  .rd-set > b { display:block; font-size:14px; color:var(--fg); } .rd-set > small { display:block; color:var(--mut); font-size:12.5px; line-height:1.4; margin:2px 0 9px; max-width:60ch; }
+  .rd-fields { display:grid; grid-template-columns:1fr 1fr; gap:10px 12px; } .rd-fields.one { grid-template-columns:1fr; max-width:50%; } .rd-fields .wide { grid-column:1 / -1; }
+  .rd-fields label { display:flex; flex-direction:column; gap:5px; color:var(--mut); font-size:12.5px; } .rd-fields input { width:100%; text-align:right; font-variant-numeric:tabular-nums; }
+  .rd-set .seg { display:flex; flex-wrap:wrap; }
+  @media (max-width:560px) { .rd-fields.one { max-width:none; } }

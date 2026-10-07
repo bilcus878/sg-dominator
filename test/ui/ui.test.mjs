@@ -444,11 +444,11 @@ test('pohledy se jmenují jako ve hře (Vesmír, Stavby, Obchod) a Nezaměstnan�
 
 test('Obchod: karta Přerozdělení nezaměstnaných má výchozí podmínky (100–300 mil., zbývá 0, zkušební běh) a uloží změny na server', { skip, timeout: 30_000 }, async () => {
   await b.eval(`document.querySelector('[data-nav=shop]').click(); 1`); await sleep(500);
-  assert.equal(await b.eval(`[rdMin.value, rdMax.value, rdFree.value, rdMoves.value, rdDry.checked].join('/')`), '100/300/0/100/true');
-  await b.eval(`rdMin.value = '150'; rdMin.dispatchEvent(new Event('change', { bubbles: true })); rdDry.click(); 1`); await sleep(900);
+  assert.equal(await b.eval(`[rdMin.value, rdMax.value, rdFree.value, rdMoves.value, rdDry.checked].join('/')`), '100.000.000/300.000.000/0/100/true');
+  await b.eval(`rdMin.value = '150.000.000'; rdMin.dispatchEvent(new Event('change', { bubbles: true })); rdDry.click(); 1`); await sleep(900);
   const c = (await app.api('/api/config')).redist;
   assert.deepEqual([c.minM, c.dry], [150, false]);
-  await b.eval(`rdMin.value = '100'; rdMin.dispatchEvent(new Event('change', { bubbles: true })); rdDry.click(); 1`); await sleep(900);
+  await b.eval(`rdMin.value = '100.000.000'; rdMin.dispatchEvent(new Event('change', { bubbles: true })); rdDry.click(); 1`); await sleep(900);
   assert.deepEqual([(await app.api('/api/config')).redist.minM, (await app.api('/api/config')).redist.dry], [100, true]);
   await b.eval(`document.querySelector('[data-nav=watch]').click(); 1`);
 });
@@ -476,7 +476,7 @@ test('Obchod: omezení obřích planet (měst / lidí) se uloží na server', { 
 test('Obchod: hranice „Nejdřív nejprázdnější planety“ (méně než N mil. lidí) se uloží na server', { skip, timeout: 30_000 }, async () => {
   await b.eval(`document.querySelector('[data-nav=shop]').click(); 1`); await sleep(500);
   assert.equal(await b.eval(`rdPrioBelow.value`), '0');
-  await b.eval(`rdPrioBelow.value = '50'; rdPrioBelow.dispatchEvent(new Event('change', { bubbles: true })); 1`); await sleep(900);
+  await b.eval(`rdPrioBelow.value = '50.000.000'; rdPrioBelow.dispatchEvent(new Event('change', { bubbles: true })); 1`); await sleep(900);
   assert.equal((await app.api('/api/config')).redist.prioBelowM, 50);
   await b.eval(`rdPrioBelow.value = '0'; rdPrioBelow.dispatchEvent(new Event('change', { bubbles: true })); 1`); await sleep(900);
   await b.eval(`document.querySelector('[data-nav=watch]').click(); 1`);
