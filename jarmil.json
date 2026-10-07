@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791369771747,
+  "savedAt": 1791372889507,
   "savedBy": "Jaroslav-ntb",
   "config": {
     "threshold": 100000000,
@@ -154,7 +154,7 @@
       }
     },
     "op": {
-      "enabled": true,
+      "enabled": false,
       "repeatSec": 60,
       "vigilance": {
         "enabled": true,
@@ -176,6 +176,20 @@
         "restStopMax": 90,
         "restResumeMin": 165,
         "restResumeMax": 230
+      },
+      "hunt": {
+        "enabled": false,
+        "dryRun": true,
+        "reactMinSec": 1.5,
+        "reactMaxSec": 4,
+        "stepMinSec": 0.8,
+        "stepMaxSec": 2.5,
+        "claimMinSec": 1.5,
+        "claimMaxSec": 4,
+        "tolerancePx": 30,
+        "maxTries": 3,
+        "retrySectorSec": 180,
+        "maxPerHour": 12
       }
     },
     "conquest": {
@@ -340,14 +354,14 @@
       ],
       "auto": {
         "enabled": true,
-        "minSec": 1.5,
-        "maxSec": 3,
-        "gapMinSec": 1.5,
-        "gapMaxSec": 3,
-        "roundMinSec": 1.5,
-        "roundMaxSec": 3,
-        "cooldownMinSec": 1.5,
-        "cooldownMaxSec": 3,
+        "minSec": 2,
+        "maxSec": 4,
+        "gapMinSec": 2,
+        "gapMaxSec": 4,
+        "roundMinSec": 2,
+        "roundMaxSec": 4,
+        "cooldownMinSec": 2,
+        "cooldownMaxSec": 4,
         "quietMinSec": 3,
         "quietMaxSec": 6,
         "topUp": true,
@@ -355,9 +369,9 @@
         "maxPerHour": 200,
         "selfName": "bilcus87",
         "selfMinSec": 1.5,
-        "selfMaxSec": 2,
+        "selfMaxSec": 3,
         "selfRoundMinSec": 1.5,
-        "selfRoundMaxSec": 2
+        "selfRoundMaxSec": 3
       }
     }
   },
