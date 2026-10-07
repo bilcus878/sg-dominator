@@ -320,6 +320,19 @@
           <div><label for="opRestResumeMax">… nejpozději (s od OP, max 240)</label><input type="number" id="opRestResumeMax" min="5" max="240"></div></div>
         <p class="muted" id="opTeleStatus" style="margin-bottom:0"></p>
       </div>
+      <div class="chan" style="border-color:var(--acc)">
+        <div class="chan-head"><span>🟠 Automat na OP (osídlení opuštěných planet)</span><label class="sw"><input type="checkbox" id="opHuntEnabled"><span></span></label></div>
+        <p class="muted" style="margin-top:0">Když na velké mapě svítí OP, bot sám otevře sektor, na sektorové mapě najde tečku na <b>stejné poloze jako na velké mapě</b> (ostatní tečky jsou falešné), otevře ji a klikne na <b>Získat souřadnice</b>. Nenajde-li tlačítko, vrátí se a zkusí další tečku, pak se vrátí na velkou mapu. Při nedostatku naquadahu pošle zprávu do servisního chatu, <b>automat vypne</b> a vrátí se na velkou mapu. Potřebuje zapnuté <b>OP</b> a aktivní teleskop (během lovení se teleskop nezastavuje). Okno mapy musí být otevřené a viditelné.</p>
+        <div class="field"><label style="display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:0">
+          <span class="sw"><input type="checkbox" id="opHuntDry"><span></span></span> Zkušební režim (nikdy neklikne na „Získat souřadnice“)</label>
+          <small>Bot projde celou cestu až k tlačítku a jen <b>pošle zprávu</b>, že by ho zmáčkl. Doporučeno pro první spuštění a ověření, že vybírá správnou tečku. Pro ostré osídlování vypni.</small></div>
+        <div class="two"><div><label for="opHuntReactMin">Po objevení OP začít nejdřív za (s)</label><input type="number" id="opHuntReactMin" min="0.3" max="60" step="0.1"></div><div><label for="opHuntReactMax">… nejpozději za (s)</label><input type="number" id="opHuntReactMax" min="0.3" max="60" step="0.1"></div></div>
+        <div class="two" style="margin-top:10px"><div><label for="opHuntStepMin">Pauza mezi kroky od (s)</label><input type="number" id="opHuntStepMin" min="0.3" max="30" step="0.1"></div><div><label for="opHuntStepMax">… do (s)</label><input type="number" id="opHuntStepMax" min="0.3" max="30" step="0.1"></div></div>
+        <div class="two" style="margin-top:10px"><div><label for="opHuntClaimMin">Před kliknutím na Získat souřadnice od (s)</label><input type="number" id="opHuntClaimMin" min="0.3" max="60" step="0.1"></div><div><label for="opHuntClaimMax">… do (s)</label><input type="number" id="opHuntClaimMax" min="0.3" max="60" step="0.1"></div></div>
+        <div class="two" style="margin-top:10px"><div><label for="opHuntTol">Tolerance polohy tečky (px)</label><input type="number" id="opHuntTol" min="8" max="120"></div><div><label for="opHuntTries">Kolik teček v sektoru vyzkoušet</label><input type="number" id="opHuntTries" min="1" max="10"></div></div>
+        <div class="two" style="margin-top:10px"><div><label for="opHuntRetry">Po neúspěchu sektor nezkoušet (s)</label><input type="number" id="opHuntRetry" min="10" max="3600"></div><div><label for="opHuntPerHour">Nejvíc zakázek za hodinu</label><input type="number" id="opHuntPerHour" min="1" max="120"></div></div>
+        <p class="muted" id="opHuntStatus" style="margin-bottom:0"></p>
+      </div>
       <p class="muted">Skript pro mapu se instaluje z adresy <code>/mapa.user.js</code> (stejně jako ten pro hráče). Aktuální stav vidíš v kartě „OP na mapě“ na hlavní stránce.</p>
     </div>
     <div class="pane" id="pane-channels">

@@ -11,6 +11,7 @@ const CURRENT_MS = 3_000;
 export function createOpTracker() {
   const active = new Map(); // id -> { label, firstSeen, lastSeen, notifiedAt }
   let initialized = false;
+  let holdUntil = 0; // do kdy se tečky nepovažují za zmizelé (skript je zrovna v sektoru a velkou mapu nečte)
 
   /**
    * @param {{id:string,label:string}[]} sectors tečky ve snímku
@@ -21,7 +22,7 @@ export function createOpTracker() {
   function update(sectors, now = Date.now(), { repeatMs = 0, silent = false } = {}) {
     const fresh = [];
     const repeats = [];
-    for (const [id, e] of active) if (now - e.lastSeen > GONE_AFTER_MS) active.delete(id);
+    if (now > holdUntil) for (const [id, e] of active) if (now - e.lastSeen > GONE_AFTER_MS) active.delete(id);
     for (const { id, label } of sectors) {
       const e = active.get(id);
       if (!e) {
@@ -50,5 +51,8 @@ export function createOpTracker() {
     for (const e of active.values()) e.notifiedAt = now;
   }
 
-  return { update, current, markAllNotified };
+  /** Skript opustil velkou mapu kvůli hledání OP: tečky se do tohoto času nepovažují za zmizelé (po návratu se nehlásí znovu). */
+  const hold = (until) => { holdUntil = Math.max(holdUntil, until); };
+
+  return { update, current, markAllNotified, hold };
 }

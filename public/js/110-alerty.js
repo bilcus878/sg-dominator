@@ -45,6 +45,18 @@ $('clearAlerts2').onclick = clearAlerts;
 function renderOp() {
   const op = S.op;
   if (!op) return;
+  { // stav automatu na OP
+    const h = S.opHunt, el = $('opHuntStatus');
+    if (h && el) {
+      const nm = (x) => (/^\d+$/.test(x.label) || !x.label ? `sektor ${x.sector}` : `sektor ${x.sector} (${x.label})`);
+      const res = { success: 'osídleno', dry: 'zkušební průchod hotový', 'no-dot': 'pravá tečka nenalezena', 'no-naquadah': 'nedostatek naquadahu, automat vypnut', fail: 'nepovedlo se', abort: 'ukončeno', timeout: 'zakázka vypršela' };
+      const txt = (h.job ? `Právě lovím ${nm(h.job)} (${h.job.started ? 'fáze ' + h.job.stage + ', zkoušeno ' + h.job.tries + '×' : 'čeká na start'}). ` : 'Čeká na OP. ')
+        + (h.last ? `Naposledy: ${nm(h.last)} – ${res[h.last.result] ?? h.last.result}${h.last.text ? ` (${h.last.text})` : ''}. ` : '')
+        + `Zakázek za poslední hodinu: ${h.startsLastHour}.`
+        + (h.cooling?.length ? ` Odložené sektory: ${h.cooling.map((c) => `${c.sector} (${c.inSec} s)`).join(', ')}.` : '');
+      if (el.textContent !== txt) el.textContent = txt;
+    }
+  }
   if (document.activeElement !== $('opMaster')) $('opMaster').checked = !!op.enabled;
   $('opTgl').classList.toggle('on', !!op.enabled);
   const v = op.vigilance;

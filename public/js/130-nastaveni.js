@@ -28,6 +28,7 @@ function fillForm() {
   $('opVigEnabled').checked = vg.enabled; $('opVigMin').value = vg.minSec; $('opVigMax').value = vg.maxSec;
   $('opVigSkip').checked = vg.skipEnabled ?? true; $('opSkipMin').value = vg.skipMin ?? 5; $('opSkipMax').value = vg.skipMax ?? 10;
   $('opDownMin').value = vg.downMin ?? 3; $('opDownMax').value = vg.downMax ?? 15;
+  { const hu = cfg.op.hunt ?? {}; $('opHuntEnabled').checked = !!hu.enabled; $('opHuntDry').checked = hu.dryRun ?? true; $('opHuntReactMin').value = hu.reactMinSec ?? 1.5; $('opHuntReactMax').value = hu.reactMaxSec ?? 4; $('opHuntStepMin').value = hu.stepMinSec ?? 0.8; $('opHuntStepMax').value = hu.stepMaxSec ?? 2.5; $('opHuntClaimMin').value = hu.claimMinSec ?? 1.5; $('opHuntClaimMax').value = hu.claimMaxSec ?? 4; $('opHuntTol').value = hu.tolerancePx ?? 30; $('opHuntTries').value = hu.maxTries ?? 3; $('opHuntRetry').value = hu.retrySectorSec ?? 180; $('opHuntPerHour').value = hu.maxPerHour ?? 12; }
   const te = cfg.op.telescope ?? { auto: true, reactMinSec: 10, reactMaxSec: 40 };
   $('opTeleAuto').checked = te.auto; $('opReactMin').value = te.reactMinSec; $('opReactMax').value = te.reactMaxSec;
   $('opRestEnabled').checked = te.restEnabled ?? true; $('opRestChance').value = te.restChance ?? 80; $('opRestStopMin').value = te.restStopMin ?? 20; $('opRestStopMax').value = te.restStopMax ?? 90; $('opRestResumeMin').value = te.restResumeMin ?? 165; $('opRestResumeMax').value = te.restResumeMax ?? 230; $('dropPct').value = cfg.dropPct; $('dropWindowSec').value = cfg.dropWindowSec;

@@ -5,6 +5,7 @@ import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { isBuildingId, isSatKey } from './build.js';
 import { VIGILANCE_DEFAULTS, TELESCOPE_DEFAULTS } from './telescope.js';
+import { HUNT_DEFAULTS } from './ophunt.js';
 import { CONQUEST_DEFAULTS } from './conquest.js';
 import { ATTACK_DEFAULTS, sanitizeAttack, ARMY_DEFAULTS, sanitizeArmy } from './attack.js';
 
@@ -67,7 +68,7 @@ export const DEFAULTS = {
   // skript Přihlášení: prodlevy (s) – po odhlášení do kliknutí a po konci denní údržby (3:31:20) do přihlášení
   login: { enabled: false, user: '', password: '' }, // uložené přihlašovací údaje ke hře (jen na tomto počítači v config.json, nikdy v repozitáři); enabled = skript je při přihlášení sám vyplní
   session: { ...SESSION_DEFAULTS, notify: { ...SESSION_DEFAULTS.notify } }, // opětovné přihlášení po odhlášení ze hry (skript Přihlášení čte přes /session/config)
-  op: { enabled: false, repeatSec: 10, vigilance: { ...VIGILANCE_DEFAULTS }, telescope: { ...TELESCOPE_DEFAULTS } }, // alert na tečky OP na mapě; repeatSec = připomínka, dokud svítí (0 = jen jednou); vigilance = automatické potvrzení tlačítka bdělosti po minSec až maxSec
+  op: { enabled: false, repeatSec: 10, vigilance: { ...VIGILANCE_DEFAULTS }, telescope: { ...TELESCOPE_DEFAULTS }, hunt: { ...HUNT_DEFAULTS } }, // alert na tečky OP na mapě; repeatSec = připomínka, dokud svítí (0 = jen jednou); vigilance = automatické potvrzení tlačítka bdělosti po minSec až maxSec
   conquest: { ...CONQUEST_DEFAULTS }, // cizí rasy: k dobytí pod `below`, konec až nad `above`
   dohozStats: { enabled: true, keep: 200 }, // statistika dohozů: zapisovat a kolik posledních hotových dohazování držet
   recalc: { shared: true, pushOnStop: true, pullOnStart: true, syncMinutes: 15, military: true, economic: true, showMilitary: true, showEconomic: true, econMinGrowthPct: 0.1, hideOlderDays: 0 }, // přepočty hráčů: co se sbírá (military = vynulování Dobyt, economic = odhad z růstu populace), co se ukazuje u jmen, citlivost a stáří
@@ -117,6 +118,7 @@ export function normalizeConfig(stored) {
   cfg.session = { ...DEFAULTS.session, ...cfg.session, notify: { ...SESSION_DEFAULTS.notify, ...cfg.session?.notify } };
   cfg.op.vigilance = { ...VIGILANCE_DEFAULTS, ...cfg.op.vigilance };
   cfg.op.telescope = { ...TELESCOPE_DEFAULTS, ...cfg.op.telescope };
+  cfg.op.hunt = { ...HUNT_DEFAULTS, ...cfg.op.hunt };
   cfg.attack = sanitizeAttack(ATTACK_DEFAULTS, cfg.attack);
   cfg.army = sanitizeArmy(ARMY_DEFAULTS, cfg.army);
   migrateLegacy(cfg, stored);
@@ -319,6 +321,24 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
       if (nt.restResumeMin < nt.restStopMax + 60) nt.restResumeMin = Math.min(240, nt.restStopMax + 60); // ať má smysl zastavovat
       if (nt.restResumeMax < nt.restResumeMin) nt.restResumeMax = nt.restResumeMin;
       next.op.telescope = nt;
+    }
+    if (body.op.hunt && typeof body.op.hunt === 'object') { // automat na OP (lovení opuštěných planet)
+      const h = body.op.hunt;
+      const ch = { ...HUNT_DEFAULTS, ...cur.op.hunt };
+      const nh = { ...ch };
+      for (const k of ['enabled', 'dryRun']) if (k in h) nh[k] = !!h[k];
+      const rng = (a, b, lo, hi) => { // dvojice od–do v mezích; konec nikdy pod začátkem
+        for (const k of [a, b]) if (k in h) nh[k] = Math.min(hi, Math.max(lo, num(h[k], ch[k])));
+        if (nh[b] < nh[a]) nh[b] = nh[a];
+      };
+      rng('reactMinSec', 'reactMaxSec', 0.3, 60);
+      rng('stepMinSec', 'stepMaxSec', 0.3, 30);
+      rng('claimMinSec', 'claimMaxSec', 0.3, 60);
+      if ('tolerancePx' in h) nh.tolerancePx = Math.min(120, Math.max(8, num(h.tolerancePx, ch.tolerancePx)));
+      if ('maxTries' in h) nh.maxTries = Math.min(10, Math.max(1, Math.floor(num(h.maxTries, ch.maxTries))));
+      if ('retrySectorSec' in h) nh.retrySectorSec = Math.min(3600, Math.max(10, Math.floor(num(h.retrySectorSec, ch.retrySectorSec))));
+      if ('maxPerHour' in h) nh.maxPerHour = Math.min(120, Math.max(1, Math.floor(num(h.maxPerHour, ch.maxPerHour))));
+      next.op.hunt = nh;
     }
   }
   if (body.conquest && typeof body.conquest === 'object') {

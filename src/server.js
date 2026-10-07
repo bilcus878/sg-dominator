@@ -16,6 +16,7 @@ import { resolveWatch } from './watch.js';
 import { createWatchdog } from './watchdog.js';
 import { BUILDINGS, createBuildRun } from './build.js';
 import { createTelescope } from './telescope.js';
+import { createHunt } from './ophunt.js';
 import { createConquest, CONQUEST_DEFAULTS } from './conquest.js';
 import { createArmy } from './army.js';
 import { createUnemp } from './unemp.js';
@@ -416,7 +417,9 @@ async function handleIngestOp(req) {
   const sectors = [];
   for (const s of body.sectors) {
     if (!/^\d{1,4}$/.test(String(s?.id)) || typeof s.label !== 'string') return [400, { error: 'invalid payload' }];
-    sectors.push({ id: String(s.id), label: s.label.slice(0, 40) });
+    const e = { id: String(s.id), label: s.label.slice(0, 40) };
+    if (Number.isFinite(s.u) && Number.isFinite(s.v)) { e.u = Math.min(1, Math.max(0, s.u)); e.v = Math.min(1, Math.max(0, s.v)); } // poloha tečky v sektoru 0–1 (pro automat na OP)
+    sectors.push(e);
   }
   const now = Date.now();
   opLastAt = now;
@@ -438,13 +441,36 @@ async function handleIngestOp(req) {
     console.log(`[alert] OP ${a.repeat ? 'stále ' : ''}na mapě: ${a.name}`);
     if (notifyOn(cfg, 'op')) sendText(cfg, formatAlert(a));
   }
+  const offer = hunt.offer(sectors, cfg.op.hunt, now, { opEnabled: cfg.op.enabled });
+  if (hunt.active(now)) op.hold(now + 20_000);
+  if (offer.notify) sendService(cfg, offer.notify);
   pushState();
-  return [200, { ok: true, alerts: notify ? 1 : 0, vigilance: cfg.op.vigilance, telescope: cfg.op.telescope }];
+  return [200, { ok: true, alerts: notify ? 1 : 0, vigilance: cfg.op.vigilance, telescope: cfg.op.telescope, hunt: offer.spec ?? null }];
+}
+
+/** Události automatu na OP ze skriptu na mapě (start, sektor, tečka, výsledek). Zprávy jdou jen do servisního chatu. */
+async function handleOpHunt(req) {
+  if (!authOk(req)) return [401, { error: 'bad token' }];
+  const body = await readJson(req, 8192);
+  const now = Date.now();
+  const r = hunt.event({ id: Number(body.id), event: String(body.event ?? ''), x: body.x, y: body.y, text: typeof body.text === 'string' ? body.text : '' }, cfg.op.hunt, now);
+  if (hunt.active(now)) op.hold(now + 20_000);
+  if (r.event !== undefined) delete r.event;
+  if (body.event !== 'state') console.log(`[op-lov] ${body.event}${body.text ? `: ${String(body.text).slice(0, 120)}` : ''}${r.ok ? '' : ' (zakázka už neexistuje)'}`);
+  if (r.notify) sendService(cfg, r.notify);
+  if (r.disable) { // nedostatek naquadahu: automat se vypne i v nastavení, ať ho uživatel zapne až po doplnění
+    cfg.op = { ...cfg.op, hunt: { ...cfg.op.hunt, enabled: false } };
+    saveConfig(cfg);
+  }
+  pushState();
+  const { notify, disable, ...out } = r;
+  return [200, out];
 }
 
 // tlačítko bdělosti na mapě: skript hlásí, že se objevilo a že ho potvrdil; zaseknuté potvrzení jde do servisního chatu
 const vig = { seenAt: 0, clickedAt: 0, count: 0, pending: false, alerted: false };
 const tele = createTelescope();
+const hunt = createHunt(); // automat na OP: zakázky na sektory s OP
 const VIG_ALERT_MS = 150_000; // hra dává ~5 minut, upozornit dřív, než je pozdě
 
 async function handleVigilance(req) {
@@ -492,6 +518,7 @@ async function handleTelescope(req) {
   const state = body.state === 'stopped' ? 'stopped' : 'active';
   if (!cfg.op.enabled) { tele.resetOp(); tele.noteState(state); return [200, { action: 'none' }]; } // OP vypnuto: teleskop se nezapíná
   const r = tele.telescopeState({ state, remainingSec: remaining }, cfg.op, now, { opLit: op.current(now).length });
+  if (r.action === 'stop' && hunt.active(now)) { r.action = 'none'; r.hold = true; } // během lovení OP teleskop jede (bez něj nejsou OP vidět)
   if (r.action === 'stop') console.log('[teleskop] šetření po OP: zastavuji');
   if (state !== teleLast) { teleLast = state; console.log(`[teleskop] ${state === 'active' ? 'aktivní' : 'zastavený'}`); }
   if (r.alert === 'zero') { console.log('[teleskop] nezbývá žádný čas'); sendService(cfg, '⚠️ Teleskop je zastavený a nezbývá mu žádný čas, nelze ho aktivovat.'); }
@@ -538,7 +565,7 @@ function buildState() {
     vigilance: { count: vig.count, lastClickedAt: vig.clickedAt, pendingSince: vig.pending ? vig.seenAt : 0 },
     telescope: tele.snapshot(),
   };
-  return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState, autoArmy: { ...autoArmy.snapshot(now), rankPaused }, sound: cfg.sound, sendStatus: { ...sendStatus }, sessionLog: sessionLog.slice(0, 12), statsRev: dohozStats.rev, profile: { name: prof.name, uiRev: profRt.uiRev, conflict: profRt.conflict, syncedAt: prof.syncedAt, fileAt: profRt.fileAt }, recalcStats: { military: recalc.count(), economic: econ.count() }, shared: sharedView() };
+  return { races, alerts: db.recentAlerts(40), serverTime: now, ratePerSec, op: opState, opHunt: hunt.snapshot(now), autoArmy: { ...autoArmy.snapshot(now), rankPaused }, sound: cfg.sound, sendStatus: { ...sendStatus }, sessionLog: sessionLog.slice(0, 12), statsRev: dohozStats.rev, profile: { name: prof.name, uiRev: profRt.uiRev, conflict: profRt.conflict, syncedAt: prof.syncedAt, fileAt: profRt.fileAt }, recalcStats: { military: recalc.count(), economic: econ.count() }, shared: sharedView() };
 }
 
 /** Hlídač výpadku: hlídané rasy a mapa (když je OP alert zapnutý) musí dodávat data. */
@@ -864,6 +891,7 @@ const routes = {
   'POST /ingest-op': handleIngestOp,
   'POST /vigilance': handleVigilance,
   'POST /telescope': handleTelescope,
+  'POST /op/hunt': handleOpHunt,
   'POST /build/report': handleBuildReport,
   'POST /session': handleSession,
   // uložené přihlašovací údaje dostane jen skript Přihlášení (token, jen 127.0.0.1) a jen když je jejich používání zapnuté; nikdy se nelogují
