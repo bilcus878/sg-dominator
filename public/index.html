@@ -13,7 +13,7 @@
     <div class="menu viewmenu" id="viewMenu" hidden>
       <button type="button" class="vitem on" data-nav="watch"><span class="vic">🌌</span><span class="vtx"><b>Vesmír</b><small>panely ras, hlídání a dohoz</small></span><span class="vck">✓</span></button>
       <button type="button" class="vitem" data-nav="build"><span class="vic">🏗</span><span class="vtx"><b>Stavby</b><small>automatické stavění na planetách</small></span><span class="dot" id="navDot"></span><span class="vck">✓</span></button>
-      <button type="button" class="vitem" data-nav="shop"><span class="vic">🛒</span><span class="vtx"><b>Obchod</b><small>nezaměstnaní a další</small></span><span class="dot" id="shopDot"></span><span class="vck">✓</span></button>
+      <button type="button" class="vitem" data-nav="shop"><span class="vic">🛒</span><span class="vtx"><b>Obchod</b><small>přerozdělení nezaměstnaných</small></span><span class="dot" id="shopDot"></span><span class="vck">✓</span></button>
       <button type="button" class="vitem" data-nav="stats"><span class="vic">📊</span><span class="vtx"><b>Statistiky</b><small>dohozy, časy a výsledky</small></span><span class="vck">✓</span></button>
     </div>
   </div>
@@ -160,8 +160,8 @@
         <div class="muted" id="rdLog" style="margin-top:6px;max-height:200px;overflow:auto;font-size:12px"></div>
       </div>
       <div class="card">
-        <div class="card-head"><h2>👥 Nezaměstnaní</h2></div>
-        <p class="muted" style="margin-top:0">Doplní nezaměstnané na planety, kterým chybí lidé (červená čísla v Obchod → Nezaměstnaní): seřadí seznam, otevře poslední planetu, klikne na Přesunout a vrátí se zpět – dokud někde chybí lidé. Když dojdou nezaměstnaní („zbývá“ 0 nebo nestačí na celou planetu), skončí. Potřebuje otevřenou stránku <b>Obchod → Nezaměstnaní</b> a skript Nezaměstnaní.</p>
+        <div class="card-head"><h2>🦸 Přerozdělení správcem</h2></div>
+        <p class="muted" style="margin-top:0">Přerozdělení s jedním hrdinou (správcem). Doplní nezaměstnané na planety, kterým chybí lidé (červená čísla v Obchod → Nezaměstnaní): seřadí seznam, otevře poslední planetu, klikne na Přesunout a vrátí se zpět – dokud někde chybí lidé. Když dojdou nezaměstnaní („zbývá“ 0 nebo nestačí na celou planetu), skončí. Potřebuje otevřenou stránku <b>Obchod → Nezaměstnaní</b> a skript Nezaměstnaní.</p>
         <div class="brun"><button id="uStart">▶ Doplnit nezaměstnané</button><button class="ghost" id="uStop">■ Zastavit</button></div>
         <div class="muted" id="uState" style="margin-top:6px">nečinné</div>
         <div class="muted" id="uLog" style="margin-top:6px;max-height:160px;overflow:auto;font-size:12px"></div>
