@@ -482,18 +482,25 @@ test('Obchod: hranice „Nejdřív nejprázdnější planety“ (méně než N m
   await b.eval(`document.querySelector('[data-nav=watch]').click(); 1`);
 });
 
-test('pruh ras nad panely: na široké obrazovce ukáže rasy (naše první, otevřené zvýrazněné), klik přidá nebo najde panel; na úzké je schovaný', { skip, timeout: 30_000 }, async () => {
+test('pruh ras: na široké obrazovce celý seznam (naše první, bez přeškrtnutí), na úzké štíhlý řádek Rasy ▾ s rozbalením; klik přidá panel nebo na něj přejde', { skip, timeout: 40_000 }, async () => {
   await b.eval(`(() => { panels = panels.filter((x) => x !== '5'); saveUi(); renderBoard(); })()`); // Aschen (5) nemá panel
   await b.send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 900, deviceScaleFactor: 1, mobile: false }); await sleep(500);
-  assert.equal(await b.eval(`getComputedStyle(document.getElementById('raceBar')).display`), 'flex');
-  const names = await b.eval(`[...document.querySelectorAll('#raceBar .rchip:not(.watched) .rname')].map((e) => e.textContent).join('|')`);
-  assert.match(names, /^Bedrosian\|/, 'naše rasa je první');
-  assert.ok(names.includes('Aschen'));
-  assert.equal(await b.eval(`document.querySelector('#raceBar .rchip.mine').classList.contains('open')`), true, 'naše rasa má otevřený panel');
-  assert.equal(await b.eval(`document.querySelector('#raceBar .rchip[data-race="5"]').classList.contains('open')`), false);
-  await b.eval(`document.querySelector('#raceBar .rchip[data-race="5"]').click(); 1`); await sleep(500);
-  assert.equal(await b.eval(`document.querySelector('#raceBar .rchip[data-race="5"]').classList.contains('open') && !!document.querySelector('.rpanel[data-p="5"]')`), true, 'klik přidal panel');
-  await b.send('Emulation.setDeviceMetricsOverride', { width: 900, height: 900, deviceScaleFactor: 1, mobile: false }); await sleep(400);
-  assert.equal(await b.eval(`getComputedStyle(document.getElementById('raceBar')).display`), 'none', 'na úzké obrazovce zůstává minimalisticky');
+  assert.equal(await b.eval(`getComputedStyle(document.querySelector('#raceBar .rb-all')).display + '/' + getComputedStyle(document.querySelector('#raceBar .rb-strip')).display`), 'flex/none');
+  const names = await b.eval(`[...document.querySelectorAll('#rbAll .rchip:not(.watched) .rname')].map((e) => e.textContent).join('|')`);
+  assert.match(names, /^Bedrosian\|/, 'naše rasa je první'); assert.ok(names.includes('Aschen'));
+  assert.equal(await b.eval(`[...document.querySelectorAll('#rbAll .rname')].some((e) => getComputedStyle(e).textDecorationLine.includes('line-through'))`), false, 'nic není přeškrtnuté');
+  assert.equal(await b.eval(`document.querySelector('#rbAll .rchip.mine').classList.contains('open')`), true);
+  await b.eval(`document.querySelector('#rbAll .rchip[data-race="5"]').click(); 1`); await sleep(500);
+  assert.equal(await b.eval(`!!document.querySelector('.rpanel[data-p="5"]')`), true, 'klik přidal panel');
+  // úzké okno: štíhlý řádek, seznam je schovaný a rozbalí se
+  await b.send('Emulation.setDeviceMetricsOverride', { width: 800, height: 900, deviceScaleFactor: 1, mobile: false }); await sleep(500);
+  assert.equal(await b.eval(`getComputedStyle(document.querySelector('#raceBar .rb-strip')).display + '/' + getComputedStyle(document.querySelector('#raceBar .rb-all')).display`), 'flex/none');
+  assert.match(await b.eval(`document.getElementById('rbOpen').textContent`), /Bedrosian/, 'v řádku jsou otevřené panely');
+  assert.ok(Number(await b.eval(`document.getElementById('rbCount').textContent`)) >= 2);
+  await b.eval(`document.getElementById('rbToggle').click(); 1`); await sleep(250);
+  assert.equal(await b.eval(`getComputedStyle(document.getElementById('rbAll')).display + '/' + document.getElementById('rbToggle').getAttribute('aria-expanded')`), 'flex/true');
+  await b.eval(`document.querySelector('#rbAll .rchip[data-race="5"]').click(); 1`); await sleep(300);
+  assert.equal(await b.eval(`getComputedStyle(document.getElementById('rbAll')).display`), 'none', 'po kliku na rasu se seznam zavře');
+  await b.send('Emulation.setDeviceMetricsOverride', { width: 900, height: 900, deviceScaleFactor: 1, mobile: false }); await sleep(300);
   await b.eval(`(() => { panels = panels.filter((x) => x !== '5'); saveUi(); renderBoard(); })()`);
 });

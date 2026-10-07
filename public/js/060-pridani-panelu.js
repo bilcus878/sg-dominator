@@ -32,28 +32,36 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.addwrap')) c
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
 
 
-/* ---------- pruh ras nad panely (jen na široké obrazovce; jako seznam ras ve hře) ----------
-   Klik na rasu: nemá panel = přidá se, má = doscrolluje se na něj a krátce se zvýrazní. */
+/* ---------- pruh ras nad panely ----------
+   Široká obrazovka: všechny rasy v pruhu jako seznam ras ve hře. Úzká: štíhlý řádek „Rasy ▾“ s otevřenými panely a po rozkliknutí rozbalovací seznam všech ras.
+   Klik na rasu: nemá panel = přidá se, má = doscrolluje se na něj a krátce se zvýrazní. Zelená tečka = právě přicházejí data. */
 let raceBarSig = '';
+const rchip = (r, small = false) => `<button type="button" class="rchip${small ? ' sm' : ''}${r.open ? ' open' : ''}${r.mine ? ' mine' : ''}${r.role === 'attack' && !r.mine ? ' foe' : ''}${r.live ? ' live' : ''}" data-race="${esc(r.id)}" title="${esc(r.name)} – ${r.n} hráčů${r.live ? ', data právě přicházejí (' + r.src + ' ' + plural(r.src) + ')' : ''}${r.open ? ' · panel je otevřený (klik = přejít na něj)' : ' · klik = přidat panel'}">${r.mine ? '<i class="rstar">⭐</i>' : ''}<span class="rname">${esc(r.name)}</span><i class="rdot"></i></button>`;
 function renderRaceBar() {
   const bar = $('raceBar'); if (!bar) return;
   const shown = new Set(panels ?? []);
   const races = [...S.races].sort((a, b) => (b.id === cfg?.myRace) - (a.id === cfg?.myRace) || a.name.localeCompare(b.name, 'cs'));
-  const items = races.map((r) => {
-    const open = shown.has(r.id), live = isLive(r), mine = r.id === cfg?.myRace, dead = !r.players.length; // zatím bez dat (třeba rasa známá jen z nabídky ve hře)
-    return { id: r.id, name: r.name, open, live, mine, dead, role: r.role, n: r.players.length, src: r.sources ?? 0 };
-  });
+  const items = races.map((r) => ({ id: r.id, name: r.name, open: shown.has(r.id), live: isLive(r), mine: r.id === cfg?.myRace, role: r.role, n: r.players.length, src: r.sources ?? 0 }));
   const watchedOpen = shown.has(WATCHED);
   const sig = JSON.stringify([items, watchedOpen]);
   if (sig === raceBarSig) return;
   raceBarSig = sig;
   bar.hidden = !items.length;
-  bar.innerHTML = items.map((r) => `<button type="button" class="rchip${r.open ? ' open' : ''}${r.mine ? ' mine' : ''}${r.role === 'attack' && !r.mine ? ' foe' : ''}${r.dead ? ' dead' : ''}${r.live ? ' live' : ''}" data-race="${esc(r.id)}" title="${esc(r.name)} – ${r.n} hráčů${r.live ? ', data právě přicházejí (' + r.src + ' ' + plural(r.src) + ')' : ''}${r.open ? ' · panel je otevřený (klik = přejít na něj)' : ' · klik = přidat panel'}">${r.mine ? '<i class="rstar">⭐</i>' : ''}<span class="rname">${esc(r.name)}</span><i class="rdot"></i></button>`).join('')
-    + `<button type="button" class="rchip watched${watchedOpen ? ' open' : ''}" data-race="${WATCHED}" title="Hlídaní hráči ze všech ras"><i class="rstar">★</i><span class="rname">Hlídaní</span></button>`;
+  const watchedChip = `<button type="button" class="rchip watched${watchedOpen ? ' open' : ''}" data-race="${WATCHED}" title="Hlídaní hráči ze všech ras"><i class="rstar">★</i><span class="rname">Hlídaní</span></button>`;
+  $('rbAll').innerHTML = items.map((r) => rchip(r)).join('') + watchedChip;
+  const open = items.filter((r) => r.open);
+  $('rbOpen').innerHTML = open.length ? open.map((r) => rchip(r, true)).join('') : '<span class="rb-none">žádný panel – rozbal seznam</span>';
+  $('rbCount').textContent = items.length;
+  $('rbLive').hidden = !items.some((r) => r.live);
 }
+const rbClose = () => { $('raceBar').classList.remove('expanded'); $('rbToggle').setAttribute('aria-expanded', 'false'); };
+$('rbToggle').addEventListener('click', (e) => { e.stopPropagation(); const on = !$('raceBar').classList.contains('expanded'); $('raceBar').classList.toggle('expanded', on); $('rbToggle').setAttribute('aria-expanded', String(on)); });
+document.addEventListener('click', (e) => { if (!e.target.closest('#raceBar')) rbClose(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') rbClose(); });
 $('raceBar').addEventListener('click', (e) => {
   const b = e.target.closest('[data-race]'); if (!b) return;
   const id = b.dataset.race;
+  rbClose();
   if (!(panels ?? []).includes(id)) { addPanel(id); return; }
   const root = view.get(id)?.root; if (!root) return;
   root.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
