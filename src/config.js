@@ -70,7 +70,7 @@ export const DEFAULTS = {
   op: { enabled: false, repeatSec: 10, vigilance: { ...VIGILANCE_DEFAULTS }, telescope: { ...TELESCOPE_DEFAULTS } }, // alert na tečky OP na mapě; repeatSec = připomínka, dokud svítí (0 = jen jednou); vigilance = automatické potvrzení tlačítka bdělosti po minSec až maxSec
   conquest: { ...CONQUEST_DEFAULTS }, // cizí rasy: k dobytí pod `below`, konec až nad `above`
   dohozStats: { enabled: true, keep: 200 }, // statistika dohozů: zapisovat a kolik posledních hotových dohazování držet
-  recalc: { shared: true, pushOnStop: true, pullOnStart: true, military: true, economic: true, showMilitary: true, showEconomic: true, econMinGrowthPct: 0.1, hideOlderDays: 0 }, // přepočty hráčů: co se sbírá (military = vynulování Dobyt, economic = odhad z růstu populace), co se ukazuje u jmen, citlivost a stáří
+  recalc: { shared: true, pushOnStop: true, pullOnStart: true, syncMinutes: 15, military: true, economic: true, showMilitary: true, showEconomic: true, econMinGrowthPct: 0.1, hideOlderDays: 0 }, // přepočty hráčů: co se sbírá (military = vynulování Dobyt, economic = odhad z růstu populace), co se ukazuje u jmen, citlivost a stáří
   watchdog: { enabled: true, staleSec: 30 }, // hlášení, že hlídaná rasa / mapa přestala dodávat data
   discord: { enabled: false, webhookUrl: '' },
   telegram: { enabled: false, botToken: '', chatId: '', serviceChatId: '' }, // serviceChatId = servisní chat pro systémové zprávy
@@ -337,6 +337,7 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
   if (body.recalc && typeof body.recalc === 'object') {
     const r = { ...DEFAULTS.recalc, ...cur.recalc };
     for (const k of ['shared', 'pushOnStop', 'pullOnStart', 'military', 'economic', 'showMilitary', 'showEconomic']) if (k in body.recalc) r[k] = !!body.recalc[k];
+    if ('syncMinutes' in body.recalc) r.syncMinutes = Math.min(1440, Math.max(0, Math.round(num(body.recalc.syncMinutes, r.syncMinutes)))); // 0 = jen při startu/zastavení
     if ('econMinGrowthPct' in body.recalc) r.econMinGrowthPct = Math.min(5, Math.max(0.01, num(body.recalc.econMinGrowthPct, r.econMinGrowthPct)));
     if ('hideOlderDays' in body.recalc) r.hideOlderDays = Math.min(365, Math.round(num(body.recalc.hideOlderDays, r.hideOlderDays)));
     next.recalc = r;

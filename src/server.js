@@ -664,12 +664,19 @@ async function initSharedStorage() {
   sharedSync();
 }
 setTimeout(initSharedStorage, 1000);
-setInterval(() => { if (cfg.recalc.shared && cfg.recalc.pullOnStart) pullSharedData().then(() => sharedSync()); }, 15 * 60_000); // novinky od ostatních i za běhu (každých 15 min)
+// pravidelná výměna dat s ostatními za běhu (výchozí každých 15 min, v Nastavení → Data): odešle, co je nového (commit jen při změně), a stáhne novinky
+let syncAt = Date.now();
+setInterval(async () => {
+  const m = Number(cfg.recalc.syncMinutes);
+  if (!cfg.recalc.shared || !(m > 0) || Date.now() - syncAt < m * 60_000 - 5_000 || !dataRepo.ready) return;
+  syncAt = Date.now();
+  try { await sharePush({ quiet: true }); await pullSharedData(); sharedSync(); } catch (e) { console.error('[sdílení] pravidelná výměna selhala:', e.message); }
+}, 30_000);
 setInterval(sharedSync, 60_000); // po pullu z gitu se cizí data načtou do minuty; vlastní se zapisují jen při změně
 
 let shareBusy = null;
 /** Pošle ostatním (commit + pull --rebase + push) soubor s daty tohoto počítače a vybraný profil. Najednou běží jen jedno odeslání. */
-async function sharePush() {
+async function sharePush({ quiet = false } = {}) {
   if (shareBusy) return shareBusy;
   shareBusy = (async () => {
     try {
@@ -678,7 +685,7 @@ async function sharePush() {
       const files = [SHARED_FILE];
       if (validName(prof.name)) files.push(`${prof.name}.json`);
       const r = await pushShared({ root: PROFILES_DIR, files, message: `Sdílená data přepočtů a profil (${HOST})` });
-      console.log(r.ok ? `[sdílení] ${r.nothing ? 'není co odeslat' : r.committed ? (r.pushed ? 'odesláno ostatním (commit + push)' : 'commit, push nebyl potřeba') : 'beze změn, nic nového k odeslání'}` : `[sdílení] odeslání selhalo: ${r.error}`);
+      if (!(quiet && r.ok && !r.committed)) console.log(r.ok ? `[sdílení] ${r.nothing ? 'není co odeslat' : r.committed ? (r.pushed ? 'odesláno ostatním (commit + push)' : 'commit, push nebyl potřeba') : 'beze změn, nic nového k odeslání'}` : `[sdílení] odeslání selhalo: ${r.error}`);
       return r;
     } catch (e) { return { ok: false, error: e.message }; }
     finally { shareBusy = null; }

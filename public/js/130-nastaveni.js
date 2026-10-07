@@ -91,14 +91,14 @@ $('loginClear').onclick = async () => {
 
 /** Přepočty hráčů (Nastavení → Data) */
 function fillRecalc(r) {
-  $('rcShared').checked = r.shared !== false; $('rcPushOnStop').checked = r.pushOnStop !== false; $('rcPullOnStart').checked = r.pullOnStart !== false;
+  $('rcShared').checked = r.shared !== false; $('rcPushOnStop').checked = r.pushOnStop !== false; $('rcPullOnStart').checked = r.pullOnStart !== false; $('rcSyncMin').value = r.syncMinutes ?? 15;
   $('rcMil').checked = r.military !== false; $('rcEco').checked = r.economic !== false;
   $('rcShowMil').checked = r.showMilitary !== false; $('rcShowEco').checked = r.showEconomic !== false;
   $('rcMinGrowth').value = r.econMinGrowthPct ?? 0.1; $('rcHideDays').value = r.hideOlderDays ?? 0;
   renderRecalcStats();
 }
 function collectRecalc() {
-  return { shared: $('rcShared').checked, pushOnStop: $('rcPushOnStop').checked, pullOnStart: $('rcPullOnStart').checked, military: $('rcMil').checked, economic: $('rcEco').checked, showMilitary: $('rcShowMil').checked, showEconomic: $('rcShowEco').checked, econMinGrowthPct: $('rcMinGrowth').value, hideOlderDays: $('rcHideDays').value };
+  return { shared: $('rcShared').checked, pushOnStop: $('rcPushOnStop').checked, pullOnStart: $('rcPullOnStart').checked, syncMinutes: $('rcSyncMin').value, military: $('rcMil').checked, economic: $('rcEco').checked, showMilitary: $('rcShowMil').checked, showEconomic: $('rcShowEco').checked, econMinGrowthPct: $('rcMinGrowth').value, hideOlderDays: $('rcHideDays').value };
 }
 function renderRecalcStats() {
   const el = $('rcStats'); if (!el) return;

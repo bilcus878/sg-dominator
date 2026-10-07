@@ -128,3 +128,12 @@ test('nastavení přepočtů: sdílení, odeslání při zastavení a stažení 
   const r = sanitizeUpdate(base, { recalc: { pullOnStart: false, pushOnStop: false } }).recalc;
   assert.deepEqual([r.shared, r.pushOnStop, r.pullOnStart], [true, false, false]);
 });
+
+test('nastavení přepočtů: pravidelná výměna dat po N minutách (výchozí 15, 0 = vypnuto, nejvýš den)', async () => {
+  const { sanitizeUpdate, DEFAULTS } = await import('../src/config.js');
+  const base = { ...DEFAULTS, token: 'x' };
+  assert.equal(base.recalc.syncMinutes, 15);
+  assert.equal(sanitizeUpdate(base, { recalc: { syncMinutes: 0 } }).recalc.syncMinutes, 0);
+  assert.equal(sanitizeUpdate(base, { recalc: { syncMinutes: 99999 } }).recalc.syncMinutes, 1440);
+  assert.equal(sanitizeUpdate(base, { recalc: { syncMinutes: 7.6 } }).recalc.syncMinutes, 8);
+});
