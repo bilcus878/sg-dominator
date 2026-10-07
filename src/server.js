@@ -468,7 +468,7 @@ async function handleOpHunt(req) {
 }
 
 // tlačítko bdělosti na mapě: skript hlásí, že se objevilo a že ho potvrdil; zaseknuté potvrzení jde do servisního chatu
-const vig = { seenAt: 0, clickedAt: 0, count: 0, pending: false, alerted: false };
+const vig = { seenAt: 0, clickedAt: 0, stillAt: 0, count: 0, pending: false, alerted: false };
 const tele = createTelescope();
 const hunt = createHunt(); // automat na OP: zakázky na sektory s OP
 const VIG_ALERT_MS = 150_000; // hra dává ~5 minut, upozornit dřív, než je pozdě
@@ -485,9 +485,14 @@ async function handleVigilance(req) {
       console.log('[bdělost] tlačítko se objevilo, tentokrát ho záměrně nepotvrdím (teleskop se zastaví a chvíli zůstane vypnutý)');
       return [200, { ok: true, action: 'skip' }];
     }
-    vig.pending = true; vig.seenAt = now; vig.alerted = false;
+    vig.pending = true; vig.seenAt = now; vig.stillAt = now; vig.alerted = false;
     console.log(`[bdělost] tlačítko se objevilo, kliknu za ${Math.round(Number(body.delayMs) / 100) / 10} s`);
     return [200, { ok: true, action: 'click' }];
+  } else if (body.event === 'still') { // skript pořád vidí tlačítko (hlásí se, dokud je na stránce)
+    vig.stillAt = now;
+  } else if (body.event === 'gone') { // tlačítko zmizelo bez našeho kliknutí (hra ho zrušila, potvrzeno jinde, stránka se přenačetla): nic nečeká
+    vig.pending = false;
+    console.log('[bdělost] tlačítko zmizelo, nic už nečeká na potvrzení');
   } else if (body.event === 'clicked') {
     tele.vigilanceClicked();
     vig.pending = false; vig.clickedAt = now; vig.count++;
@@ -527,7 +532,8 @@ async function handleTelescope(req) {
 
 setInterval(() => {
   const now = Date.now();
-  if (vig.pending && !vig.alerted && now - vig.seenAt > VIG_ALERT_MS) {
+  // upozornit jen když tlačítko opravdu pořád visí (skript ho viděl v posledních 90 s, skrytá karta hlásí pomalu) a okno mapy se zrovna nevěnuje lovení OP
+  if (vig.pending && !vig.alerted && now - vig.seenAt > VIG_ALERT_MS && now - vig.stillAt < 90_000 && !hunt.active(now)) {
     vig.alerted = true;
     sendService(cfg, `⚠️ Tlačítko bdělosti čeká na potvrzení už ${Math.round((now - vig.seenAt) / 1000)} s. Zkontroluj mapu, hrozí přerušení teleskopu.`);
   }

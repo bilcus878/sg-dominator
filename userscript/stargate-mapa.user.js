@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – OP na mapě
 // @namespace    sg-dominator
-// @version      1.4.0
+// @version      1.4.1
 // @description  Hledá na mapě galaxie svítící tečky (opuštěné planety) a hlásí je lokálnímu notifikátoru; potvrzuje tlačítko bdělosti (po náhodné prodlevě), zapíná zastavený teleskop a (je-li zapnutý automat na OP) opuštěnou planetu sám osídlí
 // @match        https://stargate-game.cz/mapa.php*
 // @match        https://www.stargate-game.cz/mapa.php*
@@ -168,7 +168,7 @@
   // Klikne se až po náhodné prodlevě; jednou za pár potvrzení ho server nechá záměrně vynechat. Zastavený teleskop
   // se po lidské prodlevě znovu aktivuje, po vynechané bdělosti až po delší „pauze“. Rozhoduje server (drží stav).
   let vig = { enabled: true, minSec: 5, maxSec: 10 }; // přepíše server v odpovědi na /ingest-op
-  let vigSeen = false, vigClicking = false, vigTries = 0;
+  let vigSeen = false, vigClicking = false, vigTries = 0, vigStillAt = 0;
   let teleScheduled = false, teleClicking = false, teleStopping = false, teleLastPost = 0, teleLastActive = 0;
   let mouse = { x: 300 + Math.random() * 400, y: 200 + Math.random() * 200 };
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -227,10 +227,14 @@
   async function vigilanceTick() {
     const btn = document.getElementById('kliknout');
     if (!isVisible(btn)) {
-      if (vigSeen && !vigClicking) { vigSeen = false; vigTries = 0; } // tlačítko zmizelo (potvrzeno nebo vypršelo)
+      if (vigSeen && !vigClicking) { vigSeen = false; vigTries = 0; postJson('/vigilance', { event: 'gone' }); } // tlačítko zmizelo (potvrzeno nebo vypršelo): server nemá na co čekat
       return;
     }
-    if (!vig.enabled || vigSeen) return;
+    if (vigSeen) { // pořád visí: server se dozví, že upozornění na nepotvrzené tlačítko je oprávněné (a nechodí, když tlačítko už dávno zmizelo)
+      if (Date.now() - vigStillAt > 10_000) { vigStillAt = Date.now(); postJson('/vigilance', { event: 'still' }); }
+      return;
+    }
+    if (!vig.enabled) return;
     vigSeen = true;
     const lo = Math.max(1, Number(vig.minSec) || 5);
     const hi = Math.max(lo, Number(vig.maxSec) || 10);
