@@ -472,3 +472,13 @@ test('Obchod: omezení obřích planet (měst / lidí) se uloží na server', { 
   await b.eval(`rdGiantCities.value = '0'; rdGiantCities.dispatchEvent(new Event('change', { bubbles: true })); 1`); await sleep(900);
   await b.eval(`document.querySelector('[data-nav=watch]').click(); 1`);
 });
+
+test('Obchod: volba „Přednostně planety bez lidí“ se uloží na server', { skip, timeout: 30_000 }, async () => {
+  await b.eval(`document.querySelector('[data-nav=shop]').click(); 1`); await sleep(500);
+  assert.equal(await b.eval(`rdPrioEmpty.checked`), false);
+  await b.eval(`rdPrioEmpty.click(); 1`); await sleep(900);
+  assert.equal((await app.api('/api/config')).redist.prioEmpty, true);
+  await b.eval(`rdPrioEmpty.click(); 1`); await sleep(900);
+  assert.equal((await app.api('/api/config')).redist.prioEmpty, false);
+  await b.eval(`document.querySelector('[data-nav=watch]').click(); 1`);
+});

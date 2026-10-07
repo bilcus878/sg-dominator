@@ -19,7 +19,7 @@ export function createUnemp() {
 
   function start(now = Date.now(), settings = {}) {
     if (active()) return false;
-    run = { ...idle(), status: 'running', startedAt: now, lastSeenAt: now, settings: { ignoreCities: Number(settings.ignoreCities) || 0, ignorePeopleM: Number(settings.ignorePeopleM) || 0 } };
+    run = { ...idle(), status: 'running', startedAt: now, lastSeenAt: now, settings: { ignoreCities: Number(settings.ignoreCities) || 0, ignorePeopleM: Number(settings.ignorePeopleM) || 0, prioEmpty: !!settings.prioEmpty } };
     addLog(now, 'Spuštěno – čekám na stránku Obchod → Nezaměstnaní');
     return true;
   }
@@ -59,11 +59,15 @@ export function createUnemp() {
     }
     if (rep.page === 'list') {
       if (!rep.sorted) return { action: 'sort' };
-      const filtering = run.settings.ignoreCities > 0 || run.settings.ignorePeopleM > 0;
+      const filtering = run.settings.ignoreCities > 0 || run.settings.ignorePeopleM > 0 || run.settings.prioEmpty;
       let last = rep.last;
       if (filtering) { // omezení obřích planet: potřebuje celou tabulku, dole se vezme poslední planeta, která obří není
         if (!Array.isArray(rep.rows)) return { action: 'send-rows' };
-        const cand = rep.rows.filter((r) => r.missing > 0 && !isGiant(r, run.settings));
+        let cand = rep.rows.filter((r) => r.missing > 0 && !isGiant(r, run.settings));
+        if (run.settings.prioEmpty) { // přednostně planety, na kterých není celkem nikdo
+          const empty = cand.filter((r) => r.people === 0);
+          if (empty.length) { cand = empty; if (!run.emptyNoted) { run.emptyNoted = true; addLog(now, `Přednostně planety bez lidí (${empty.length})`); } }
+        }
         const skippedGiants = rep.rows.filter((r) => r.missing > 0 && isGiant(r, run.settings)).length;
         if (skippedGiants && !run.giantNoted) { run.giantNoted = true; addLog(now, `Obří planety se přeskakují (${skippedGiants} s chybějícími lidmi)`); }
         last = cand.length ? { name: cand[cand.length - 1].name, missing: cand[cand.length - 1].missing } : null;

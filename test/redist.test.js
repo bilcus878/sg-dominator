@@ -111,3 +111,12 @@ test('obří planety: víc měst nebo lidí, než je nastaveno, se nepoužijí j
   const mv = r.report({ page: 'planet', name: 'SRC', count: 200 * M, options: ['OBR', 'MALA'] }, 2);
   assert.deepEqual([mv.action, mv.target], ['move', 'MALA']);
 });
+
+test('přednostně planety bez lidí: při zapnutí se naplní jako první (i když jiná planeta má větší rezervu); bez zapnutí vede největší rezerva', () => {
+  const rows = [row('S', 5000, 200, 0), row('MA_LIDI', 100, 0, 2000), row('PRAZDNA', 0, 0, 800)];
+  assert.deepEqual(pickTargets(rows, 'S', 100 * M).map((r) => r.name), ['MA_LIDI', 'PRAZDNA']);
+  assert.deepEqual(pickTargets(rows, 'S', 100 * M, null, { prioEmpty: true }).map((r) => r.name), ['PRAZDNA', 'MA_LIDI']);
+  const r = createRedist(); r.start({ ...S, prioEmpty: true }, 0);
+  r.report({ page: 'list', sorted: true, rows }, 1);
+  assert.equal(r.report({ page: 'planet', name: 'S', count: 200 * M, options: ['MA_LIDI', 'PRAZDNA'] }, 2).target, 'PRAZDNA');
+});

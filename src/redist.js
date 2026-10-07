@@ -12,7 +12,7 @@
 const STALE_MS = 120_000; // skript se tak dlouho neozval = běh se zastaví
 const MAX_RELOADS = 3; // tolikrát se znovu načte seznam, když ukazuje stará data (po návratu zpět z mezipaměti prohlížeče)
 
-export const REDIST_DEFAULTS = { minM: 100, maxM: 300, freeMaxM: 0, dry: true, maxMoves: 100, pace: 1, pauseMinSec: 4, pauseMaxSec: 10, ignoreCities: 0, ignorePeopleM: 0 }; // pace = násobek tempa skriptu (menší = rychlejší), pauza = náhodná prodleva mezi planetami (s); platí pro přerozdělení i doplňování // v milionech lidí; dry = zkušební běh (nic se nepřesouvá)
+export const REDIST_DEFAULTS = { minM: 100, maxM: 300, freeMaxM: 0, dry: true, maxMoves: 100, pace: 1, pauseMinSec: 4, pauseMaxSec: 10, ignoreCities: 0, ignorePeopleM: 0, prioEmpty: false }; // pace = násobek tempa skriptu (menší = rychlejší), pauza = náhodná prodleva mezi planetami (s); platí pro přerozdělení i doplňování // v milionech lidí; dry = zkušební běh (nic se nepřesouvá)
 
 const fmtM = (n) => `${(Number(n) / 1e6).toLocaleString('cs-CZ', { maximumFractionDigits: 1 })} mil.`;
 
@@ -32,7 +32,7 @@ export const isGiant = (r, s = {}) => (s.ignoreCities > 0 && r.cities > s.ignore
 export function pickTargets(rows, source, amount, allowed = null, s = {}) {
   return rows
     .filter((r) => r.name !== source && !isGiant(r, s) && acceptance(r) >= amount && (!allowed || allowed.has(r.name)))
-    .sort((a, b) => acceptance(b) - acceptance(a));
+    .sort((a, b) => (s.prioEmpty ? Number(b.people === 0) - Number(a.people === 0) : 0) || acceptance(b) - acceptance(a)); // přednostně planety bez lidí (když je to zapnuté), jinak největší rezerva
 }
 
 export function createRedist() {

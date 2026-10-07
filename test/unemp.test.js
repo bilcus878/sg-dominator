@@ -77,3 +77,17 @@ test('doplňování s omezením obřích planet: poslední planeta v seznamu, kt
   const r3 = none.report({ page: 'list', sorted: true, last: { name: 'X', missing: 1 }, rows: [mk('OBR', 3000, 13e9, 25e9)] }, 1);
   assert.equal(r3.action, 'idle'); assert.match(none.snapshot().reason, /všechny planety mají dost lidí/);
 });
+
+test('doplňování: přednostně planety bez lidí, i když nejsou na konci seznamu; bez volby platí poslední řádek', () => {
+  const mk = (name, people, missing) => ({ name, cities: 100, people, unemployed: 0, free: 0, missing });
+  const rows = [mk('PRAZDNA', 0, 4e7), mk('B', 2e8, 9e7), mk('C', 3e8, 2e8)];
+  const u = createUnemp(); u.start(0, { prioEmpty: true });
+  assert.equal(u.report({ page: 'list', sorted: true, last: { name: 'C', missing: 2e8 } }, 1).action, 'send-rows');
+  const open = u.report({ page: 'list', sorted: true, last: { name: 'C', missing: 2e8 }, rows }, 2);
+  assert.deepEqual([open.action, open.name], ['open', 'PRAZDNA']);
+  assert.match(u.snapshot().log.map((l) => l.msg).join('\n'), /Přednostně planety bez lidí \(1\)/);
+  const plain = createUnemp(); plain.start(0);
+  assert.equal(plain.report({ page: 'list', sorted: true, last: { name: 'C', missing: 2e8 } }, 1).name, 'C');
+  const none = createUnemp(); none.start(0, { prioEmpty: true }); // žádná prázdná: normálně poslední
+  assert.equal(none.report({ page: 'list', sorted: true, last: { name: 'C', missing: 2e8 }, rows: rows.slice(1) }, 1).name, 'C');
+});

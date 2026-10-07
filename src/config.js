@@ -361,6 +361,7 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
     r.maxMoves = Math.round(r.maxMoves);
     if (r.maxM < r.minM) r.maxM = r.minM; // horní hranice nikdy pod dolní
     if ('dry' in body.redist) r.dry = !!body.redist.dry;
+    if ('prioEmpty' in body.redist) r.prioEmpty = !!body.redist.prioEmpty;
     next.redist = r;
   }
   if (body.dohozStats && typeof body.dohozStats === 'object') {
