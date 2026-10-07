@@ -443,6 +443,7 @@ function renderBoard() {
   }
   for (const id of panels) updatePanel(id);
   renderBoardEmpty();
+  if (typeof renderRaceBar === 'function') renderRaceBar();
 }
 let boardSig = '';
 

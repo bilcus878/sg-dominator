@@ -481,3 +481,19 @@ test('Obchod: hranice „Nejdřív nejprázdnější planety“ (méně než N m
   await b.eval(`rdPrioBelow.value = '0'; rdPrioBelow.dispatchEvent(new Event('change', { bubbles: true })); 1`); await sleep(900);
   await b.eval(`document.querySelector('[data-nav=watch]').click(); 1`);
 });
+
+test('pruh ras nad panely: na široké obrazovce ukáže rasy (naše první, otevřené zvýrazněné), klik přidá nebo najde panel; na úzké je schovaný', { skip, timeout: 30_000 }, async () => {
+  await b.eval(`(() => { panels = panels.filter((x) => x !== '5'); saveUi(); renderBoard(); })()`); // Aschen (5) nemá panel
+  await b.send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 900, deviceScaleFactor: 1, mobile: false }); await sleep(500);
+  assert.equal(await b.eval(`getComputedStyle(document.getElementById('raceBar')).display`), 'flex');
+  const names = await b.eval(`[...document.querySelectorAll('#raceBar .rchip:not(.watched) .rname')].map((e) => e.textContent).join('|')`);
+  assert.match(names, /^Bedrosian\|/, 'naše rasa je první');
+  assert.ok(names.includes('Aschen'));
+  assert.equal(await b.eval(`document.querySelector('#raceBar .rchip.mine').classList.contains('open')`), true, 'naše rasa má otevřený panel');
+  assert.equal(await b.eval(`document.querySelector('#raceBar .rchip[data-race="5"]').classList.contains('open')`), false);
+  await b.eval(`document.querySelector('#raceBar .rchip[data-race="5"]').click(); 1`); await sleep(500);
+  assert.equal(await b.eval(`document.querySelector('#raceBar .rchip[data-race="5"]').classList.contains('open') && !!document.querySelector('.rpanel[data-p="5"]')`), true, 'klik přidal panel');
+  await b.send('Emulation.setDeviceMetricsOverride', { width: 900, height: 900, deviceScaleFactor: 1, mobile: false }); await sleep(400);
+  assert.equal(await b.eval(`getComputedStyle(document.getElementById('raceBar')).display`), 'none', 'na úzké obrazovce zůstává minimalisticky');
+  await b.eval(`(() => { panels = panels.filter((x) => x !== '5'); saveUi(); renderBoard(); })()`);
+});
