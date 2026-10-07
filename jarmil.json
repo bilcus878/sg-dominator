@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791375009001,
+  "savedAt": 1791376445953,
   "savedBy": "Jaroslav-ntb",
   "config": {
     "threshold": 100000000,
@@ -180,11 +180,11 @@
       "hunt": {
         "enabled": true,
         "dryRun": false,
-        "reactMinSec": 1,
-        "reactMaxSec": 1.5,
-        "stepMinSec": 1,
+        "reactMinSec": 0.5,
+        "reactMaxSec": 1,
+        "stepMinSec": 0.5,
         "stepMaxSec": 1.5,
-        "claimMinSec": 1,
+        "claimMinSec": 0.5,
         "claimMaxSec": 1.5,
         "tolerancePx": 30,
         "maxTries": 3,
