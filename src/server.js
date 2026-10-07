@@ -921,6 +921,20 @@ const routes = {
     }
   },
   'POST /ingest': handleIngest,
+  // seznam ras z nabídky na stránce Vesmír ve hře (odkazy id_rasa=…): zaregistruje rasy, které ještě neznáme, ať jsou vidět v pruhu ras i bez dat
+  'POST /races/known': async (req) => {
+    if (!authOk(req)) return [401, { error: 'bad token' }];
+    const body = await readJson(req, 16384);
+    if (!Array.isArray(body.races) || body.races.length > 80) return [400, { error: 'invalid payload' }];
+    let added = 0;
+    for (const r of body.races) {
+      const id = String(r?.id ?? ''), name = typeof r?.name === 'string' ? r.name.trim().slice(0, 64) : '';
+      if (!/^\d{1,6}$/.test(id) || !name || cfg.races[id]) continue; // známé rasy se nepřejmenovávají (název na stránce hráčů je v jiném tvaru než v nabídce)
+      registerRace(id, name); added++;
+    }
+    if (added) { console.log(`[rasy] doplněno z nabídky ve hře: ${added}`); pushState(); }
+    return [200, { ok: true, added }];
+  },
   'POST /ingest-op': handleIngestOp,
   'POST /vigilance': handleVigilance,
   'POST /telescope': handleTelescope,

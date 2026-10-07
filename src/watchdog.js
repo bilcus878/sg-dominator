@@ -9,9 +9,9 @@ const SUSPEND_GAP_MS = 15_000; // delší pauza mezi kontrolami = proces spal (u
 const RECOVER_MS = 5_000; // zdroj je zase v pořádku, když poslední data nejsou starší než tohle
 
 /**
- * Které rasy a zdroje se mají hlídat. Rasa se hlídá, jen když o ni jde: je to naše rasa (role defend), nebo je otevřená jako panel
- * v některém okně Dominatoru (okna to hlásí, viz openPanels). Rasa, kterou jsi jen jednou otevřel na webu hry a zavřel, se nehlídá,
- * jinak by po zavření karty přišlo hlášení „nedodává data“.
+ * Které rasy a zdroje se mají hlídat. Rasa se hlídá jen tehdy, když je otevřená jako panel v některém okně Dominatoru (okna to hlásí,
+ * viz openPanels) – i naše vlastní. Rasa bez otevřeného panelu (třeba Bedrosiani, kterou zrovna nesleduješ) se nehlídá, jinak by po zavření
+ * karty ve hře přišlo hlášení „nedodává data“.
  * @param {{races:object, op:{enabled:boolean}}} cfg
  * @param {(id:string)=>boolean} panelOpen je rasa otevřená jako panel (čerstvé hlášení některého okna)
  * @param {(id:string)=>number} raceAt čas posledních dat rasy (0 = nikdy)
@@ -20,7 +20,7 @@ export function watchItems(cfg, panelOpen, raceAt, opAt) {
   const items = [];
   for (const [id, r] of Object.entries(cfg.races ?? {})) {
     if (r.mode === 'off') continue;
-    if (r.role === 'defend' || panelOpen(id)) items.push({ key: `race:${id}`, name: `Rasa ${r.name}`, at: raceAt(id) ?? 0 });
+    if (panelOpen(id)) items.push({ key: `race:${id}`, name: `Rasa ${r.name}`, at: raceAt(id) ?? 0 });
   }
   if (cfg.op?.enabled) items.push({ key: 'op', name: 'Mapa (OP)', at: opAt });
   return items;

@@ -57,3 +57,20 @@ test('přerozdělení: zkušební běh je ve výchozím nastavení zapnutý a ni
     assert.equal(snap.dry, true); assert.equal(snap.moves[0].dry, true); assert.match(snap.log.map((l) => l.msg).join('\n'), /A → T/);
   } finally { app.stop(); }
 });
+
+test('známé rasy z nabídky ve hře: nové se zaregistrují (bez dat), existující se nepřejmenují, špatná data se odmítnou', async () => {
+  const app = await startApp();
+  try {
+    await app.ingest(20, 'Bedrosian', [{ name: 'Bob', power: 1e8, planets: 5 }]);
+    const post = (races) => fetch(app.base + '/races/known', { method: 'POST', headers: { 'x-token': TOKEN, 'content-type': 'application/json' }, body: JSON.stringify({ races }) });
+    const r = await (await post([{ id: '20', name: 'Bedrosiani' }, { id: '8', name: 'Antikové' }, { id: '5', name: 'Ascheni' }, { id: 'x', name: 'Špatná' }, { id: '99', name: '' }])).json();
+    assert.equal(r.added, 2);
+    const st = await app.api('/api/state');
+    const byId = Object.fromEntries(st.races.map((x) => [x.id, x]));
+    assert.equal(byId['20'].name, 'Bedrosian', 'název z dat hráčů se nepřepíše tvarem z nabídky');
+    assert.deepEqual([byId['8'].name, byId['8'].players.length, byId['8'].mode], ['Antikové', 0, 'off']);
+    assert.equal((await (await post([{ id: '8', name: 'Antikové' }])).json()).added, 0, 'podruhé nic nového');
+    assert.equal((await post('nesmysl')).status, 400);
+    assert.equal((await fetch(app.base + '/races/known', { method: 'POST', body: '{}' })).status, 401);
+  } finally { app.stop(); }
+});

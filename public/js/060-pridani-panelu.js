@@ -40,7 +40,7 @@ function renderRaceBar() {
   const shown = new Set(panels ?? []);
   const races = [...S.races].sort((a, b) => (b.id === cfg?.myRace) - (a.id === cfg?.myRace) || a.name.localeCompare(b.name, 'cs'));
   const items = races.map((r) => {
-    const open = shown.has(r.id), live = isLive(r), mine = r.id === cfg?.myRace, dead = !r.players.length;
+    const open = shown.has(r.id), live = isLive(r), mine = r.id === cfg?.myRace, dead = !r.players.length; // zatím bez dat (třeba rasa známá jen z nabídky ve hře)
     return { id: r.id, name: r.name, open, live, mine, dead, role: r.role, n: r.players.length, src: r.sources ?? 0 };
   });
   const watchedOpen = shown.has(WATCHED);

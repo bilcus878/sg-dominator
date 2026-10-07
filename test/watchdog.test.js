@@ -54,13 +54,15 @@ test('zdroj, který se přestal sledovat, se zapomene bez hlášení', () => {
 });
 
 import { watchItems } from '../src/watchdog.js';
-test('hlídají se jen naše rasa a rasy otevřené jako panel; zavřená cizí rasa (Ašeni) hlášení nevyvolá', () => {
+test('hlídají se jen rasy otevřené jako panel (i naše); bez panelu se nehlídá nic, ani naše rasa', () => {
   const cfg = { races: { 20: { name: 'Bedrosian', mode: 'all', role: 'defend' }, 3: { name: 'Ašeni', mode: 'all', role: 'attack' }, 7: { name: 'Vyvrhel', mode: 'all', role: 'attack' }, 9: { name: 'X', mode: 'off', role: 'defend' } }, op: { enabled: false } };
   const at = () => 1000;
   const keys = (open) => watchItems(cfg, (id) => open.includes(String(id)), at, 0).map((i) => i.key);
-  assert.deepEqual(keys([]), ['race:20'], 'bez otevřeného panelu jen naše rasa');
-  assert.deepEqual(keys(['3']).sort(), ['race:20', 'race:3'], 'otevřený panel Ašenů se hlídá');
-  assert.deepEqual(keys(['9']), ['race:20'], 'vypnutá rasa se nehlídá ani s panelem');
+  assert.deepEqual(keys([]), [], 'bez otevřeného panelu se nehlídá nic, ani naše rasa');
+  assert.deepEqual(keys(['20']), ['race:20'], 'naše rasa se hlídá, když má otevřený panel');
+  assert.deepEqual(keys(['3']), ['race:3'], 'otevřený panel Ašenů se hlídá');
+  assert.deepEqual(keys(['3', '20']).sort(), ['race:20', 'race:3']);
+  assert.deepEqual(keys(['9']), [], 'vypnutá rasa se nehlídá ani s panelem');
   cfg.op.enabled = true;
   assert.ok(watchItems(cfg, () => false, at, 5).some((i) => i.key === 'op' && i.at === 5), 'mapa se hlídá, když je OP zapnuté');
 });
