@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791379812127,
+  "savedAt": 1791386883228,
   "savedBy": "Jaroslav-ntb",
   "config": {
     "threshold": 100000000,
@@ -14,7 +14,7 @@
     "minDrop": 0,
     "notifyRecovery": true,
     "myRace": "20",
-    "notify": true,
+    "notify": false,
     "sound": {
       "on": false,
       "vol": 75,
@@ -359,7 +359,7 @@
         }
       ],
       "auto": {
-        "enabled": true,
+        "enabled": false,
         "minSec": 2,
         "maxSec": 4,
         "gapMinSec": 2,
@@ -382,9 +382,7 @@
     }
   },
   "ui": {
-    "panels": [
-      "20"
-    ],
+    "panels": [],
     "pstate": {
       "1": {
         "filter": "",
