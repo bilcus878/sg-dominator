@@ -22,7 +22,7 @@ import { createUnemp } from './unemp.js';
 import { createRecalc } from './recalc.js';
 import { createEcon } from './econ.js';
 import { createAutoArmy } from './autodohoz.js';
-import { pushShared } from './gitshare.js';
+import { pushShared, ensureDataRepo, pullData, migrateLegacyFiles, DATA_BRANCH } from './gitshare.js';
 import { createDohozStats, summarize, filterEpisodes } from './dohoz-stats.js';
 import { mergeRecalc, mergeEcon, sharedFileName, buildShared, sameShared, readAllShared, writeShared } from './shared-data.js';
 import { DEFAULT_PROFILES, validName, buildProfile, mergeProfileConfig, sameContent, readProfile, writeProfile, listProfiles, cleanUi } from './profiles.js';
@@ -549,7 +549,10 @@ let attackSeen = { at: 0, units: [] }; // jednotky z poslední navštívené str
 let attackReport = null; // poslední hlášení o vyplnění
 
 // ---------- profily nastavení (profiles/<jméno>.json v repozitáři; přenos mezi počítači přes git) ----------
-const PROFILES_DIR = process.env.SG_PROFILES_DIR || fileURLToPath(new URL('../profiles/', import.meta.url));
+const ROOT_DIR = fileURLToPath(new URL('../', import.meta.url));
+// sdílená data (profily, přepočty) žijí v samostatném repozitáři na větvi „sdilena-data“ mimo složku projektu, ať se nemíchají s kódem
+const PROFILES_DIR = process.env.SG_PROFILES_DIR || join(DATA_DIR, 'sdilena-data');
+const dataRepo = { ready: !!process.env.SG_PROFILES_DIR, error: '', pulledAt: 0 };
 const PROFILE_STATE_PATH = join(DATA_DIR, 'profile.json');
 const prof = { name: '', autoSave: true, autoLoad: true, syncedAt: 0, ...(() => { try { return JSON.parse(readFileSync(PROFILE_STATE_PATH, 'utf8')); } catch { return {}; } })() };
 const profRt = { ui: null, uiRev: 0, conflict: false, fileAt: 0, msg: '' }; // ui = poslední vzhled z prohlížeče; uiRev = čas profilu, ze kterého se vzhled naposledy načetl
@@ -577,7 +580,7 @@ function profileSaveNow(force = false) {
   const now = Date.now();
   const next = buildProfile(prof.name, cfg, profRt.ui ?? file?.ui ?? null, now, hostname());
   if (file && sameContent(file, next)) { prof.syncedAt = file.savedAt; }
-  else { writeProfile(PROFILES_DIR, next); prof.syncedAt = now; profRt.fileAt = now; console.log(`[profil] uloženo do profiles/${prof.name}.json`); }
+  else { writeProfile(PROFILES_DIR, next); prof.syncedAt = now; profRt.fileAt = now; console.log(`[profil] uloženo do ${prof.name}.json (větev sdílených dat)`); }
   profRt.conflict = false; profRt.msg = '';
   persistProfState(); pushState();
   return { ok: true };
@@ -599,7 +602,7 @@ function profileLoadNow() {
   if (file.ui) { profRt.ui = file.ui; profRt.uiRev = file.savedAt; }
   prof.syncedAt = file.savedAt; profRt.fileAt = file.savedAt; profRt.conflict = false; profRt.msg = '';
   persistProfState(); pushState();
-  console.log(`[profil] načteno z profiles/${prof.name}.json`);
+  console.log(`[profil] načteno z ${prof.name}.json (větev sdílených dat)`);
   return { ok: true };
 }
 /** Po pullu z gitu: novější profil se sám načte (když je zapnuto automatické načítání). */
@@ -609,7 +612,6 @@ function profilePoll() {
   profRt.fileAt = file?.savedAt ?? 0;
   if (file && file.savedAt > prof.syncedAt && prof.autoLoad) { try { profileLoadNow(); } catch (e) { console.error('profil se nenačetl:', e.message); } }
 }
-setTimeout(profilePoll, 1500);
 setInterval(profilePoll, 60_000);
 
 // ---------- sdílená data o přepočtech (profiles/data-<počítač>.json; každý počítač píše jen svůj soubor, čte všechny) ----------
@@ -632,12 +634,37 @@ function sharedSync() {
     if (ch1 || ch2) { shared.received += Math.max(0, Object.keys(recalcRec).length - before[0]) + Math.max(0, Object.keys(econRec).length - before[1]); pushState(); }
     const own = files.find((f) => f.file === SHARED_FILE);
     const next = buildShared(HOST, recalcRec, econRec, shared.clearedAt, now);
-    if (!own || !sameShared(own, next)) { writeShared(PROFILES_DIR, SHARED_FILE, next); console.log(`[sdílení] uloženo profiles/${SHARED_FILE}${ch1 || ch2 ? ' (po sloučení s cizími daty)' : ''}`); }
+    if (!own || !sameShared(own, next)) { writeShared(PROFILES_DIR, SHARED_FILE, next); console.log(`[sdílení] uloženo ${SHARED_FILE} (větev sdílených dat)${ch1 || ch2 ? ' (po sloučení s cizími daty)' : ''}`); }
     shared.files = others.length + 1; shared.mergedAt = now; shared.error = ''; sharedDirty = false;
   } catch (e) { shared.error = e.message; console.error('sdílení přepočtů selhalo:', e.message); }
 }
-function sharedView() { return { on: !!cfg.recalc.shared, files: shared.files, mergedAt: shared.mergedAt, received: shared.received, error: shared.error, file: SHARED_FILE }; }
-setTimeout(sharedSync, 3000);
+function sharedView() { return { branch: DATA_BRANCH, repoReady: dataRepo.ready, repoError: dataRepo.error, pulledAt: dataRepo.pulledAt, on: !!cfg.recalc.shared, files: shared.files, mergedAt: shared.mergedAt, received: shared.received, error: shared.error, file: SHARED_FILE }; }
+/** Stáhne změny ostatních (git pull ve složce sdílených dat). */
+async function pullSharedData() {
+  if (!dataRepo.ready) return { ok: false, error: dataRepo.error || 'složka sdílených dat není připravená' };
+  const r = await pullData({ dir: PROFILES_DIR });
+  if (r.ok) { dataRepo.pulledAt = Date.now(); dataRepo.error = ''; } else { dataRepo.error = r.error; console.error('[sdílení] stažení selhalo:', r.error); }
+  return r;
+}
+/** Start: připravit repozitář na větvi sdílených dat, přenést staré soubory, stáhnout novinky a načíst je. */
+async function initSharedStorage() {
+  try {
+    if (!process.env.SG_PROFILES_DIR) {
+      const r = await ensureDataRepo({ mainRoot: ROOT_DIR, dir: PROFILES_DIR });
+      dataRepo.ready = r.ok; dataRepo.error = r.ok ? '' : r.error;
+      if (!r.ok) console.error('[sdílení] větev sdílených dat není k dispozici:', r.error, '(data se ukládají jen lokálně)');
+      else if (!r.existed) console.log(`[sdílení] připravena větev ${DATA_BRANCH} (${r.created ? 'nová' : 'stažená'})`);
+      const n = migrateLegacyFiles(join(ROOT_DIR, 'profiles'), PROFILES_DIR);
+      if (n) console.log(`[sdílení] přeneseno ${n} souborů ze staré složky profiles/`);
+      if (!r.ok) { mkdirSync(PROFILES_DIR, { recursive: true }); }
+    }
+    if (dataRepo.ready && cfg.recalc.pullOnStart) await pullSharedData();
+  } catch (e) { dataRepo.error = e.message; console.error('[sdílení] příprava selhala:', e.message); }
+  profilePoll();
+  sharedSync();
+}
+setTimeout(initSharedStorage, 1000);
+setInterval(() => { if (cfg.recalc.shared && cfg.recalc.pullOnStart) pullSharedData().then(() => sharedSync()); }, 15 * 60_000); // novinky od ostatních i za běhu (každých 15 min)
 setInterval(sharedSync, 60_000); // po pullu z gitu se cizí data načtou do minuty; vlastní se zapisují jen při změně
 
 let shareBusy = null;
@@ -688,7 +715,7 @@ const routes = {
   'POST /api/share/push': async () => [200, await sharePush()],
   // volá stop.cmd: odešle data jen když je to zapnuté (Nastavení → Data → Přepočty hráčů)
   'POST /api/share/stop': async () => [200, cfg.recalc.pushOnStop && cfg.recalc.shared ? await sharePush() : { ok: true, skipped: true }],
-  'POST /api/recalc/sync': async () => { sharedSync(); pushState(); return [200, sharedView()]; },
+  'POST /api/recalc/sync': async () => { const p = await pullSharedData(); sharedSync(); pushState(); return [200, { ...sharedView(), pull: p }]; },
   'GET /api/profile': async () => [200, { ...profileView(), profiles: profileChoices() }],
   'PUT /api/profile': async (req) => {
     const b = await readJson(req);

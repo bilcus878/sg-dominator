@@ -105,7 +105,8 @@ function renderRecalcStats() {
   const st = S?.recalcStats;
   el.textContent = st ? `Zachyceno: vojenské ⟳ u ${st.military} hráčů, ekonomické 💰 u ${st.economic} hráčů.` : '';
   const sh = S?.shared, ss = $('rcSharedStatus');
-  if (ss) ss.textContent = !sh ? '' : sh.error ? 'Sdílení selhalo: ' + sh.error : !sh.on ? 'Sdílení je vypnuté.' : `Sdílení: ${sh.files} ${sh.files === 1 ? 'soubor' : sh.files < 5 ? 'soubory' : 'souborů'} (tento počítač + ${Math.max(0, sh.files - 1)} další), naposledy sloučeno ${sh.mergedAt ? new Date(sh.mergedAt).toLocaleTimeString('cs-CZ') : '–'}, od spuštění přijato ${sh.received} nových záznamů.`;
+  const repoNote = sh && !sh.repoReady && sh.repoError ? ' ⚠ Větev ' + sh.branch + ' není k dispozici (' + sh.repoError + '), data se ukládají jen lokálně.' : '';
+  if (ss) ss.textContent = !sh ? '' : sh.error ? 'Sdílení selhalo: ' + sh.error : !sh.on ? 'Sdílení je vypnuté.' : `Větev ${sh.branch}: Sdílení: ${sh.files} ${sh.files === 1 ? 'soubor' : sh.files < 5 ? 'soubory' : 'souborů'} (tento počítač + ${Math.max(0, sh.files - 1)} další), naposledy sloučeno ${sh.mergedAt ? new Date(sh.mergedAt).toLocaleTimeString('cs-CZ') : '–'}, od spuštění přijato ${sh.received} nových záznamů.${repoNote}`;
 }
 $('rcPush').onclick = async () => {
   const b = $('rcPush'), note = $('rcPushNote'); b.disabled = true; note.textContent = 'Odesílám…';
