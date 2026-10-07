@@ -12,15 +12,6 @@
     <svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2.6" stroke-dasharray="3.45 2.05"/><circle cx="12" cy="12" r="5.4" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".5"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
     <b>Dominator</b>
   </div>
-  <div class="viewwrap">
-    <button type="button" class="hbtn" id="viewBtn" aria-haspopup="true" title="Přepnout pohled"><span id="viewLbl">Sledování</span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg><i class="vdot" id="viewDot"></i></button>
-    <div class="menu viewmenu" id="viewMenu" hidden>
-      <button type="button" class="item navbtn on" data-nav="watch">👁 Sledování</button>
-      <button type="button" class="item navbtn" data-nav="stats">📊 Statistiky</button>
-      <button type="button" class="item navbtn" data-nav="build">🏗 Stavění<span class="dot" id="navDot"></span></button>
-    </div>
-  </div>
-  <span class="muted" id="boardHint" hidden></span>
   <div class="dstat" id="dstat" hidden><span class="dsrc opsum link" id="opChip" data-go="op" tabindex="0"><i></i>OP<span id="opChipN"></span> <b id="opChipAge"></b><span class="oppop" id="opChipPop" role="tooltip"></span></span></div>
   <span class="spacer"></span>
   <div class="ctl">
@@ -29,10 +20,12 @@
       <div class="ntmenu hlmenu" id="hlMenu" hidden></div>
     </div>
     <label class="optgl" id="opTgl" title="OP: zapnuto = bot hlásí OP na mapě, sám zapíná zastavený teleskop a potvrzuje tlačítko bdělosti. Vypnuto = bot na mapě nic nedělá."><span class="sw"><input type="checkbox" id="opMaster"><span></span></span><b>OP</b></label>
+    <i class="sep" aria-hidden="true"></i>
     <div class="addwrap">
       <button class="hbtn add" id="addPanel" title="Přidat panel rasy"><span class="plus">＋</span><span class="lbl">Rasa</span></button>
       <div class="menu" id="addMenu" hidden></div>
     </div>
+    <i class="sep" aria-hidden="true"></i>
     <div class="ntwrap">
       <button type="button" class="hbtn bell" id="notifyCaret" title="Alerty: zprávy do chatu a zvukový poplach" aria-haspopup="true">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><i class="bdot"></i>
@@ -68,12 +61,20 @@
         <div class="empty" id="noalerts">Zatím žádné alerty.</div>
       </div>
     </div>
+    <i class="sep" aria-hidden="true"></i>
     <button class="hbtn sq" id="openSettings" title="Nastavení" aria-label="Nastavení">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
     </button>
     <button class="hbtn sq danger" id="hdrClose" title="Zavřít aplikaci (odešle data ostatním a zastaví server i hlídače)" aria-label="Zavřít aplikaci"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg></button>
   </div>
-</div></header>
+</div>
+<nav class="navrow" aria-label="Pohledy"><div class="navin">
+  <button type="button" class="navbtn on" data-nav="watch">👁 Sledování</button>
+  <button type="button" class="navbtn" data-nav="build">🏗 Stavění<span class="dot" id="navDot"></span></button>
+  <button type="button" class="navbtn" data-nav="stats">📊 Statistiky</button>
+  <span class="spacer"></span>
+  <span class="muted" id="boardHint" hidden></span>
+</div></nav></header>
 
 <main>
   <section data-view="watch">

@@ -23,9 +23,11 @@ before(async () => {
 after(async () => { await b?.close(); app?.stop(); });
 
 test('hlavička je jeden štíhlý řádek a tlačítka jsou ve správném pořadí', { skip }, async () => {
-  assert.ok(await b.eval(`document.querySelector('header').getBoundingClientRect().height`) < 70);
+  assert.ok(await b.eval(`document.querySelector('header .bar').getBoundingClientRect().height`) < 70, 'horní technický řádek je štíhlý');
+  assert.equal(await b.eval(`getComputedStyle(document.querySelector('header')).position`), 'relative', 'hlavička je statická, neposouvá se při rolování');
+  assert.equal(await b.eval(`[...document.querySelectorAll('.navrow [data-nav]')].map((e) => e.dataset.nav).join('>')`), 'watch>build>stats', 'pod ní je rozcestník');
   const order = await b.eval(`[...document.querySelectorAll('.ctl > *')].map(e => e.id || e.className.split(' ')[0]).join('>')`);
-  assert.equal(order, 'hlwrap>opTgl>addwrap>ntwrap>alwrap>openSettings>hdrClose');
+  assert.equal(order, 'hlwrap>opTgl>sep>addwrap>sep>ntwrap>alwrap>sep>openSettings>hdrClose');
 });
 
 test('tabulka: záhlaví přesně nad daty, čísla na středu řádku, výška řádku se zapnutím ± nemění', { skip }, async () => {
@@ -210,7 +212,7 @@ test('OP v hlavičce: víc teček = jeden odznak s počtem, sektory v rozbalovac
     const out = { visible: !document.getElementById('dstat').hidden, chips: document.querySelectorAll('#dstat .dsrc').length, text: chip.textContent.replace(pop().textContent, ''), sectors: document.querySelectorAll('#opChipPop .opsec').length, popText: pop().textContent, hidden: getComputedStyle(pop()).display };
     chip.focus();
     out.shown = getComputedStyle(pop()).display;
-    out.header = document.querySelector('header').getBoundingClientRect().height;
+    out.header = document.querySelector('header .bar').getBoundingClientRect().height;
     const popNode = pop().firstChild; renderData(); out.same = popNode === pop().firstChild; // beze změny se nepřekresluje
     S.op.dots = []; renderData(); out.empty = pop().textContent; out.noN = document.getElementById('opChipN').textContent;
     return out;
@@ -326,7 +328,7 @@ test('Statistiky dohozů: pohled v nabídce, přehled, tabulka s rozbalením kol
   const s = await raw('/army/poll?short=1', { inst: 'u' });
   await sleep(300); await raw('/army/report', { id: s.id, ok: true }); await sleep(300);
   await app.ingest(20, 'Bedrosian', mk(false)); await sleep(4200);
-  await b.eval(`document.getElementById('viewBtn').click(); document.querySelector('[data-nav=stats]').click(); 1`); await sleep(900);
+  await b.eval(`document.querySelector('[data-nav=stats]').click(); 1`); await sleep(900);
   assert.equal(await b.eval(`document.getElementById('statsBox').hidden`), false);
   assert.equal(await b.eval(`document.querySelectorAll('.st-row').length`) >= 1, true);
   assert.match(await b.eval(`document.querySelector('.st-row').textContent`), /Ručně/);
@@ -340,7 +342,7 @@ test('Statistiky dohozů: pohled v nabídce, přehled, tabulka s rozbalením kol
   // nastavení
   await b.eval(`document.getElementById('openSettings').click(); document.querySelector('[data-tab=data]').click(); 1`); await sleep(300);
   assert.equal(await b.eval(`document.getElementById('stEnabled').checked`), true);
-  await b.eval(`document.getElementById('closeSettings').click(); document.getElementById('viewBtn').click(); document.querySelector('[data-nav=watch]').click(); 1`);
+  await b.eval(`document.getElementById('closeSettings').click(); document.querySelector('[data-nav=watch]').click(); 1`);
 });
 
 test('hlavička: červené tlačítko Zavřít aplikaci je vedle nastavení a ptá se na potvrzení (bez potvrzení nic nezavře)', { skip }, async () => {
