@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791372889507,
+  "savedAt": 1791373367951,
   "savedBy": "Jaroslav-ntb",
   "config": {
     "threshold": 100000000,
@@ -29,7 +29,9 @@
         "service": false
       }
     },
-    "notifyTypes": {},
+    "notifyTypes": {
+      "op": false
+    },
     "races": {
       "1": {
         "name": "Asgard",
@@ -179,13 +181,13 @@
       },
       "hunt": {
         "enabled": false,
-        "dryRun": true,
-        "reactMinSec": 1.5,
-        "reactMaxSec": 4,
-        "stepMinSec": 0.8,
-        "stepMaxSec": 2.5,
-        "claimMinSec": 1.5,
-        "claimMaxSec": 4,
+        "dryRun": false,
+        "reactMinSec": 1,
+        "reactMaxSec": 1.5,
+        "stepMinSec": 1,
+        "stepMaxSec": 1.5,
+        "claimMinSec": 1,
+        "claimMaxSec": 1.5,
         "tolerancePx": 30,
         "maxTries": 3,
         "retrySectorSec": 180,
