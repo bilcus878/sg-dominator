@@ -353,3 +353,15 @@ test('hlavička: červené tlačítko Zavřít aplikaci je vedle nastavení a pt
   assert.equal(await b.eval(`window.__asked`), 1);
   assert.ok((await app.api('/api/state')).races !== undefined, 'aplikace dál běží');
 });
+
+test('hlavička a rozcestník se vejdou do úzkého okna (420 px) a na široké obrazovce drží vystředěný sloupec', { skip }, async () => {
+  const geo = `(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(); return { closeRight: Math.round(r('#hdrClose').right), vw: document.documentElement.clientWidth, navRight: Math.round(r('.navrow [data-nav=stats]').right), barLeft: Math.round(r('header .bar').left), barRight: Math.round(r('header .bar').right), mainLeft: Math.round(r('main').left) }; })()`;
+  await b.send('Emulation.setDeviceMetricsOverride', { width: 420, height: 800, deviceScaleFactor: 1, mobile: false }); await sleep(400);
+  const n = await b.eval(geo);
+  assert.ok(n.closeRight <= n.vw && n.navRight <= n.vw, `v úzkém okně nic nepřetéká: ${JSON.stringify(n)}`);
+  await b.send('Emulation.setDeviceMetricsOverride', { width: 2600, height: 800, deviceScaleFactor: 1, mobile: false }); await sleep(400);
+  const w = await b.eval(geo);
+  assert.ok(w.barRight - w.barLeft <= 1700, `hlavička není natažená přes celou šířku: ${w.barRight - w.barLeft}`);
+  assert.ok(Math.abs(w.barLeft - w.mainLeft) <= 2, 'hlavička i obsah mají stejný levý okraj');
+  await b.send('Emulation.setDeviceMetricsOverride', { width: 900, height: 900, deviceScaleFactor: 1, mobile: false }); await sleep(300);
+});

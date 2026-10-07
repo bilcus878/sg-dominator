@@ -577,3 +577,23 @@
   .navrow .navbtn.on { color:var(--fg); background:transparent; border-bottom-color:var(--acc); box-shadow:none; }
   .navrow .muted { align-self:center; padding-bottom:2px; font-size:12px; }
   @media (max-width:640px) { .navrow .navin { padding:0 8px; } .navrow .navbtn { padding:9px 10px 7px; font-size:13px; } .navrow .muted { display:none; } .ctl .sep { margin:7px 1px; } }
+
+  /* ===== rozvržení stránky: hlavička, rozcestník i obsah sdílejí jeden vystředěný sloupec (na široké obrazovce se nic netáhne od kraje ke kraji) ===== */
+  :root { --page-max: 1680px; }
+  header .bar, .navrow .navin, main { max-width:var(--page-max); margin-left:auto; margin-right:auto; }
+  .board { justify-content:center; }
+  .brand b { display:inline; }
+  @media (max-width:460px) { .brand b { display:none; } }
+  @media (max-width:700px) {
+    .logo { display:block; }
+    header .bar { padding:8px 10px; }
+    .navrow .navin { gap:0; padding:0; }
+    .navrow .navbtn { flex:1 1 0; text-align:center; padding:11px 6px 9px; }
+    .navrow .spacer { display:none; }
+  }
+  @media (max-width:520px) {
+    header .bar { padding:7px 8px; gap:6px; }
+    .ctl { gap:4px; } .ctl .hbtn.sq, .ctl .hbtn.bell { width:32px; } .ctl .sep { margin:7px 0; } .ctl .hbtn.add { padding:0 9px; }
+    .optgl { padding:0 7px 0 5px; gap:5px; } .optgl .lbl { font-size:12px; }
+    .logo { width:22px; height:22px; }
+  }
