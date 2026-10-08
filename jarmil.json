@@ -1,8 +1,8 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791415999807,
-  "savedBy": "JarmilPC",
+  "savedAt": 1791452293991,
+  "savedBy": "Jaroslav-ntb",
   "config": {
     "threshold": 100000000,
     "criticalPct": 5,
@@ -29,91 +29,109 @@
         "service": false
       }
     },
-    "notifyTypes": {
-      "op": false
-    },
+    "notifyTypes": {},
     "races": {
       "1": {
-        "name": "Asgard",
-        "mode": "off",
+        "name": "Asgardi",
+        "mode": "selected",
         "role": "attack",
         "threshold": null,
-        "criticalPct": null
+        "criticalPct": null,
+        "navName": true
       },
       "2": {
         "name": "Tau´ri",
         "mode": "off",
         "role": "attack",
         "threshold": null,
-        "criticalPct": null
+        "criticalPct": null,
+        "navName": true
       },
       "3": {
-        "name": "Oanessan",
+        "name": "Oanessané",
         "mode": "off",
         "role": "attack",
         "threshold": null,
-        "criticalPct": null
+        "criticalPct": null,
+        "navName": true
       },
       "4": {
-        "name": "Goauld",
+        "name": "Goauldi",
         "mode": "off",
         "threshold": null,
-        "role": "attack"
+        "role": "attack",
+        "navName": true
       },
       "5": {
-        "name": "Aschen",
+        "name": "Ascheni",
         "mode": "all",
         "threshold": 0,
         "criticalPct": 0,
-        "role": "attack"
+        "role": "attack",
+        "navName": true
       },
       "8": {
-        "name": "Antik",
+        "name": "Antikové",
         "mode": "off",
         "role": "attack",
         "threshold": null,
-        "criticalPct": null
+        "criticalPct": null,
+        "navName": true
       },
       "9": {
-        "name": "Replikátor",
+        "name": "Replikátoři",
         "mode": "off",
         "role": "attack",
         "threshold": null,
-        "criticalPct": null
+        "criticalPct": null,
+        "navName": true
       },
       "11": {
-        "name": "Vyvrhel",
+        "name": "Vyvrhelové",
         "mode": "off",
         "threshold": null,
-        "role": "attack"
+        "role": "attack",
+        "navName": true
       },
       "15": {
-        "name": "Nox",
+        "name": "Noxové",
         "mode": "off",
         "threshold": null,
         "criticalPct": null,
-        "role": "attack"
+        "role": "attack",
+        "navName": true
       },
       "20": {
-        "name": "Bedrosian",
+        "name": "Bedrosiani",
         "mode": "selected",
         "threshold": 0,
         "criticalPct": 0,
-        "role": "defend"
+        "role": "defend",
+        "navName": true
       },
       "21": {
-        "name": "Lucián",
+        "name": "Luciáni",
         "mode": "off",
         "role": "attack",
         "threshold": null,
-        "criticalPct": null
+        "criticalPct": null,
+        "navName": true
+      },
+      "22": {
+        "name": "Vorun",
+        "mode": "off",
+        "role": "attack",
+        "threshold": null,
+        "criticalPct": null,
+        "navName": true
       },
       "33": {
-        "name": "Kořist",
+        "name": "Válečná kořist",
         "mode": "off",
         "threshold": null,
         "criticalPct": null,
-        "role": "attack"
+        "role": "attack",
+        "navName": true
       }
     },
     "players": {
@@ -154,7 +172,7 @@
       }
     },
     "op": {
-      "enabled": false,
+      "enabled": true,
       "repeatSec": 60,
       "vigilance": {
         "enabled": true,
@@ -390,7 +408,7 @@
   },
   "ui": {
     "panels": [
-      "20"
+      "1"
     ],
     "pstate": {
       "1": {
