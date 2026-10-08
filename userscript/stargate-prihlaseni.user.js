@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         Stargate dominator – přihlášení
 // @namespace    sg-dominator
-// @version      1.8.0
+// @version      1.9.0
 // @description  Když hru po ~3 hodinách odhlásí, otevře se nový panel s přihlašovací stránkou, klikne na Přihlaš (údaje doplní Chrome, skript hesla nezná), panel se zavře a karty s daty se obnoví. V době denní údržby (výchozí 3:00–3:31) počká. Vše se nastavuje v aplikaci (Nastavení → Přihlášení).
 // @match        https://stargate-game.cz/*
 // @match        https://www.stargate-game.cz/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_openInTab
+// @grant        window.close
 // @connect      127.0.0.1
 // @noframes
 // @run-at       document-idle
@@ -16,7 +17,7 @@
   'use strict';
   const SERVER = '__SERVER__';
   const TOKEN = '__TOKEN__';
-  const VERSION = '1.8.0'; // stejné jako @version
+  const VERSION = '1.9.0'; // stejné jako @version
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -161,6 +162,8 @@
   const startHeartbeat = () => { if (!heartbeat) heartbeat = setInterval(renewLock, 20_000); };
   const stopHeartbeat = () => { clearInterval(heartbeat); heartbeat = null; };
   const channel = 'BroadcastChannel' in window ? new BroadcastChannel('sgd-relogin') : null;
+  let loginTab = null; // panel s přihlašovací stránkou otevřený touto kartou (GM_openInTab); jen ten, kdo ho otevřel, ho umí spolehlivě zavřít
+  const CLOSE_GRACE_MS = 2500; // ostatní karty se obnovují nejdřív po tolika ms od zprávy „přihlášeno“: panel se zavře jako první
 
   /** @returns {Promise<boolean>} true = přihlašování běží (tady nebo v jiné kartě), false = vypnuté v nastavení */
   async function startRelogin(reason) {
@@ -185,7 +188,7 @@
     // jako člověk: nový panel s přihlašovací stránkou, tam klik na „Přihlaš“; tahle karta zatím čeká (data se po přihlášení obnoví)
     setState({ ...getState(), phase: 'tab' });
     jset(localStorage, JOB, { by: tabId, at: Date.now(), taken: null });
-    GM_openInTab(location.origin + '/', { active: true, insert: true, setParent: true });
+    loginTab = GM_openInTab(location.origin + '/', { active: true, insert: true, setParent: true }); // odkaz na panel: vedoucí karta ho po přihlášení sama zavře
     const until = Date.now() + dl.tabWaitMin * 60_000;
     while (getState()?.phase === 'tab' && Date.now() < until) await sleep(1_000);
     if (getState()?.phase === 'tab') { // panel se nepřihlásil (nikdo nepřevzal úkol / zavřen)
@@ -257,9 +260,17 @@
     const cfg = await loadCfg();
     const mins = Math.max(1, Math.round((Date.now() - (st.startedAt ?? Date.now())) / 60000));
     finishQuiet(`Znovu přihlášeno (trvalo ${mins} min).${cfg.reloadOthers ? ' Karty s daty se obnovují.' : ''}`);
-    channel?.postMessage({ type: 'done', at: Date.now(), reload: cfg.reloadOthers ? [cfg.reloadMinSec, cfg.reloadMaxSec] : null });
+    channel?.postMessage({ type: 'done', at: Date.now(), closeMs: cfg.closeTab ? CLOSE_GRACE_MS : 0, reload: cfg.reloadOthers ? [cfg.reloadMinSec, cfg.reloadMaxSec] : null });
     jdel(localStorage, JOB);
-    if (cfg.closeTab) { await sleep(rnd(1_500, 3_000)); window.close(); } // panel otevřený skriptem se zavře sám (jinak zůstane na hlavní straně)
+    if (cfg.closeTab) {
+      // pořadí: 1) zavřít přihlašovací panel (vedoucí karta ho zavírá taky, kdo dřív), 2) teprve pak se obnoví ostatní karty
+      await sleep(rnd(700, 1_400));
+      try { window.close(); } catch { /* zavře vedoucí karta */ }
+      await sleep(2_000);
+      // pořád tu jsme: panel zůstal otevřený (a překrýval by kartu s daty, skrytá karta se zpomalí)
+      report('failed', 'Přihlašovací panel se nepodařilo zavřít sám. Zavři ho prosím ručně, překrývá kartu s daty.');
+      banner('Tuto kartu už nepotřebuju, zavři ji prosím ručně (překrývá kartu s daty).');
+    }
   }
 
   // ---------- ostatní karty: po přihlášení se obnoví (každá v jiný okamžik) ----------
@@ -268,12 +279,16 @@
     channel.onmessage = (m) => {
       const t = m.data?.type, own = getState();
       if (own?.phase === 'tab') { // tahle karta čekala na přihlašovací panel
-        if (t === 'done' || t === 'failed') { finishQuiet(null); if (t === 'done' && m.data.reload) setTimeout(() => location.reload(), rnd(m.data.reload[0] * 1000, m.data.reload[1] * 1000)); }
+        if (t === 'done' || t === 'failed') {
+          finishQuiet(null);
+          if (t === 'done' && (m.data.closeMs ?? 0) > 0) setTimeout(() => { try { loginTab?.close(); } catch { /* panel se zavře sám */ } }, rnd(200, 800)); // panel pryč jako první
+          if (t === 'done' && m.data.reload) setTimeout(() => location.reload(), (m.data.closeMs ?? 0) + rnd(m.data.reload[0] * 1000, m.data.reload[1] * 1000));
+        }
         return;
       }
       if (t !== 'done' || own || isLoginPage()) return;
       if (loadedAt > m.data.at - 4_000) return; // už je načtená po přihlášení
-      if (m.data.reload) setTimeout(() => location.reload(), rnd(m.data.reload[0] * 1000, m.data.reload[1] * 1000));
+      if (m.data.reload) setTimeout(() => location.reload(), (m.data.closeMs ?? 0) + rnd(m.data.reload[0] * 1000, m.data.reload[1] * 1000)); // nejdřív se zavře panel, pak se obnoví
     };
   }
 

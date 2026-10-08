@@ -88,3 +88,14 @@ test('kritická výstraha (ztráta hodnosti) obejde vypnuté systémové zprávy
   } finally { globalThis.fetch = realFetch; }
   assert.equal(calls.length, 1);
 });
+
+test('přihlašovací panel se zavírá jako první a teprve potom se obnovují ostatní karty', () => {
+  assert.match(src, /^\/\/ @grant\s+window\.close$/m, 'skript smí zavřít kartu (bez toho window.close() u panelu otevřeného přes GM_openInTab nefunguje)');
+  assert.match(src, /loginTab = GM_openInTab\(/, 'vedoucí karta si drží odkaz na panel a umí ho zavřít');
+  assert.match(src, /loginTab\?\.close\(\)/);
+  // zpráva „done“ nese pauzu na zavření a každá karta ji přičte ke své prodlevě před obnovením
+  assert.match(src, /closeMs: cfg\.closeTab \? CLOSE_GRACE_MS : 0/);
+  assert.equal((src.match(/\(m\.data\.closeMs \?\? 0\) \+ rnd\(m\.data\.reload\[0\]/g) ?? []).length, 2, 'vedoucí i ostatní karty počkají na zavření panelu');
+  // když se panel přesto nezavře, ohlásí to
+  assert.match(src, /Zavři ho prosím ručně, překrývá kartu s daty/);
+});
