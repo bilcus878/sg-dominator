@@ -8,9 +8,18 @@ const cfg = (x = {}) => ({ ...GATES_DEFAULTS, enabled: true, dryRun: false, maxP
 const rep = (x = {}) => ({ src: 'a', price: 4_000_000, count: 10, remainingSec: 100, naq: 100_000_000, planets: 50, canBuy: true, clicked: false, ...x });
 const mk = () => createGates({ rand: () => 0 });
 
-test('vypnuto: nic se neděje', () => {
+test('vypnuto: nic se neděje; po zapnutí se nejdřív načte čerstvá stránka a teprve podle ní se nakupuje', () => {
   const g = mk();
   assert.equal(g.report(rep(), cfg({ enabled: false }), 0).action, 'idle');
+  const on = g.report(rep({ fresh: false }), cfg(), 3000); // hlášení ze staré stránky
+  assert.equal(on.action, 'wait');
+  assert.equal(on.kind, 'enable');
+  assert.ok(on.reloadInMs >= 500 && on.reloadInMs <= 1800, 'rychlé obnovení');
+  assert.equal(g.report(rep({ fresh: true }), cfg(), 5000).action, 'buy', 'čerstvá data: rozhoduje se podle nich');
+  // čerstvě načtená stránka po zapnutí se znovu nenačítá, rozhoduje se hned
+  const g2 = mk();
+  g2.report(rep(), cfg({ enabled: false }), 0);
+  assert.equal(g2.report(rep({ fresh: true }), cfg(), 1000).action, 'buy');
 });
 
 test('drahá nabídka se nekupuje, obnoví se těsně po změně (odpočet + 1–5 s)', () => {

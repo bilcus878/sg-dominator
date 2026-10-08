@@ -34,6 +34,7 @@ export function createGates({ rand = Math.random } = {}) {
   let awaiting = null; // kliknuto na Koupit, čeká se na výsledek na další stránce: { price, naq, at }
   let batch = null; // aktuální nabídka: { price, bought, spent, fails, startedAt, dryNotified, stopped }
   let lowNaqAt = 0;
+  let wasOff = false; // před chvílí bylo vypnuto: první hlášení po zapnutí může být ze staré stránky, proto se (není-li čerstvě načtená) nejdřív znovu načte
   const log = []; // poslední události pro UI
   const totals = { bought: 0, spent: 0, batches: 0 };
   const note = (now, type, text) => { log.push({ at: now, type, text }); if (log.length > 30) log.shift(); };
@@ -63,16 +64,20 @@ export function createGates({ rand = Math.random } = {}) {
   }
 
   /**
-   * @param {{src:string, price:number|null, count:number|null, remainingSec:number|null, naq:number|null, planets:number, canBuy:boolean, clicked?:boolean}} rep (clicked = od minulého hlášení se kliklo na Koupit)
+   * @param {{src:string, price:number|null, count:number|null, remainingSec:number|null, naq:number|null, planets:number, canBuy:boolean, clicked?:boolean, fresh?:boolean}} rep (fresh = stránka se právě načetla; clicked = od minulého hlášení se kliklo na Koupit)
    * @returns {{action:'buy'|'wait'|'idle', delayMs?:number, reloadInMs?:number, kind?:string, why?:string, notify?:string, spec?:object}}
    */
   function report(rep, cfg, now) {
     const c = h(cfg);
     const out = (o, notify) => (notify ? { ...o, notify } : o);
-    if (!c.enabled) { const n = closeBatch(now, rep.naq); awaiting = null; return out({ action: 'idle', why: 'off' }, n); }
+    if (!c.enabled) { const n = closeBatch(now, rep.naq); awaiting = null; wasOff = true; return out({ action: 'idle', why: 'off' }, n); }
     // jedna karta nakupuje; druhá otevřená karta jen čeká
     if (owner && owner.src !== rep.src && now - owner.at < OWNER_TTL_MS) return { action: 'idle', why: 'other-tab' };
     owner = { src: rep.src, at: now };
+    if (wasOff) { // právě zapnuto: data na stránce můžou být stará, hned se načte čerstvá nabídka a podle ní se jedná a plánuje
+      wasOff = false;
+      if (!rep.fresh) return { action: 'wait', why: 'enabled', reloadInMs: Math.round(range(500, 1800)), kind: 'enable' };
+    }
     let notify = null;
 
     // výsledek předchozího kliknutí

@@ -612,6 +612,7 @@ setInterval(watchdogTick, 5000);
 // doplnění nezaměstnaných na planety (Obchod → Nezaměstnaní); zprávy jen do servisního chatu
 const unemp = createUnemp();
 const gates = createGates(); // nákup hvězdných bran
+const gatesRev = () => JSON.stringify(cfg.gates); // změna nastavení = skript si hned načte čerstvou stránku
 setInterval(() => { if (!gates.snapshot().active) gates.reset(); }, 30_000);
 const redist = createRedist(); // přerozdělení nezaměstnaných z plných planet na planety s volným místem
 const unempSummary = (s) => { if (s) { console.log(`[nezaměstnaní] ${s}`); sendService(cfg, s); } };
@@ -867,12 +868,13 @@ const routes = {
     if (!authOk(req)) return [401, { error: 'bad token' }];
     const b = await readJson(req, 4096);
     const n = (v) => (Number.isFinite(Number(v)) && v !== null ? Number(v) : null);
-    const rep = { src: String(b.src ?? '').slice(0, 20), price: n(b.price), count: n(b.count), remainingSec: n(b.remainingSec), naq: n(b.naq), planets: Number(b.planets) || 0, canBuy: !!b.canBuy, clicked: !!b.clicked };
+    const rep = { src: String(b.src ?? '').slice(0, 20), price: n(b.price), count: n(b.count), remainingSec: n(b.remainingSec), naq: n(b.naq), planets: Number(b.planets) || 0, canBuy: !!b.canBuy, clicked: !!b.clicked, fresh: !!b.fresh };
     const r = gates.report(rep, cfg.gates, Date.now());
     if (r.notify) { console.log(`[brány] ${r.notify.split('\n')[0]}`); sendService(cfg, r.notify); }
     const { notify, ...out } = r;
-    return [200, out];
+    return [200, { ...out, rev: gatesRev() }];
   },
+  'POST /gates/poll': async (req) => (authOk(req) ? [200, { rev: gatesRev() }] : [401, { error: 'bad token' }]), // skript se při čekání ptá, jestli se nezměnilo nastavení (zapnutí, limit ceny…)
   'GET /api/gates': async () => [200, gates.snapshot()],
   'POST /unemp/report': async (req) => {
     if (!authOk(req)) return [401, { error: 'bad token' }];

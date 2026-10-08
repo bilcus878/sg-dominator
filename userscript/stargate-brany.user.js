@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – hvězdné brány
 // @namespace    sg-dominator
-// @version      1.0.0
+// @version      1.1.0
 // @description  Obchod → Hvězdné brány: jako člověk si občas obnoví nabídku, těsně po změně (každé 3 minuty) ji načte znovu a když je cena pod limitem z aplikace, klikne na Koupit, dokud je co kupovat
 // @match        https://stargate-game.cz/obchod.php*
 // @match        https://www.stargate-game.cz/obchod.php*
@@ -16,7 +16,7 @@
   if (new URLSearchParams(location.search).get('page') !== '4') return; // jen Obchod → Hvězdné brány
   const SERVER = '__SERVER__';
   const TOKEN = '__TOKEN__';
-  const VERSION = '1.0.0'; // stejné jako @version
+  const VERSION = '1.1.0'; // stejné jako @version
   const PAGE = `${location.origin}${location.pathname}?page=4`;
   const src = Math.random().toString(36).slice(2, 10);
 
@@ -92,18 +92,37 @@
     fire(el, 'click', pt); // klik se souřadnicemi: u obrázkového tlačítka z nich hra dostane x/y
   }
 
-  const reloadLater = (ms) => setTimeout(() => location.assign(PAGE), Math.max(500, ms)); // GET na stejnou stránku (location.reload() by po nákupu znovu odeslal POST!)
+  // GET na stejnou stránku (location.reload() by po nákupu znovu odeslal POST!)
+  let rev = null, waitTimer = null, pollTimer = null;
+  /**
+   * Čeká na naplánované obnovení; mezitím se každé ~4 s zeptá serveru, jestli se nezměnilo nastavení (zapnutí, limit ceny…).
+   * Při změně si hned (po lidské chvilce) načte čerstvou stránku a podle ní jedná, místo aby čekal na plánovaný čas.
+   */
+  function reloadLater(ms) {
+    clearTimeout(waitTimer); clearInterval(pollTimer);
+    waitTimer = setTimeout(() => location.assign(PAGE), Math.max(500, ms));
+    pollTimer = setInterval(async () => {
+      const r = await post('/gates/poll', {});
+      if (r?.rev != null && rev != null && r.rev !== rev) {
+        clearInterval(pollTimer); clearTimeout(waitTimer);
+        waitTimer = setTimeout(() => location.assign(PAGE), rnd(400, 1500));
+      }
+    }, 4_000);
+  }
 
   // kliknutí na Koupit přenačte stránku, proto si značka „kliknuto“ přežije v sessionStorage a další hlášení ji pošle serveru
   const CLICKED = 'sgd_gate_clicked';
   const markClicked = () => { try { sessionStorage.setItem(CLICKED, String(Date.now())); } catch { /* nic */ } };
   const takeClicked = () => { try { const t = Number(sessionStorage.getItem(CLICKED)); sessionStorage.removeItem(CLICKED); return !!t && Date.now() - t < 90_000; } catch { return false; } };
 
+  let freshLoad = true; // první hlášení po načtení stránky = čerstvá data
   async function tick() {
     const rep = readPage();
     const { btn, ...data } = rep;
-    const ins = await post('/gates/report', { ...data, clicked: takeClicked() });
+    const ins = await post('/gates/report', { ...data, clicked: takeClicked(), fresh: freshLoad });
+    freshLoad = false;
     if (!ins) { reloadLater(rnd(15_000, 25_000)); return; } // server nedostupný: za chvíli znovu
+    if (ins.rev != null) rev = ins.rev;
     if (ins.action === 'buy') {
       await sleep(ins.delayMs ?? 1000);
       const now = readPage(); // těsně před kliknutím: pořád to samé a pořád pod limitem?
@@ -115,7 +134,7 @@
       return;
     }
     if (ins.action === 'wait') { reloadLater(ins.reloadInMs ?? 30_000); return; }
-    setTimeout(tick, rnd(8_000, 14_000)); // idle: nákup je vypnutý nebo nakupuje jiná karta; po zapnutí to server pozná
+    reloadLater(rnd(30_000, 60_000)); // idle: nákup je vypnutý nebo nakupuje jiná karta; po zapnutí (změna nastavení) se stránka hned načte znovu
   }
 
   setTimeout(tick, rnd(400, 1200));
