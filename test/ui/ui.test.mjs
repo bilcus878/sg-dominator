@@ -505,7 +505,7 @@ test('pruh ras: na široké obrazovce celý seznam (naše první, bez přeškrtn
   await b.eval(`(() => { panels = panels.filter((x) => x !== '5'); saveUi(); renderBoard(); })()`);
 });
 
-test('Obchod: pruh funkcí jako pruh ras: klik otevře panel (nebo na něj přejde), ✕ ho zavře; v nabídce pohledů nejsou podpoložky', { skip, timeout: 30_000 }, async () => {
+test('Obchod: pruh funkcí jako pruh ras: klik panel rozbalí (další pod něj), druhý klik nebo ✕ zabalí; v nabídce pohledů nejsou podpoložky', { skip, timeout: 30_000 }, async () => {
   const r = await b.eval(`(() => {
     document.querySelector('[data-nav=shop]').click();
     const st = () => ['unemp', 'gates'].map((id) => document.getElementById('fn_' + id).hidden ? 0 : 1).join('');
@@ -515,8 +515,8 @@ test('Obchod: pruh funkcí jako pruh ras: klik otevře panel (nebo na něj přej
     out.none = st(); out.empty = document.getElementById('shopEmpty').hidden;
     chip('gates').click(); out.gates = st(); out.chipOpen = chip('gates').classList.contains('open');
     chip('unemp').click(); out.both = st();
-    chip('gates').click(); out.stillBoth = st(); // klik na otevřenou jen přejde
-    document.querySelector('.fnclose[data-fn=gates]').click(); out.unempOnly = st(); out.chipClosed = !chip('gates').classList.contains('open');
+    chip('gates').click(); out.unempOnly = st(); // druhý klik na otevřenou funkci ji zabalí
+    chip('gates').click(); out.again = st(); document.querySelector('.fnclose[data-fn=gates]').click(); out.closedX = st(); out.chipClosed = !chip('gates').classList.contains('open');
     shopStat.gates = { on: true, text: 'zkušební' }; renderShopChips();
     out.chipText = document.getElementById('fchip_gates').textContent; out.live = chip('gates').classList.contains('live');
     return out;
@@ -525,8 +525,9 @@ test('Obchod: pruh funkcí jako pruh ras: klik otevře panel (nebo na něj přej
   assert.equal(r.chips, 2);
   assert.equal(r.none, '00'); assert.equal(r.empty, false, 'bez panelu se ukáže nápověda');
   assert.equal(r.gates, '01'); assert.equal(r.chipOpen, true);
-  assert.equal(r.both, '11'); assert.equal(r.stillBoth, '11');
-  assert.equal(r.unempOnly, '10'); assert.equal(r.chipClosed, true);
+  assert.equal(r.both, '11', 'druhá funkce se rozbalí pod první');
+  assert.equal(r.unempOnly, '10', 'druhý klik funkci zabalí'); assert.equal(r.chipClosed, true);
+  assert.equal(r.again, '11'); assert.equal(r.closedX, '10', '✕ funkci zabalí');
   assert.equal(r.chipText, 'zkušební'); assert.equal(r.live, true);
   await b.eval(`document.querySelector('[data-nav=watch]').click(); 1`);
 });
