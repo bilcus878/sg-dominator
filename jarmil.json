@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791469837932,
+  "savedAt": 1791471618222,
   "savedBy": "Jaroslav-ntb",
   "config": {
     "threshold": 100000000,
@@ -142,6 +142,22 @@
         "topTarget": 400000000
       }
     },
+    "gates": {
+      "enabled": true,
+      "dryRun": false,
+      "maxPrice": 1500000,
+      "reserveNaq": 0,
+      "maxPerOffer": 0,
+      "afterMinSec": 1,
+      "afterMaxSec": 5,
+      "midChance": 70,
+      "midMinSec": 25,
+      "midMaxSec": 80,
+      "firstMinSec": 1,
+      "firstMaxSec": 2,
+      "stepMinSec": 0.5,
+      "stepMaxSec": 1
+    },
     "session": {
       "enabled": true,
       "reactMinSec": 1.5,
@@ -162,6 +178,8 @@
       "reloadOthers": true,
       "reloadMinSec": 2,
       "reloadMaxSec": 8,
+      "reloadGapMinSec": 12,
+      "reloadGapMaxSec": 30,
       "probeMinSec": 60,
       "probeMaxSec": 120,
       "notify": {
