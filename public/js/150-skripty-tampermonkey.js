@@ -8,6 +8,7 @@
     ['Útok (D)', '/utok.user.js', 'vyplní dobývací útok po kliknutí na D'],
     ['Přihlášení', '/prihlaseni.user.js', 'po odhlášení ze hry se samo přihlásí a obnoví karty'],
     ['Nezaměstnaní', '/nezamestnani.user.js', 'doplní nezaměstnané na planety, kterým chybí lidé'],
+    ['Hvězdné brány', '/brany.user.js', 'koupí hvězdné brány pod nastaveným limitem ceny'],
   ];
   let loaded = false;
   async function loadScripts() {

@@ -7,6 +7,7 @@ import { isBuildingId, isSatKey } from './build.js';
 import { VIGILANCE_DEFAULTS, TELESCOPE_DEFAULTS } from './telescope.js';
 import { REDIST_DEFAULTS } from './redist.js';
 import { HUNT_DEFAULTS } from './ophunt.js';
+import { GATES_DEFAULTS } from './gates.js';
 import { CONQUEST_DEFAULTS } from './conquest.js';
 import { ATTACK_DEFAULTS, sanitizeAttack, ARMY_DEFAULTS, sanitizeArmy } from './attack.js';
 
@@ -69,6 +70,7 @@ export const DEFAULTS = {
   players: {},
   // skript Přihlášení: prodlevy (s) – po odhlášení do kliknutí a po konci denní údržby (3:31:20) do přihlášení
   login: { enabled: false, user: '', password: '' }, // uložené přihlašovací údaje ke hře (jen na tomto počítači v config.json, nikdy v repozitáři); enabled = skript je při přihlášení sám vyplní
+  gates: { ...GATES_DEFAULTS }, // nákup hvězdných bran (Obchod → Hvězdné brány)
   session: { ...SESSION_DEFAULTS, notify: { ...SESSION_DEFAULTS.notify } }, // opětovné přihlášení po odhlášení ze hry (skript Přihlášení čte přes /session/config)
   op: { enabled: false, repeatSec: 10, vigilance: { ...VIGILANCE_DEFAULTS }, telescope: { ...TELESCOPE_DEFAULTS }, hunt: { ...HUNT_DEFAULTS } }, // alert na tečky OP na mapě; repeatSec = připomínka, dokud svítí (0 = jen jednou); vigilance = automatické potvrzení tlačítka bdělosti po minSec až maxSec
   conquest: { ...CONQUEST_DEFAULTS }, // cizí rasy: k dobytí pod `below`, konec až nad `above`
@@ -123,6 +125,7 @@ export function normalizeConfig(stored) {
   cfg.op.vigilance = { ...VIGILANCE_DEFAULTS, ...cfg.op.vigilance };
   cfg.op.telescope = { ...TELESCOPE_DEFAULTS, ...cfg.op.telescope };
   cfg.op.hunt = { ...HUNT_DEFAULTS, ...cfg.op.hunt };
+  cfg.gates = { ...GATES_DEFAULTS, ...cfg.gates };
   cfg.attack = sanitizeAttack(ATTACK_DEFAULTS, cfg.attack);
   cfg.army = sanitizeArmy(ARMY_DEFAULTS, cfg.army);
   migrateLegacy(cfg, stored);
@@ -198,6 +201,26 @@ export function sanitizeSession(cur, body) {
   if (st !== null && en !== null && en > st) { ns.maintStart = 'maintStart' in body ? body.maintStart : ns.maintStart; ns.maintEnd = 'maintEnd' in body ? body.maintEnd : ns.maintEnd; } // údržba musí skončit později, než začne (v rámci jednoho dne)
   if (body.notify && typeof body.notify === 'object') for (const k of SESSION_EVENTS) if (k in body.notify) ns.notify[k] = !!body.notify[k];
   return ns;
+}
+
+/** Nákup hvězdných bran: čísla v mezích, dvojice od–do (konec nikdy pod začátkem), přepínače. */
+export function sanitizeGates(cur, body) {
+  const num = (v, d) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : d);
+  const ng = { ...GATES_DEFAULTS, ...cur };
+  for (const k of ['enabled', 'dryRun']) if (k in body) ng[k] = !!body[k];
+  if ('maxPrice' in body) ng.maxPrice = Math.min(1e12, Math.floor(num(body.maxPrice, ng.maxPrice)));
+  if ('reserveNaq' in body) ng.reserveNaq = Math.min(1e13, Math.floor(num(body.reserveNaq, ng.reserveNaq)));
+  if ('maxPerOffer' in body) ng.maxPerOffer = Math.min(1000, Math.floor(num(body.maxPerOffer, ng.maxPerOffer)));
+  if ('midChance' in body) ng.midChance = Math.min(100, num(body.midChance, ng.midChance));
+  const rng = (a, b, lo, hi) => {
+    for (const k of [a, b]) if (k in body) ng[k] = Math.min(hi, Math.max(lo, num(body[k], ng[k])));
+    if (ng[b] < ng[a]) ng[b] = ng[a];
+  };
+  rng('afterMinSec', 'afterMaxSec', 0.3, 30);
+  rng('midMinSec', 'midMaxSec', 10, 170);
+  rng('firstMinSec', 'firstMaxSec', 0.2, 30);
+  rng('stepMinSec', 'stepMaxSec', 0.2, 30);
+  return ng;
 }
 
 export function sanitizeUpdate(cur, body, ctx = {}) {
@@ -292,6 +315,7 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
     next.login = l;
   }
   if (body.session && typeof body.session === 'object') next.session = sanitizeSession(cur.session, body.session);
+  if (body.gates && typeof body.gates === 'object') next.gates = sanitizeGates(cur.gates, body.gates);
   if (body.op && typeof body.op === 'object') {
     next.op = { ...cur.op };
     if ('enabled' in body.op) next.op.enabled = !!body.op.enabled;
