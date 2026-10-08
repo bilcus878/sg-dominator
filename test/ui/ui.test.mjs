@@ -25,7 +25,7 @@ after(async () => { await b?.close(); app?.stop(); });
 test('hlavička je jeden štíhlý řádek a tlačítka jsou ve správném pořadí', { skip }, async () => {
   assert.ok(await b.eval(`document.querySelector('header .bar').getBoundingClientRect().height`) < 70, 'horní technický řádek je štíhlý');
   assert.equal(await b.eval(`getComputedStyle(document.querySelector('header')).position`), 'relative', 'hlavička je statická, neposouvá se při rolování');
-  assert.equal(await b.eval(`[...document.querySelectorAll('#viewMenu [data-nav]')].map((e) => e.dataset.nav).join('>')`), 'watch>build>shop>shop>shop>stats', 'rozcestník nabízí všechny pohledy (Obchod má pod sebou své funkce)');
+  assert.equal(await b.eval(`[...document.querySelectorAll('#viewMenu [data-nav]')].map((e) => e.dataset.nav).join('>')`), 'watch>build>shop>stats', 'rozcestník nabízí všechny pohledy');
   const order = await b.eval(`[...document.querySelectorAll('.ctl > *')].map(e => e.id || e.className.split(' ')[0]).join('>')`);
   assert.equal(order, 'statpill>mainwrap');
 });
@@ -432,7 +432,7 @@ test('Nastavení → Mapa a OP: přepínače Chytat a Alerty jsou propojené s h
 });
 
 test('pohledy se jmenují jako ve hře (Vesmír, Stavby, Obchod) a Nezaměstnaní jsou v Obchodu, ne ve Stavbách', { skip }, async () => {
-  assert.equal(await b.eval(`[...document.querySelectorAll('#viewMenu .vitem b')].map((e) => e.textContent).join(' | ')`), 'Vesmír | Stavby | Obchod | Nezaměstnaní | Hvězdné brány | Statistiky');
+  assert.equal(await b.eval(`[...document.querySelectorAll('#viewMenu .vitem b')].map((e) => e.textContent).join(' | ')`), 'Vesmír | Stavby | Obchod | Statistiky');
   assert.equal(await b.eval(`document.getElementById('viewLbl').textContent`), 'Vesmír');
   assert.equal(await b.eval(`!!document.querySelector('#shopBox #uStart') && !document.querySelector('#buildBox #uStart')`), true, 'Nezaměstnaní jsou v Obchodu');
   await b.eval(`document.querySelector('[data-nav=shop]').click(); 1`); await sleep(300);
@@ -505,27 +505,28 @@ test('pruh ras: na široké obrazovce celý seznam (naše první, bez přeškrtn
   await b.eval(`(() => { panels = panels.filter((x) => x !== '5'); saveUi(); renderBoard(); })()`);
 });
 
-test('Obchod: funkce jsou rozbalovací panely; položka v nabídce otevře jen tu svou, hlavička panelu přepíná', { skip, timeout: 30_000 }, async () => {
-  await b.eval(`document.querySelector('[data-nav=shop]:not([data-fn])').click(); 1`); await sleep(300);
+test('Obchod: pruh funkcí jako pruh ras: klik otevře panel (nebo na něj přejde), ✕ ho zavře; v nabídce pohledů nejsou podpoložky', { skip, timeout: 30_000 }, async () => {
   const r = await b.eval(`(() => {
-    const st = () => ['unemp', 'gates'].map((id) => document.getElementById('fn_' + id).classList.contains('open') ? 1 : 0).join('');
-    const out = { start: st() };
-    document.querySelector('.vitem[data-fn=gates]').click();
-    out.gatesOnly = st(); out.shown = document.getElementById('shopBox').hidden === false;
-    out.marked = document.querySelector('.vitem[data-fn=gates]').classList.contains('on') && !document.querySelector('.vitem[data-fn=unemp]').classList.contains('on');
-    document.querySelector('#fn_unemp .fnhead').click(); out.both = st();
-    document.querySelector('#fn_gates .fnhead').click(); out.unempOnly = st();
-    out.inert = document.querySelector('#fn_gates .fninner').inert;
+    document.querySelector('[data-nav=shop]').click();
+    const st = () => ['unemp', 'gates'].map((id) => document.getElementById('fn_' + id).hidden ? 0 : 1).join('');
+    const chip = (id) => document.querySelector('#shopBar [data-fn=' + id + ']');
+    const out = { subs: document.querySelectorAll('#viewMenu .vitem.sub').length, chips: document.querySelectorAll('#shopBar .rchip').length };
+    for (const id of ['unemp', 'gates']) document.querySelector('.fnclose[data-fn=' + id + ']').click();
+    out.none = st(); out.empty = document.getElementById('shopEmpty').hidden;
+    chip('gates').click(); out.gates = st(); out.chipOpen = chip('gates').classList.contains('open');
+    chip('unemp').click(); out.both = st();
+    chip('gates').click(); out.stillBoth = st(); // klik na otevřenou jen přejde
+    document.querySelector('.fnclose[data-fn=gates]').click(); out.unempOnly = st(); out.chipClosed = !chip('gates').classList.contains('open');
     shopStat.gates = { on: true, text: 'zkušební' }; renderShopChips();
-    out.chip = document.getElementById('fchip_gates').textContent;
+    out.chipText = document.getElementById('fchip_gates').textContent; out.live = chip('gates').classList.contains('live');
     return out;
   })()`);
-  assert.equal(r.gatesOnly, '01', 'z nabídky se otevře jen Hvězdné brány');
-  assert.equal(r.shown, true);
-  assert.equal(r.marked, true, 'otevřená funkce je v nabídce zvýrazněná');
-  assert.equal(r.both, '11', 'hlavička panelu rozbalí další');
-  assert.equal(r.unempOnly, '10', 'hlavička panelu sbalí');
-  assert.equal(r.inert, true, 'sbalený panel není dostupný z klávesnice');
-  assert.equal(r.chip, 'zkušební');
+  assert.equal(r.subs, 0, 'v nabídce pohledů nejsou podpoložky Obchodu');
+  assert.equal(r.chips, 2);
+  assert.equal(r.none, '00'); assert.equal(r.empty, false, 'bez panelu se ukáže nápověda');
+  assert.equal(r.gates, '01'); assert.equal(r.chipOpen, true);
+  assert.equal(r.both, '11'); assert.equal(r.stillBoth, '11');
+  assert.equal(r.unempOnly, '10'); assert.equal(r.chipClosed, true);
+  assert.equal(r.chipText, 'zkušební'); assert.equal(r.live, true);
   await b.eval(`document.querySelector('[data-nav=watch]').click(); 1`);
 });

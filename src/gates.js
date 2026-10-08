@@ -12,6 +12,7 @@
 
 export const GATES_DEFAULTS = {
   enabled: false,
+  notify: true, // zpráva do servisního chatu: kolik bran se koupilo a za kolik
   dryRun: true, // první spuštění: vše kromě samotného kliknutí na Koupit, výsledek jen zpráva
   maxPrice: 5_000_000, // nejvyšší přijatelná cena jedné brány (kg naquadahu)
   reserveNaq: 0, // kolik naquadahu nechat nevyužito
@@ -45,9 +46,21 @@ export function createGates({ rand = Math.random } = {}) {
   function closeBatch(now, naq) {
     const b = batch;
     batch = null;
-    if (!b || !b.bought) return null;
-    totals.bought += b.bought; totals.spent += b.spent; totals.batches++;
-    const text = `🌌 Hvězdné brány: koupeno ${b.bought}× po ${fmt(b.spent / b.bought)} kg (celkem ${fmt(b.spent)} kg).${naq != null ? ` Zbývá ${fmt(naq)} kg naquadahu.` : ''}`;
+    if (!b) return null;
+    if (b.bought) totals.batches++;
+    return summary(b, now, naq, null); // co zbylo neohlášeno
+  }
+
+  /**
+   * Zpráva o nákupu: kolik bran, za kolik za kus a celkem. Posílá se hned, jak nákup v nabídce skončí (vyprodáno, limit, došel naquadah…),
+   * ne až při další změně nabídky. Hlásí se jen to, co ještě nebylo ohlášeno.
+   */
+  function summary(b, now, naq, left) {
+    const n = b.bought - (b.reportedBought ?? 0), spent = b.spent - (b.reportedSpent ?? 0);
+    if (n <= 0) return null;
+    b.reportedBought = b.bought; b.reportedSpent = b.spent;
+    const first = b.firstCount != null ? ` Nabídka měla ${b.firstCount} bran${left != null ? `, zbývá jich ${left}` : ''}.` : '';
+    const text = `🌌 Hvězdné brány: koupeno ${n}× po ${fmt(spent / n)} kg za kus, celkem ${fmt(spent)} kg.${first}${naq != null ? ` Zbývá ${fmt(naq)} kg naquadahu.` : ''}`;
     note(now, 'bought', text);
     return text;
   }
@@ -87,6 +100,7 @@ export function createGates({ rand = Math.random } = {}) {
       if (!rep.clicked) { /* na Koupit se nakonec nekliklo (stránka se změnila): není co vyhodnocovat */ }
       else if (Number.isFinite(rep.naq) && a.naq - rep.naq >= a.price * 0.9) {
         batch.bought++; batch.spent += a.naq - rep.naq; batch.fails = 0;
+        totals.bought++; totals.spent += a.naq - rep.naq;
         note(now, 'click', `koupena 1 brána za ${fmt(a.naq - rep.naq)} kg`);
       } else {
         batch.fails++;
@@ -103,11 +117,13 @@ export function createGates({ rand = Math.random } = {}) {
     if (newOffer) {
       const n = closeBatch(now, rep.naq);
       if (n) notify = notify ? `${notify}\n${n}` : n;
-      batch = { price: rep.price, bought: 0, spent: 0, fails: 0, startedAt: now, dryNotified: false, stopped: false };
+      batch = { price: rep.price, bought: 0, spent: 0, fails: 0, startedAt: now, dryNotified: false, stopped: false, firstCount: rep.count ?? null, reportedBought: 0, reportedSpent: 0 };
     }
     last = { ...rep, at: now };
 
     const wait = (why, extra = {}) => {
+      const sum = batch ? summary(batch, now, rep.naq, rep.count ?? null) : null; // nákup v téhle nabídce skončil: hned ohlásit
+      if (sum) notify = notify ? `${notify}\n${sum}` : sum;
       const r = reloadIn(rep, c);
       return out({ action: 'wait', why, reloadInMs: r.ms, kind: r.kind, ...extra }, notify);
     };

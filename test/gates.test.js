@@ -51,14 +51,17 @@ test('dobrá nabídka: kupuje se, po každém kliknutí se ověří úbytek naqu
   assert.equal(r2.action, 'buy');
   const r3 = g.report(rep({ naq: 92_000_000, count: 8, clicked: true }), cfg(), 10_000);
   assert.equal(r3.action, 'buy');
-  // nabídka vyprodána: čekání + souhrn
+  // nabídka vyprodána: souhrn přijde HNED (ne až při další změně nabídky)
   const r4 = g.report(rep({ naq: 88_000_000, count: 0, clicked: true }), cfg(), 15_000);
   assert.equal(r4.action, 'wait');
   assert.equal(r4.why, 'sold-out');
-  // nová nabídka (jiná cena) uzavře dávku zprávou
+  assert.match(r4.notify, /koupeno 3× po 4\s000\s000 kg za kus, celkem 12\s000\s000 kg/);
+  assert.match(r4.notify, /Nabídka měla 10 bran, zbývá jich 0/);
+  assert.match(r4.notify, /Zbývá 88\s000\s000 kg naquadahu/);
+  // další hlášení téže nabídky už totéž neposílá a nová nabídka nic neohlašuje podruhé
+  assert.equal(g.report(rep({ naq: 88_000_000, count: 0 }), cfg(), 20_000).notify, undefined);
   const r5 = g.report(rep({ price: 4_500_000, naq: 88_000_000, remainingSec: 175, count: 3 }), cfg({ dryRun: true }), 200_000);
-  assert.match(r5.notify, /koupeno 3×/);
-  assert.match(r5.notify, /celkem 12\s000\s000 kg/);
+  assert.ok(!/koupeno/.test(r5.notify ?? ''), 'nic dvakrát');
   assert.equal(g.snapshot(200_000).totals.bought, 3);
 });
 
@@ -104,8 +107,10 @@ test('jedna karta nakupuje, druhá čeká', () => {
 });
 
 test('nastavení bran: meze a konec nikdy pod začátkem', () => {
-  const a = sanitizeUpdate(structuredClone(DEFAULTS), { gates: { enabled: true, dryRun: false, maxPrice: '7000000', afterMinSec: 9, afterMaxSec: 2, midChance: 500, maxPerOffer: -5 } }).gates;
+  const a = sanitizeUpdate(structuredClone(DEFAULTS), { gates: { notify: false, enabled: true, dryRun: false, maxPrice: '7000000', afterMinSec: 9, afterMaxSec: 2, midChance: 500, maxPerOffer: -5 } }).gates;
   assert.equal(a.enabled, true);
+  assert.equal(a.notify, false);
+  assert.equal(DEFAULTS.gates.notify, true);
   assert.equal(a.dryRun, false);
   assert.equal(a.maxPrice, 7_000_000);
   assert.equal(a.afterMaxSec, 9);

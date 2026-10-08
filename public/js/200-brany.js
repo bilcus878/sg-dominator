@@ -6,12 +6,12 @@
 
   function fill(c) {
     if (!c) return;
-    $('gtEnabled').checked = !!c.enabled; $('gtDry').checked = c.dryRun !== false;
+    $('gtEnabled').checked = !!c.enabled; $('gtDry').checked = c.dryRun !== false; $('gtNotify').checked = c.notify !== false;
     $('gtMaxPrice').value = dots(c.maxPrice); $('gtReserve').value = dots(c.reserveNaq);
     for (const [id, k] of Object.entries(NUM)) if (document.activeElement !== $(id)) $(id).value = c[k] ?? '';
   }
   function collect() {
-    const g = { enabled: $('gtEnabled').checked, dryRun: $('gtDry').checked, maxPrice: undots($('gtMaxPrice').value) ?? 0, reserveNaq: undots($('gtReserve').value) ?? 0 };
+    const g = { enabled: $('gtEnabled').checked, dryRun: $('gtDry').checked, notify: $('gtNotify').checked, maxPrice: undots($('gtMaxPrice').value) ?? 0, reserveNaq: undots($('gtReserve').value) ?? 0 };
     for (const [id, k] of Object.entries(NUM)) g[k] = $(id).value;
     return g;
   }
@@ -19,7 +19,7 @@
     clearTimeout(saveTimer);
     try { cfg = await api('/api/config', 'PUT', { gates: collect() }); fill(cfg.gates); } catch (e) { toast('Uložení selhalo: ' + e.message, true); }
   }
-  for (const id of ['gtEnabled', 'gtDry', 'gtMaxPrice', 'gtReserve', ...Object.keys(NUM)]) {
+  for (const id of ['gtEnabled', 'gtDry', 'gtNotify', 'gtMaxPrice', 'gtReserve', ...Object.keys(NUM)]) {
     $(id).addEventListener('change', () => { clearTimeout(saveTimer); saveTimer = setTimeout(save, 400); });
   }
   for (const id of ['gtMaxPrice', 'gtReserve']) $(id).addEventListener('input', () => { const v = undots($(id).value); $(id).value = v == null ? '' : dots(v); });

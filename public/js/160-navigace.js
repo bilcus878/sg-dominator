@@ -17,10 +17,9 @@ function setView(v) {
   $('viewIc').textContent = VIEWS[v][0]; $('viewLbl').textContent = VIEWS[v][1];
   if (v === 'stats' && typeof stLoad === 'function') stLoad();
   document.querySelectorAll('[data-view]').forEach((el) => { el.hidden = el.dataset.view !== v; });
-  document.querySelectorAll('[data-nav]:not([data-fn])').forEach((b) => b.classList.toggle('on', b.dataset.nav === v));
-  if (typeof markShopFn === 'function') markShopFn();
+  document.querySelectorAll('[data-nav]').forEach((b) => b.classList.toggle('on', b.dataset.nav === v));
 }
-document.querySelectorAll('[data-nav]').forEach((b) => { b.onclick = () => { setView(b.dataset.nav); if (b.dataset.fn && typeof openShopFn === 'function') openShopFn(b.dataset.fn, true); }; });
+document.querySelectorAll('[data-nav]').forEach((b) => { b.onclick = () => setView(b.dataset.nav); });
 setView(['build', 'stats', 'shop'].includes(store.get('view')) ? store.get('view') : 'watch');
 
 

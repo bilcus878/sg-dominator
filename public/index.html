@@ -14,8 +14,6 @@
       <button type="button" class="vitem on" data-nav="watch"><span class="vic">🌌</span><span class="vtx"><b>Vesmír</b><small>panely ras, hlídání a dohoz</small></span><span class="vck">✓</span></button>
       <button type="button" class="vitem" data-nav="build"><span class="vic">🏗</span><span class="vtx"><b>Stavby</b><small>automatické stavění na planetách</small></span><span class="dot" id="navDot"></span><span class="vck">✓</span></button>
       <button type="button" class="vitem" data-nav="shop"><span class="vic">🛒</span><span class="vtx"><b>Obchod</b><small>nezaměstnaní, hvězdné brány</small></span><span class="dot" id="shopDot"></span><span class="vck">✓</span></button>
-      <button type="button" class="vitem sub" data-nav="shop" data-fn="unemp"><span class="vic">👥</span><span class="vtx"><b>Nezaměstnaní</b><small>přerozdělení a doplnění lidí</small></span><span class="dot" id="fdot_unemp"></span><span class="vck">✓</span></button>
-      <button type="button" class="vitem sub" data-nav="shop" data-fn="gates"><span class="vic">🌌</span><span class="vtx"><b>Hvězdné brány</b><small>nákup pod limitem ceny</small></span><span class="dot" id="fdot_gates"></span><span class="vck">✓</span></button>
       <button type="button" class="vitem" data-nav="stats"><span class="vic">📊</span><span class="vtx"><b>Statistiky</b><small>dohozy, časy a výsledky</small></span><span class="vck">✓</span></button>
     </div>
   </div>
@@ -110,9 +108,13 @@
   <section id="statsBox" data-view="stats" hidden></section>
 
   <section id="shopBox" data-view="shop" hidden>
-    <div class="bhead"><h2>Obchod</h2><span class="muted">věci z herního Obchodu</span></div>
+    <nav class="fnbar" id="shopBar" aria-label="Funkce Obchodu">
+      <button type="button" class="rchip" data-fn="unemp"><i class="rdot"></i><span class="rname">👥 Nezaměstnaní</span></button>
+      <button type="button" class="rchip" data-fn="gates"><i class="rdot"></i><span class="rname">🌌 Hvězdné brány</span></button>
+    </nav>
+    <div class="fnboard" id="shopBoard">
     <section class="fnpanel" id="fn_unemp" data-fn="unemp">
-      <button type="button" class="fnhead" aria-expanded="false" aria-controls="fnbody_unemp"><span class="fic">👥</span><span class="ftx"><b>Nezaměstnaní</b><small>přerozdělení lidí mezi planetami a doplnění lidí tam, kde chybí</small></span><span class="fchip" id="fchip_unemp"></span><span class="fchev">▾</span></button>
+      <div class="fnhead"><span class="fic">👥</span><span class="ftx"><b>Nezaměstnaní</b><small>přerozdělení lidí mezi planetami a doplnění lidí tam, kde chybí</small></span><span class="fchip" id="fchip_unemp"></span><button type="button" class="fnclose" data-fn="unemp" title="Zavřít panel" aria-label="Zavřít panel">✕</button></div>
       <div class="fnbody" id="fnbody_unemp"><div class="fninner">
       <div class="shopgrid">
       <div class="card" id="shopPaceCard">
@@ -183,12 +185,13 @@
       </div></div>
     </section>
     <section class="fnpanel" id="fn_gates" data-fn="gates">
-      <button type="button" class="fnhead" aria-expanded="false" aria-controls="fnbody_gates"><span class="fic">🌌</span><span class="ftx"><b>Hvězdné brány</b><small>nákup bran pod nastaveným limitem ceny</small></span><span class="fchip" id="fchip_gates"></span><span class="fchev">▾</span></button>
+      <div class="fnhead"><span class="fic">🌌</span><span class="ftx"><b>Hvězdné brány</b><small>nákup bran pod nastaveným limitem ceny</small></span><span class="fchip" id="fchip_gates"></span><button type="button" class="fnclose" data-fn="gates" title="Zavřít panel" aria-label="Zavřít panel">✕</button></div>
       <div class="fnbody" id="fnbody_gates"><div class="fninner">
       <div class="shopgrid">
       <div class="card" id="gatesCard">
         <p class="muted" style="margin-top:0">Hra nabízí hvězdné brány za neutrální cenu, která se mění každé 3 minuty. Bot si nabídku jako člověk občas obnoví, těsně po změně (1–5 s) ji načte znovu a když je cena pod limitem, klikne na Koupit, dokud je co kupovat a stačí naquadah. Planetu nevybírá. Stránka <b>Obchod → Hvězdné brány</b> musí být otevřená a viditelná (skript Hvězdné brány).</p>
         <label class="swrow"><span class="sw"><input type="checkbox" id="gtEnabled"><span></span></span> <b>Kupovat brány</b></label>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="gtNotify"><span></span></span> Posílat zprávu do servisního chatu <span class="muted">(kolik bran se koupilo, za kolik za kus a celkem, kolik zbývá naquadahu)</span></label>
         <label class="swrow"><span class="sw"><input type="checkbox" id="gtDry"><span></span></span> Zkušební režim <span class="muted">(vše proběhne, ale na Koupit se neklikne; jen přijde zpráva, co by se koupilo)</span></label>
         <div class="rd-fields">
           <label>Nejvyšší cena jedné brány (kg naquadahu)<input type="text" inputmode="numeric" class="num" id="gtMaxPrice" placeholder="5.000.000"></label>
@@ -205,13 +208,15 @@
           <div class="rrow"><label for="gtMidChance">Šance obnovit stránku v cyklu</label><input type="number" id="gtMidChance" min="0" max="100" step="5"><i>%</i><i></i><i></i></div>
         <div class="rrow"><label for="gtMidMin">Obnovit za (od posledního načtení)</label><input type="number" id="gtMidMin" min="10" max="170" step="5" aria-label="od"><i>–</i><input type="number" id="gtMidMax" min="10" max="170" step="5" aria-label="do"><i>s</i></div>
           <small class="rhint">Jako člověk, který se na obchod občas podívá. Nabídka se mění jen každé 3 minuty, takže tohle je jen pro věrohodnost (a pro případ, že se mezitím nabídka vyprodá).</small>
-          </div></div>
-    </section>
+        </details>
         <div class="muted" id="gtState" style="margin-top:8px">nečinné</div>
         <div class="muted" id="gtLog" style="margin-top:6px;max-height:160px;overflow:auto;font-size:12px"></div>
       </div>
       </div>
-    </details>
+      </div></div>
+    </section>
+    </div>
+    <div class="card empty big" id="shopEmpty" hidden>Zatím tu není žádná funkce.<br>Klikni nahoře na <b>Nezaměstnaní</b> nebo <b>Hvězdné brány</b> a otevře se její panel.</div>
   </section>
 
   <section id="buildBox" data-view="build" hidden>

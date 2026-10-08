@@ -870,7 +870,7 @@ const routes = {
     const n = (v) => (Number.isFinite(Number(v)) && v !== null ? Number(v) : null);
     const rep = { src: String(b.src ?? '').slice(0, 20), price: n(b.price), count: n(b.count), remainingSec: n(b.remainingSec), naq: n(b.naq), planets: Number(b.planets) || 0, canBuy: !!b.canBuy, clicked: !!b.clicked, fresh: !!b.fresh };
     const r = gates.report(rep, cfg.gates, Date.now());
-    if (r.notify) { console.log(`[brány] ${r.notify.split('\n')[0]}`); sendService(cfg, r.notify); }
+    if (r.notify) { console.log(`[brány] ${r.notify.split('\n')[0]}`); if (cfg.gates.notify !== false) sendService(cfg, r.notify); }
     const { notify, ...out } = r;
     return [200, { ...out, rev: gatesRev() }];
   },

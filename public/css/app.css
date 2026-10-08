@@ -760,18 +760,22 @@
 .fn:not([open]) > summary::after { content:'▸'; }
 .fn > .shopgrid { margin-top:4px; }
 
-/* Obchod: funkce jako rozbalovací panely (jako panely ras) */
-.fnpanel { border:1px solid var(--line); border-radius:14px; margin:0 0 14px; background:var(--card); overflow:hidden; }
-.fnhead { display:flex; align-items:center; gap:14px; width:100%; text-align:left; background:transparent; border:0; color:var(--fg); padding:14px 18px; cursor:pointer; }
-.fnhead:hover { background:rgba(255,255,255,.035); }
+/* Obchod: pruh funkcí (jako pruh ras ve Vesmíru) a panely vedle sebe */
+.fnbar { display:flex; flex-wrap:wrap; justify-content:center; gap:6px 8px; max-width:1100px; margin:2px auto 16px; padding:10px 14px; border:1px solid var(--line); border-radius:12px; background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01)); }
+.fnbar .rchip .rdot { display:inline-block !important; } .fnbar .rchip .rname { font-size:15px; }
+.fnbar .rchip.live .rdot { background:var(--ok); box-shadow:0 0 6px var(--ok); }
+.fnboard { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; justify-content:center; }
+.fnboard .fnpanel { flex:1 1 520px; min-width:0; max-width:1680px; border:1px solid var(--line); border-radius:14px; background:var(--card); overflow:hidden; }
+.fnboard .fnpanel[data-fn=unemp] { flex-basis:100%; }
+.fnboard .fnpanel[data-fn=gates] { max-width:760px; }
+.fnboard .fnpanel[hidden] { display:none; }
+.fnhead { display:flex; align-items:center; gap:14px; padding:12px 14px 12px 18px; border-bottom:1px solid var(--line); background:linear-gradient(180deg, rgba(255,255,255,.03), transparent); }
 .fnhead .fic { font-size:22px; width:30px; text-align:center; flex:0 0 auto; }
 .fnhead .ftx { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1 1 auto; }
 .fnhead .ftx b { font-size:16px; } .fnhead .ftx small { color:var(--mut); font-size:12.5px; font-weight:400; }
 .fnhead .fchip { flex:0 0 auto; font-size:12px; padding:2px 10px; border-radius:99px; border:1px solid var(--line); color:var(--mut); }
 .fnhead .fchip.on { color:var(--ok); border-color:#2c5a46; }
-.fnhead .fchev { color:var(--mut); transition:transform .25s; } .fnpanel.open .fchev { transform:rotate(180deg); }
-.fnbody { display:grid; grid-template-rows:0fr; transition:grid-template-rows .28s ease; }
-.fnpanel.open .fnbody { grid-template-rows:1fr; }
-.fninner { overflow:hidden; min-height:0; padding:0 18px; visibility:hidden; transition:visibility 0s .28s, padding .28s ease; }
-.fnpanel.open .fninner { visibility:visible; padding:4px 18px 18px; transition:visibility 0s, padding .28s ease; }
-.viewmenu .vitem.sub { padding-left:34px; } .viewmenu .vitem.sub .vic { font-size:15px; width:20px; } .viewmenu .vitem.sub b { font-size:13px; }
+.fnclose { background:transparent; color:var(--mut); border:1px solid transparent; border-radius:8px; width:30px; height:30px; padding:0; font-size:14px; }
+.fnclose:hover { color:var(--fg); border-color:var(--line); background:rgba(255,255,255,.05); filter:none; }
+.fnbody { display:block; } .fninner { padding:14px 18px 18px; }
+.fnboard .fnpanel[data-fn=gates] .card { border:0; background:transparent; padding:0; box-shadow:none; }
