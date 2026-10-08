@@ -750,3 +750,12 @@
 .rrow i { font-style:normal; color:var(--mut); text-align:center; font-size:13px; }
 .rhint { display:block; margin:0 0 6px; color:var(--mut); font-size:12px; }
 @media (max-width:560px) { .rrow { grid-template-columns:minmax(0,1fr) 70px 12px 70px 12px; } }
+
+/* Obchod: každá funkce (Nezaměstnaní, Hvězdné brány) je jedna velká sekce, kterou jde sbalit */
+.fn { border:1px solid var(--line); border-radius:14px; padding:4px 16px 16px; margin:0 0 18px; background:rgba(255,255,255,.015); }
+.fn > summary { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; cursor:pointer; padding:12px 0; list-style:none; }
+.fn > summary::-webkit-details-marker { display:none; }
+.fn > summary h2 { margin:0; font-size:18px; }
+.fn > summary::after { content:'▾'; margin-left:auto; color:var(--mut); }
+.fn:not([open]) > summary::after { content:'▸'; }
+.fn > .shopgrid { margin-top:4px; }

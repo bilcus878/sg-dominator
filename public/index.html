@@ -109,10 +109,12 @@
 
   <section id="shopBox" data-view="shop" hidden>
     <div class="bhead"><h2>Obchod</h2><span class="muted">věci z herního Obchodu</span></div>
-    <div class="shopgrid">
+    <details class="fn" id="fnUnemp" open>
+      <summary><h2>👥 Nezaměstnaní</h2><span class="muted">přerozdělení lidí mezi planetami a doplnění lidí tam, kde chybí (Obchod → Nezaměstnaní)</span></summary>
+      <div class="shopgrid">
       <div class="card" id="shopPaceCard">
-        <div class="card-head"><h2>⚙ Chování</h2></div>
-        <p class="muted" style="margin-top:0">Společné pro přerozdělení i doplňování nezaměstnaných.</p>
+        <div class="card-head"><h2>⚙ Tempo a pauzy</h2></div>
+        <p class="muted" style="margin-top:0">Společné pro obě části níže (přerozdělení i doplňování nezaměstnaných).</p>
 
         <div class="rd-set">
           <b>Tempo</b><small>Rychlejší = méně pauz, ale víc to vypadá jako stroj.</small>
@@ -141,30 +143,6 @@
             <label>Lidí na planetě je méně než<input type="text" inputmode="numeric" class="num" id="rdPrioBelow" placeholder="0"></label>
           </div>
         </div>
-      </div>
-      <div class="card" id="gatesCard">
-        <div class="card-head"><h2>🌌 Hvězdné brány</h2></div>
-        <p class="muted" style="margin-top:0">Hra nabízí hvězdné brány za neutrální cenu, která se mění každé 3 minuty. Bot si nabídku jako člověk občas obnoví, těsně po změně (1–5 s) ji načte znovu a když je cena pod limitem, klikne na Koupit, dokud je co kupovat a stačí naquadah. Planetu nevybírá. Stránka <b>Obchod → Hvězdné brány</b> musí být otevřená a viditelná (skript Hvězdné brány).</p>
-        <label class="swrow"><span class="sw"><input type="checkbox" id="gtEnabled"><span></span></span> <b>Kupovat brány</b></label>
-        <label class="swrow"><span class="sw"><input type="checkbox" id="gtDry"><span></span></span> Zkušební režim <span class="muted">(vše proběhne, ale na Koupit se neklikne; jen přijde zpráva, co by se koupilo)</span></label>
-        <div class="rd-fields">
-          <label>Nejvyšší cena jedné brány (kg naquadahu)<input type="text" inputmode="numeric" class="num" id="gtMaxPrice" placeholder="5.000.000"></label>
-          <label>Nechat si naquadahu (rezerva, kg)<input type="text" inputmode="numeric" class="num" id="gtReserve" placeholder="0"></label>
-        </div>
-        <div class="rd-fields one">
-          <label>Nejvíc bran z jedné nabídky <span class="muted">(0 = všechny)</span><input type="number" id="gtPerOffer" min="0" max="1000" step="1"></label>
-        </div>
-        <h3 style="margin:14px 0 2px;font-size:14px">Časování <span class="muted" style="font-weight:400">– náhodně od–do</span></h3>
-        <div class="rrow"><label for="gtAfterMin">Po změně nabídky obnovit za</label><input type="number" id="gtAfterMin" min="0.3" max="30" step="0.1" aria-label="od"><i>–</i><input type="number" id="gtAfterMax" min="0.3" max="30" step="0.1" aria-label="do"><i>s</i></div>
-        <div class="rrow"><label for="gtFirstMin">Před prvním kliknutím na Koupit</label><input type="number" id="gtFirstMin" min="0.2" max="30" step="0.1" aria-label="od"><i>–</i><input type="number" id="gtFirstMax" min="0.2" max="30" step="0.1" aria-label="do"><i>s</i></div>
-        <div class="rrow"><label for="gtStepMin">Mezi dalšími kliky na Koupit</label><input type="number" id="gtStepMin" min="0.2" max="30" step="0.1" aria-label="od"><i>–</i><input type="number" id="gtStepMax" min="0.2" max="30" step="0.1" aria-label="do"><i>s</i></div>
-        <details class="adv"><summary>Občasné obnovení uprostřed cyklu</summary>
-          <div class="rrow"><label for="gtMidChance">Šance obnovit stránku v cyklu</label><input type="number" id="gtMidChance" min="0" max="100" step="5"><i>%</i><i></i><i></i></div>
-        <div class="rrow"><label for="gtMidMin">Obnovit za (od posledního načtení)</label><input type="number" id="gtMidMin" min="10" max="170" step="5" aria-label="od"><i>–</i><input type="number" id="gtMidMax" min="10" max="170" step="5" aria-label="do"><i>s</i></div>
-          <small class="rhint">Jako člověk, který se na obchod občas podívá. Nabídka se mění jen každé 3 minuty, takže tohle je jen pro věrohodnost (a pro případ, že se mezitím nabídka vyprodá).</small>
-        </details>
-        <div class="muted" id="gtState" style="margin-top:8px">nečinné</div>
-        <div class="muted" id="gtLog" style="margin-top:6px;max-height:160px;overflow:auto;font-size:12px"></div>
       </div>
       <div class="card" id="redistCard">
         <div class="card-head"><h2>🔀 Přerozdělení nezaměstnaných</h2></div>
@@ -198,7 +176,37 @@
         <div class="muted" id="uState" style="margin-top:6px">nečinné</div>
         <div class="muted" id="uLog" style="margin-top:6px;max-height:160px;overflow:auto;font-size:12px"></div>
       </div>
-    </div>
+      </div>
+    </details>
+    <details class="fn" id="fnGates" open>
+      <summary><h2>🌌 Hvězdné brány</h2><span class="muted">nákup bran pod nastaveným limitem ceny (Obchod → Hvězdné brány)</span></summary>
+      <div class="shopgrid">
+      <div class="card" id="gatesCard">
+        <div class="card-head"><h2>🌌 Hvězdné brány</h2></div>
+        <p class="muted" style="margin-top:0">Hra nabízí hvězdné brány za neutrální cenu, která se mění každé 3 minuty. Bot si nabídku jako člověk občas obnoví, těsně po změně (1–5 s) ji načte znovu a když je cena pod limitem, klikne na Koupit, dokud je co kupovat a stačí naquadah. Planetu nevybírá. Stránka <b>Obchod → Hvězdné brány</b> musí být otevřená a viditelná (skript Hvězdné brány).</p>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="gtEnabled"><span></span></span> <b>Kupovat brány</b></label>
+        <label class="swrow"><span class="sw"><input type="checkbox" id="gtDry"><span></span></span> Zkušební režim <span class="muted">(vše proběhne, ale na Koupit se neklikne; jen přijde zpráva, co by se koupilo)</span></label>
+        <div class="rd-fields">
+          <label>Nejvyšší cena jedné brány (kg naquadahu)<input type="text" inputmode="numeric" class="num" id="gtMaxPrice" placeholder="5.000.000"></label>
+          <label>Nechat si naquadahu (rezerva, kg)<input type="text" inputmode="numeric" class="num" id="gtReserve" placeholder="0"></label>
+        </div>
+        <div class="rd-fields one">
+          <label>Nejvíc bran z jedné nabídky <span class="muted">(0 = všechny)</span><input type="number" id="gtPerOffer" min="0" max="1000" step="1"></label>
+        </div>
+        <h3 style="margin:14px 0 2px;font-size:14px">Časování <span class="muted" style="font-weight:400">– náhodně od–do</span></h3>
+        <div class="rrow"><label for="gtAfterMin">Po změně nabídky obnovit za</label><input type="number" id="gtAfterMin" min="0.3" max="30" step="0.1" aria-label="od"><i>–</i><input type="number" id="gtAfterMax" min="0.3" max="30" step="0.1" aria-label="do"><i>s</i></div>
+        <div class="rrow"><label for="gtFirstMin">Před prvním kliknutím na Koupit</label><input type="number" id="gtFirstMin" min="0.2" max="30" step="0.1" aria-label="od"><i>–</i><input type="number" id="gtFirstMax" min="0.2" max="30" step="0.1" aria-label="do"><i>s</i></div>
+        <div class="rrow"><label for="gtStepMin">Mezi dalšími kliky na Koupit</label><input type="number" id="gtStepMin" min="0.2" max="30" step="0.1" aria-label="od"><i>–</i><input type="number" id="gtStepMax" min="0.2" max="30" step="0.1" aria-label="do"><i>s</i></div>
+        <details class="adv"><summary>Občasné obnovení uprostřed cyklu</summary>
+          <div class="rrow"><label for="gtMidChance">Šance obnovit stránku v cyklu</label><input type="number" id="gtMidChance" min="0" max="100" step="5"><i>%</i><i></i><i></i></div>
+        <div class="rrow"><label for="gtMidMin">Obnovit za (od posledního načtení)</label><input type="number" id="gtMidMin" min="10" max="170" step="5" aria-label="od"><i>–</i><input type="number" id="gtMidMax" min="10" max="170" step="5" aria-label="do"><i>s</i></div>
+          <small class="rhint">Jako člověk, který se na obchod občas podívá. Nabídka se mění jen každé 3 minuty, takže tohle je jen pro věrohodnost (a pro případ, že se mezitím nabídka vyprodá).</small>
+        </details>
+        <div class="muted" id="gtState" style="margin-top:8px">nečinné</div>
+        <div class="muted" id="gtLog" style="margin-top:6px;max-height:160px;overflow:auto;font-size:12px"></div>
+      </div>
+      </div>
+    </details>
   </section>
 
   <section id="buildBox" data-view="build" hidden>
