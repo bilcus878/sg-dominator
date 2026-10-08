@@ -126,3 +126,16 @@ test('čtení stránky Hvězdné brány: cena, počet, odpočet, naquadah', () =
   assert.equal(parseGates('Další změna bude za 1 minutu 5 sekund.').remainingSec, 65);
   assert.equal(parseGates('nic').price, null);
 });
+
+import { stripSecrets, mergeProfileConfig } from '../src/profiles.js';
+test('kupování bran se nesdílí v profilu a načtení profilu ho nezapne', () => {
+  const local = structuredClone(DEFAULTS); local.gates.enabled = false;
+  const mine = structuredClone(DEFAULTS); mine.gates.enabled = true;
+  assert.equal(stripSecrets(mine).gates.enabled, false, 'do profilu se zapnuto neuloží');
+  const profile = structuredClone(DEFAULTS); profile.gates.enabled = true; profile.gates.maxPrice = 3_000_000;
+  const merged = mergeProfileConfig(local, profile);
+  assert.equal(merged.gates.enabled, false, 'profil kupování nezapne');
+  assert.equal(merged.gates.maxPrice, 3_000_000, 'ostatní nastavení bran se z profilu přebírá');
+  const on = structuredClone(DEFAULTS); on.gates.enabled = true;
+  assert.equal(mergeProfileConfig(on, profile).gates.enabled, true, 'co si uživatel zapnul sám, profil nevypne');
+});

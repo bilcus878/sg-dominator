@@ -21,6 +21,7 @@ export function stripSecrets(cfg) {
   delete c.token; delete c.port; delete c.login;
   if (c.discord) delete c.discord.webhookUrl;
   if (c.telegram) delete c.telegram.botToken;
+  if (c.gates) c.gates.enabled = false; // zapnuté kupování bran se nesdílí ani neukládá do profilu: na každém počítači se zapíná ručně
   return c;
 }
 
@@ -30,6 +31,7 @@ export function mergeProfileConfig(local, profileCfg) {
   p.token = local.token; p.port = local.port; p.login = clone(local.login ?? {});
   p.discord = { ...(p.discord ?? {}), webhookUrl: local.discord?.webhookUrl ?? '' };
   p.telegram = { ...(p.telegram ?? {}), botToken: local.telegram?.botToken ?? '' };
+  if (p.gates) p.gates.enabled = !!local.gates?.enabled; // načtení profilu kupování bran nezapne
   return p;
 }
 

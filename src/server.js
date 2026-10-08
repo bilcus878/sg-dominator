@@ -34,6 +34,7 @@ import { mergeSeenUnits, sanitizeReport, sanitizeSeenUnits, unitsFor, ATTACK_TYP
 // data bydlela dřív ve složce projektu (Dropbox); při prvním spuštění se přesunou mimo ni
 if (USING_DEFAULT_DIR) migrateLegacyData(LEGACY_DATA_DIR, DATA_DIR);
 let cfg = loadConfig();
+if (cfg.gates?.enabled) { cfg.gates.enabled = false; saveConfigRaw(cfg); } // kupování hvězdných bran je po každém spuštění aplikace vypnuté, zapíná se ručně
 /** Uložení nastavení; po každé změně se (když je zapnuto) aktualizuje i profil v repozitáři. */
 function saveConfig(c) { saveConfigRaw(c); scheduleProfileSave(); }
 if (process.env.SG_PORT) cfg.port = Number(process.env.SG_PORT);
