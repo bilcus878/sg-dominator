@@ -48,7 +48,7 @@ $('openSettings').onclick = openDrawer; $('closeSettings').onclick = closeDrawer
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 
 /** Záložka Přihlášení: pole <-> cfg.session (id -> klíč; Min/Max dvojice jsou vždy od–do) */
-const SES_NUM = { sesReactMin: 'reactMinSec', sesReactMax: 'reactMaxSec', sesMaintMin: 'maintMinSec', sesMaintMax: 'maintMaxSec', sesProbeMin: 'probeMinSec', sesProbeMax: 'probeMaxSec', sesFormMin: 'formMinSec', sesFormMax: 'formMaxSec', sesRetry1Min: 'retryFirstMinSec', sesRetry1Max: 'retryFirstMaxSec', sesRetryNMin: 'retryNextMinSec', sesRetryNMax: 'retryNextMaxSec', sesReloadMin: 'reloadMinSec', sesReloadMax: 'reloadMaxSec', sesAttempts: 'maxAttempts', sesTabWait: 'tabWaitMin' };
+const SES_NUM = { sesReactMin: 'reactMinSec', sesReactMax: 'reactMaxSec', sesMaintMin: 'maintMinSec', sesMaintMax: 'maintMaxSec', sesProbeMin: 'probeMinSec', sesProbeMax: 'probeMaxSec', sesFormMin: 'formMinSec', sesFormMax: 'formMaxSec', sesRetry1Min: 'retryFirstMinSec', sesRetry1Max: 'retryFirstMaxSec', sesRetryNMin: 'retryNextMinSec', sesRetryNMax: 'retryNextMaxSec', sesReloadMin: 'reloadMinSec', sesReloadMax: 'reloadMaxSec', sesGapMin: 'reloadGapMinSec', sesGapMax: 'reloadGapMaxSec', sesAttempts: 'maxAttempts', sesTabWait: 'tabWaitMin' };
 const SES_BOOL = { sesEnabled: 'enabled', sesCloseTab: 'closeTab', sesReloadOthers: 'reloadOthers' };
 const SES_TXT = { sesMaintStart: 'maintStart', sesMaintEnd: 'maintEnd' };
 const SES_NOTIFY = { sesNExpired: 'expired', sesNMaintenance: 'maintenance', sesNOk: 'ok', sesNRetry: 'retry', sesNFailed: 'failed', sesNNeedsUser: 'needs-user' };

@@ -95,7 +95,9 @@ test('přihlašovací panel se zavírá jako první a teprve potom se obnovují 
   assert.match(src, /loginTab\?\.close\(\)/);
   // zpráva „done“ nese pauzu na zavření a každá karta ji přičte ke své prodlevě před obnovením
   assert.match(src, /closeMs: cfg\.closeTab \? CLOSE_GRACE_MS : 0/);
-  assert.equal((src.match(/\(m\.data\.closeMs \?\? 0\) \+ rnd\(m\.data\.reload\[0\]/g) ?? []).length, 2, 'vedoucí i ostatní karty počkají na zavření panelu');
+  assert.match(src, /\(msg\.closeMs \?\? 0\) \+ rnd\(msg\.reload\[0\]/, 'každá karta počká na zavření panelu');
+  assert.equal((src.match(/scheduleReload\(m\.data\)/g) ?? []).length, 2, 'vedoucí i ostatní karty se obnovují přes jednu frontu');
+  assert.match(src, /k \* rnd\(gap\[0\] \* 1000, gap\[1\] \* 1000\)/, 'karty se obnovují po jedné s pauzou mezi nimi');
   // když se panel přesto nezavře, ohlásí to
   assert.match(src, /Zavři ho prosím ručně, překrývá kartu s daty/);
 });

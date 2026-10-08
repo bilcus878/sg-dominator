@@ -39,7 +39,8 @@ export const SESSION_DEFAULTS = {
   retryNextMinSec: 280, retryNextMaxSec: 340, // čekání před dalšími pokusy
   tabWaitMin: 8, // jak dlouho (min) karta čeká, než přihlašovací panel dokončí
   closeTab: true, // po přihlášení zavřít panel otevřený skriptem
-  reloadOthers: true, reloadMinSec: 2, reloadMaxSec: 8, // po přihlášení obnovit ostatní karty hry (každá v jiný okamžik)
+  reloadOthers: true, reloadMinSec: 2, reloadMaxSec: 8, // po přihlášení obnovit ostatní karty hry: první za reloadMin–Max s po zavření panelu
+  reloadGapMinSec: 12, reloadGapMaxSec: 30, // a každá další karta o tuhle pauzu později (karty se neobnovují naráz ani těsně po sobě)
   probeMinSec: 60, probeMaxSec: 120, // jak často hlídat, jestli přihlášení nevypršelo
   notify: { expired: true, maintenance: true, ok: true, retry: true, failed: true, 'needs-user': true }, // které zprávy jdou do servisního chatu
 };
@@ -186,6 +187,7 @@ export function sanitizeSession(cur, body) {
   rng('retryFirstMinSec', 'retryFirstMaxSec', 30, 900);
   rng('retryNextMinSec', 'retryNextMaxSec', 30, 1800);
   rng('reloadMinSec', 'reloadMaxSec', 0, 60);
+  rng('reloadGapMinSec', 'reloadGapMaxSec', 0, 300);
   rng('probeMinSec', 'probeMaxSec', 20, 600);
   if ('maxAttempts' in body) ns.maxAttempts = Math.min(5, Math.max(1, Math.round(num(body.maxAttempts, ns.maxAttempts))));
   if ('tabWaitMin' in body) ns.tabWaitMin = Math.min(30, Math.max(2, Math.round(num(body.tabWaitMin, ns.tabWaitMin))));

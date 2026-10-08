@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – přihlášení
 // @namespace    sg-dominator
-// @version      1.9.0
+// @version      1.10.0
 // @description  Když hru po ~3 hodinách odhlásí, otevře se nový panel s přihlašovací stránkou, klikne na Přihlaš (údaje doplní Chrome, skript hesla nezná), panel se zavře a karty s daty se obnoví. V době denní údržby (výchozí 3:00–3:31) počká. Vše se nastavuje v aplikaci (Nastavení → Přihlášení).
 // @match        https://stargate-game.cz/*
 // @match        https://www.stargate-game.cz/*
@@ -17,7 +17,7 @@
   'use strict';
   const SERVER = '__SERVER__';
   const TOKEN = '__TOKEN__';
-  const VERSION = '1.9.0'; // stejné jako @version
+  const VERSION = '1.10.0'; // stejné jako @version
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -66,7 +66,7 @@
   }
 
   // výchozí hodnoty = stejné jako SESSION_DEFAULTS v aplikaci (použijí se, když server neodpoví)
-  const DEFAULTS = { enabled: true, reactMinSec: 1.5, reactMaxSec: 3, maintStart: '03:00', maintEnd: '03:31', maintMinSec: 8, maintMaxSec: 70, formMinSec: 1.5, formMaxSec: 4, maxAttempts: 3, retryFirstMinSec: 110, retryFirstMaxSec: 150, retryNextMinSec: 280, retryNextMaxSec: 340, tabWaitMin: 8, closeTab: true, reloadOthers: true, reloadMinSec: 2, reloadMaxSec: 8, probeMinSec: 60, probeMaxSec: 120 };
+  const DEFAULTS = { enabled: true, reactMinSec: 1.5, reactMaxSec: 3, maintStart: '03:00', maintEnd: '03:31', maintMinSec: 8, maintMaxSec: 70, formMinSec: 1.5, formMaxSec: 4, maxAttempts: 3, retryFirstMinSec: 110, retryFirstMaxSec: 150, retryNextMinSec: 280, retryNextMaxSec: 340, tabWaitMin: 8, closeTab: true, reloadOthers: true, reloadMinSec: 2, reloadMaxSec: 8, reloadGapMinSec: 12, reloadGapMaxSec: 30, probeMinSec: 60, probeMaxSec: 120 };
   /** Nastavení z Nastavení → Přihlášení; bez serveru platí výchozí. */
   function loadCfg() {
     return new Promise((resolve) => {
@@ -163,6 +163,23 @@
   const stopHeartbeat = () => { clearInterval(heartbeat); heartbeat = null; };
   const channel = 'BroadcastChannel' in window ? new BroadcastChannel('sgd-relogin') : null;
   let loginTab = null; // panel s přihlašovací stránkou otevřený touto kartou (GM_openInTab); jen ten, kdo ho otevřel, ho umí spolehlivě zavřít
+  /**
+   * Obnovení karet po přihlášení jde po jedné: každá karta si při zprávě „přihlášeno“ vezme pořadí (0, 1, 2…) a obnoví se
+   * za (zavření panelu + první prodleva) + pořadí × pauza mezi kartami. Karty se tak nikdy neobnoví naráz ani těsně po sobě.
+   */
+  function reloadSlot(at) {
+    const cur = jget(localStorage, 'sgd_reload_seq');
+    const n = cur && cur.at === at ? cur.n : 0;
+    jset(localStorage, 'sgd_reload_seq', { at, n: n + 1 });
+    return n;
+  }
+  function scheduleReload(msg) {
+    if (!msg.reload) return;
+    const k = reloadSlot(msg.at);
+    const gap = msg.gap ?? [0, 0];
+    const wait = (msg.closeMs ?? 0) + rnd(msg.reload[0] * 1000, msg.reload[1] * 1000) + k * rnd(gap[0] * 1000, gap[1] * 1000);
+    setTimeout(() => location.reload(), wait);
+  }
   const CLOSE_GRACE_MS = 2500; // ostatní karty se obnovují nejdřív po tolika ms od zprávy „přihlášeno“: panel se zavře jako první
 
   /** @returns {Promise<boolean>} true = přihlašování běží (tady nebo v jiné kartě), false = vypnuté v nastavení */
@@ -260,7 +277,7 @@
     const cfg = await loadCfg();
     const mins = Math.max(1, Math.round((Date.now() - (st.startedAt ?? Date.now())) / 60000));
     finishQuiet(`Znovu přihlášeno (trvalo ${mins} min).${cfg.reloadOthers ? ' Karty s daty se obnovují.' : ''}`);
-    channel?.postMessage({ type: 'done', at: Date.now(), closeMs: cfg.closeTab ? CLOSE_GRACE_MS : 0, reload: cfg.reloadOthers ? [cfg.reloadMinSec, cfg.reloadMaxSec] : null });
+    channel?.postMessage({ type: 'done', at: Date.now(), closeMs: cfg.closeTab ? CLOSE_GRACE_MS : 0, reload: cfg.reloadOthers ? [cfg.reloadMinSec, cfg.reloadMaxSec] : null, gap: [cfg.reloadGapMinSec, cfg.reloadGapMaxSec] });
     jdel(localStorage, JOB);
     if (cfg.closeTab) {
       // pořadí: 1) zavřít přihlašovací panel (vedoucí karta ho zavírá taky, kdo dřív), 2) teprve pak se obnoví ostatní karty
@@ -282,13 +299,13 @@
         if (t === 'done' || t === 'failed') {
           finishQuiet(null);
           if (t === 'done' && (m.data.closeMs ?? 0) > 0) setTimeout(() => { try { loginTab?.close(); } catch { /* panel se zavře sám */ } }, rnd(200, 800)); // panel pryč jako první
-          if (t === 'done' && m.data.reload) setTimeout(() => location.reload(), (m.data.closeMs ?? 0) + rnd(m.data.reload[0] * 1000, m.data.reload[1] * 1000));
+          if (t === 'done') scheduleReload(m.data);
         }
         return;
       }
       if (t !== 'done' || own || isLoginPage()) return;
       if (loadedAt > m.data.at - 4_000) return; // už je načtená po přihlášení
-      if (m.data.reload) setTimeout(() => location.reload(), (m.data.closeMs ?? 0) + rnd(m.data.reload[0] * 1000, m.data.reload[1] * 1000)); // nejdřív se zavře panel, pak se obnoví
+      scheduleReload(m.data); // nejdřív se zavře panel, pak se karty obnovují po jedné
     };
   }
 

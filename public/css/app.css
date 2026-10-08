@@ -742,3 +742,11 @@
   header .racebar.expanded .rb-all { display:grid; grid-template-columns:1fr 1fr; gap:4px; width:min(300px, calc(100vw - 24px)); padding:8px; justify-content:stretch; }
   header .rb-all .rchip { justify-content:flex-start; padding:8px 12px; border-radius:8px; font-size:14px; }
   header .rb-all .rchip.watched { grid-column:1 / -1; border-top:1px solid var(--line); border-radius:0 0 8px 8px; margin-top:2px; }
+
+/* řádek „popisek + od – do + s“ (kompaktní časování) */
+.rrow { display:grid; grid-template-columns:minmax(0,1fr) 84px 14px 84px 14px; gap:6px; align-items:center; margin:7px 0 2px; }
+.rrow label { margin:0; color:var(--fg); font-size:13.5px; }
+.rrow input { margin:0; width:100%; padding:7px 8px; }
+.rrow i { font-style:normal; color:var(--mut); text-align:center; font-size:13px; }
+.rhint { display:block; margin:0 0 6px; color:var(--mut); font-size:12px; }
+@media (max-width:560px) { .rrow { grid-template-columns:minmax(0,1fr) 70px 12px 70px 12px; } }
