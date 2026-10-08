@@ -38,6 +38,7 @@
     if (G.batch?.bought) parts.push(`v téhle nabídce koupeno ${G.batch.bought}× (${fmtN(G.batch.spent)} kg)`);
     if (G.totals?.bought) parts.push(`celkem od spuštění ${G.totals.bought}× za ${fmtN(G.totals.spent)} kg`);
     $('gtState').innerHTML = parts.join(' · ');
+    shopStat.gates = { on: !!c.enabled, text: c.enabled ? (c.dryRun !== false ? 'zkušební' : 'kupuje') : '' }; if (typeof renderShopChips === 'function') renderShopChips();
     $('gtLog').innerHTML = (G.log ?? []).slice().reverse().map((e) => `<div><span class="muted">${new Date(e.at).toLocaleTimeString('cs-CZ')}</span> ${esc(e.text)}</div>`).join('');
   }
   async function poll() {

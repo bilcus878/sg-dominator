@@ -3,6 +3,7 @@ const viewMenu = $('viewMenu');
 const VIEWS = { watch: ['🌌', 'Vesmír'], build: ['🏗', 'Stavby'], shop: ['🛒', 'Obchod'], stats: ['📊', 'Statistiky'] };
 /** Která část právě něco dělá (stavění / nezaměstnaní): zelená tečka u položky v nabídce i u tlačítka pohledu. */
 const viewBusy = { build: false, shop: false };
+const shopStat = {}; // stav funkcí v Obchodu: { unemp: { on, text }, gates: { on, text } } (čipy na hlavičkách panelů a tečky v nabídce)
 function refreshViewDot() {
   $('navDot').classList.toggle('on', viewBusy.build); $('shopDot').classList.toggle('on', viewBusy.shop);
   $('viewDot').classList.toggle('on', viewBusy.build || viewBusy.shop);
@@ -16,9 +17,10 @@ function setView(v) {
   $('viewIc').textContent = VIEWS[v][0]; $('viewLbl').textContent = VIEWS[v][1];
   if (v === 'stats' && typeof stLoad === 'function') stLoad();
   document.querySelectorAll('[data-view]').forEach((el) => { el.hidden = el.dataset.view !== v; });
-  document.querySelectorAll('[data-nav]').forEach((b) => b.classList.toggle('on', b.dataset.nav === v));
+  document.querySelectorAll('[data-nav]:not([data-fn])').forEach((b) => b.classList.toggle('on', b.dataset.nav === v));
+  if (typeof markShopFn === 'function') markShopFn();
 }
-document.querySelectorAll('[data-nav]').forEach((b) => { b.onclick = () => setView(b.dataset.nav); });
+document.querySelectorAll('[data-nav]').forEach((b) => { b.onclick = () => { setView(b.dataset.nav); if (b.dataset.fn && typeof openShopFn === 'function') openShopFn(b.dataset.fn, true); }; });
 setView(['build', 'stats', 'shop'].includes(store.get('view')) ? store.get('view') : 'watch');
 
 

@@ -6,6 +6,7 @@
     if (!U) return;
     const on = U.status === 'running';
     viewBusy.shop = on || R?.status === 'running'; refreshViewDot();
+    shopStat.unemp = { on: on || R?.status === 'running', text: on ? 'doplňuje' : R?.status === 'running' ? 'přerozděluje' : '' }; if (typeof renderShopChips === 'function') renderShopChips();
     $('uStart').disabled = on; $('uStart').style.opacity = on ? 0.5 : 1;
     $('uStop').disabled = !on;
     const fmtN = (n) => Number(n || 0).toLocaleString('cs-CZ');
@@ -40,6 +41,7 @@
     $('rdState').innerHTML = `<b>${RD_STATUS[R.status] ?? R.status}</b>${R.dry && (on || R.count) ? ' (zkušebně)' : ''}${R.target ? ` · teď: ${esc(R.target)}` : ''}${R.count ? ` · ${R.dry ? 'by přesunul' : 'přesunuto'} ${R.count}× (${fmtMil(R.movedTotal)})` : ''}${R.skipped ? ` · přeskočeno ${R.skipped}` : ''}${R.reason && !on ? ` · ${esc(R.reason)}` : ''}`;
     $('rdLog').innerHTML = (R.log ?? []).slice().reverse().map((l) => `<div><span class="muted">${new Date(l.at).toLocaleTimeString('cs-CZ')}</span> ${esc(l.msg)}</div>`).join('');
     viewBusy.shop = on || U?.status === 'running'; refreshViewDot();
+    shopStat.unemp = { on: on || U?.status === 'running', text: on ? 'doplňuje' : U?.status === 'running' ? 'přerozděluje' : '' }; if (typeof renderShopChips === 'function') renderShopChips();
   }
   async function rdPoll() { try { R = await api('/api/redist'); rdRender(); } catch { /* server nedostupný */ } }
   $('rdStart').onclick = async () => {

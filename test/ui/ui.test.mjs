@@ -25,7 +25,7 @@ after(async () => { await b?.close(); app?.stop(); });
 test('hlavička je jeden štíhlý řádek a tlačítka jsou ve správném pořadí', { skip }, async () => {
   assert.ok(await b.eval(`document.querySelector('header .bar').getBoundingClientRect().height`) < 70, 'horní technický řádek je štíhlý');
   assert.equal(await b.eval(`getComputedStyle(document.querySelector('header')).position`), 'relative', 'hlavička je statická, neposouvá se při rolování');
-  assert.equal(await b.eval(`[...document.querySelectorAll('#viewMenu [data-nav]')].map((e) => e.dataset.nav).join('>')`), 'watch>build>shop>stats', 'rozcestník nabízí všechny pohledy');
+  assert.equal(await b.eval(`[...document.querySelectorAll('#viewMenu [data-nav]')].map((e) => e.dataset.nav).join('>')`), 'watch>build>shop>shop>shop>stats', 'rozcestník nabízí všechny pohledy (Obchod má pod sebou své funkce)');
   const order = await b.eval(`[...document.querySelectorAll('.ctl > *')].map(e => e.id || e.className.split(' ')[0]).join('>')`);
   assert.equal(order, 'statpill>mainwrap');
 });
@@ -432,7 +432,7 @@ test('Nastavení → Mapa a OP: přepínače Chytat a Alerty jsou propojené s h
 });
 
 test('pohledy se jmenují jako ve hře (Vesmír, Stavby, Obchod) a Nezaměstnaní jsou v Obchodu, ne ve Stavbách', { skip }, async () => {
-  assert.equal(await b.eval(`[...document.querySelectorAll('#viewMenu .vitem b')].map((e) => e.textContent).join(' | ')`), 'Vesmír | Stavby | Obchod | Statistiky');
+  assert.equal(await b.eval(`[...document.querySelectorAll('#viewMenu .vitem b')].map((e) => e.textContent).join(' | ')`), 'Vesmír | Stavby | Obchod | Nezaměstnaní | Hvězdné brány | Statistiky');
   assert.equal(await b.eval(`document.getElementById('viewLbl').textContent`), 'Vesmír');
   assert.equal(await b.eval(`!!document.querySelector('#shopBox #uStart') && !document.querySelector('#buildBox #uStart')`), true, 'Nezaměstnaní jsou v Obchodu');
   await b.eval(`document.querySelector('[data-nav=shop]').click(); 1`); await sleep(300);
@@ -503,4 +503,29 @@ test('pruh ras: na široké obrazovce celý seznam (naše první, bez přeškrtn
   assert.equal(await b.eval(`getComputedStyle(document.getElementById('rbAll')).display`), 'none', 'po kliku na rasu se seznam zavře');
   await b.send('Emulation.setDeviceMetricsOverride', { width: 900, height: 900, deviceScaleFactor: 1, mobile: false }); await sleep(300);
   await b.eval(`(() => { panels = panels.filter((x) => x !== '5'); saveUi(); renderBoard(); })()`);
+});
+
+test('Obchod: funkce jsou rozbalovací panely; položka v nabídce otevře jen tu svou, hlavička panelu přepíná', { skip, timeout: 30_000 }, async () => {
+  await b.eval(`document.querySelector('[data-nav=shop]:not([data-fn])').click(); 1`); await sleep(300);
+  const r = await b.eval(`(() => {
+    const st = () => ['unemp', 'gates'].map((id) => document.getElementById('fn_' + id).classList.contains('open') ? 1 : 0).join('');
+    const out = { start: st() };
+    document.querySelector('.vitem[data-fn=gates]').click();
+    out.gatesOnly = st(); out.shown = document.getElementById('shopBox').hidden === false;
+    out.marked = document.querySelector('.vitem[data-fn=gates]').classList.contains('on') && !document.querySelector('.vitem[data-fn=unemp]').classList.contains('on');
+    document.querySelector('#fn_unemp .fnhead').click(); out.both = st();
+    document.querySelector('#fn_gates .fnhead').click(); out.unempOnly = st();
+    out.inert = document.querySelector('#fn_gates .fninner').inert;
+    shopStat.gates = { on: true, text: 'zkušební' }; renderShopChips();
+    out.chip = document.getElementById('fchip_gates').textContent;
+    return out;
+  })()`);
+  assert.equal(r.gatesOnly, '01', 'z nabídky se otevře jen Hvězdné brány');
+  assert.equal(r.shown, true);
+  assert.equal(r.marked, true, 'otevřená funkce je v nabídce zvýrazněná');
+  assert.equal(r.both, '11', 'hlavička panelu rozbalí další');
+  assert.equal(r.unempOnly, '10', 'hlavička panelu sbalí');
+  assert.equal(r.inert, true, 'sbalený panel není dostupný z klávesnice');
+  assert.equal(r.chip, 'zkušební');
+  await b.eval(`document.querySelector('[data-nav=watch]').click(); 1`);
 });
