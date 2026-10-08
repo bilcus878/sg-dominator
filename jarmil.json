@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791473072983,
+  "savedAt": 1791473189683,
   "savedBy": "Jaroslav-ntb",
   "config": {
     "threshold": 100000000,
@@ -144,7 +144,6 @@
     },
     "gates": {
       "enabled": true,
-      "notify": true,
       "dryRun": false,
       "maxPrice": 1500000,
       "reserveNaq": 0,
@@ -157,7 +156,8 @@
       "firstMinSec": 1,
       "firstMaxSec": 2,
       "stepMinSec": 0.5,
-      "stepMaxSec": 1
+      "stepMaxSec": 1,
+      "notify": true
     },
     "session": {
       "enabled": true,
