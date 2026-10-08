@@ -12,7 +12,6 @@
 
 export const GATES_DEFAULTS = {
   enabled: false,
-  notify: true, // zpráva do servisního chatu: kolik bran se koupilo a za kolik
   dryRun: true, // první spuštění: vše kromě samotného kliknutí na Koupit, výsledek jen zpráva
   maxPrice: 5_000_000, // nejvyšší přijatelná cena jedné brány (kg naquadahu)
   reserveNaq: 0, // kolik naquadahu nechat nevyužito

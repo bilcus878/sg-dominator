@@ -107,10 +107,8 @@ test('jedna karta nakupuje, druhá čeká', () => {
 });
 
 test('nastavení bran: meze a konec nikdy pod začátkem', () => {
-  const a = sanitizeUpdate(structuredClone(DEFAULTS), { gates: { notify: false, enabled: true, dryRun: false, maxPrice: '7000000', afterMinSec: 9, afterMaxSec: 2, midChance: 500, maxPerOffer: -5 } }).gates;
+  const a = sanitizeUpdate(structuredClone(DEFAULTS), { gates: { enabled: true, dryRun: false, maxPrice: '7000000', afterMinSec: 9, afterMaxSec: 2, midChance: 500, maxPerOffer: -5 } }).gates;
   assert.equal(a.enabled, true);
-  assert.equal(a.notify, false);
-  assert.equal(DEFAULTS.gates.notify, true);
   assert.equal(a.dryRun, false);
   assert.equal(a.maxPrice, 7_000_000);
   assert.equal(a.afterMaxSec, 9);

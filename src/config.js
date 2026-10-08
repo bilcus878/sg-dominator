@@ -207,7 +207,7 @@ export function sanitizeSession(cur, body) {
 export function sanitizeGates(cur, body) {
   const num = (v, d) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : d);
   const ng = { ...GATES_DEFAULTS, ...cur };
-  for (const k of ['enabled', 'dryRun', 'notify']) if (k in body) ng[k] = !!body[k];
+  for (const k of ['enabled', 'dryRun']) if (k in body) ng[k] = !!body[k];
   if ('maxPrice' in body) ng.maxPrice = Math.min(1e12, Math.floor(num(body.maxPrice, ng.maxPrice)));
   if ('reserveNaq' in body) ng.reserveNaq = Math.min(1e13, Math.floor(num(body.reserveNaq, ng.reserveNaq)));
   if ('maxPerOffer' in body) ng.maxPerOffer = Math.min(1000, Math.floor(num(body.maxPerOffer, ng.maxPerOffer)));
