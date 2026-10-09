@@ -135,18 +135,10 @@
         </div>
 
         <div class="rd-set">
-          <b>Ignorovat obří planety</b><small>Takové planety bot nedoplňuje a nepřesouvá na ně. Nech 0, pokud nechceš nic ignorovat.</small>
+          <b>Obří planety</b><small>Pořadí cílů: 1) planety bez lidí a ostatní planety se plní rovným dílem, dokud nejsou zhruba z poloviny plné; 2) zbytek se rozdělí rovnoměrně mezi obří planety (střídají se, žádná nedostane všechno). Obří planety se při doplňování červených čísel nedoplňují. Nech 0, pokud žádné nemáš.</small>
           <div class="rd-fields">
             <label>Počet měst je větší než<input type="text" inputmode="numeric" class="num" id="rdGiantCities" placeholder="0"></label>
             <label>nebo lidí na planetě je víc než<input type="text" inputmode="numeric" class="num" id="rdGiantPeople" placeholder="0"></label>
-          </div>
-        </div>
-
-        <div class="rd-set">
-          <b>Nejdřív prázdné a malé planety</b><small>Pořadí: 1) planety bez lidí (vždy), 2) malé planety – nejprázdnější první a vezmou celý přesun, který se vejde, 3) zbytek se mezi větší planety rozdělí rovnoměrně (vždy se plní ta s největší rezervou). Malá = splňuje kteroukoli z podmínek; nech 0 pro vypnuto.</small>
-          <div class="rd-fields">
-            <label>Počet měst je nejvýš<input type="text" inputmode="numeric" class="num" id="rdSmallCities" placeholder="0"></label>
-            <label>nebo lidí na planetě je méně než<input type="text" inputmode="numeric" class="num" id="rdPrioBelow" placeholder="0"></label>
           </div>
         </div>
       </div>

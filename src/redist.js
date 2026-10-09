@@ -12,7 +12,7 @@
 const STALE_MS = 120_000; // skript se tak dlouho neozval = běh se zastaví
 const MAX_RELOADS = 3; // tolikrát se znovu načte seznam, když ukazuje stará data (po návratu zpět z mezipaměti prohlížeče)
 
-export const REDIST_DEFAULTS = { minM: 100, maxM: 300, freeMaxM: 0, dry: true, maxMoves: 100, pace: 1, pauseMinSec: 4, pauseMaxSec: 10, ignoreCities: 0, ignorePeopleM: 0, prioBelowM: 0, smallCities: 0 }; // prioBelowM: přednostně planety s méně lidmi než tolik mil. (0 = vypnuto) // pace = násobek tempa skriptu (menší = rychlejší), pauza = náhodná prodleva mezi planetami (s); platí pro přerozdělení i doplňování // v milionech lidí; dry = zkušební běh (nic se nepřesouvá)
+export const REDIST_DEFAULTS = { minM: 100, maxM: 300, freeMaxM: 0, dry: true, maxMoves: 100, pace: 1, pauseMinSec: 4, pauseMaxSec: 10, ignoreCities: 0, ignorePeopleM: 0 }; // pace = násobek tempa skriptu (menší = rychlejší), pauza = náhodná prodleva mezi planetami (s); platí pro přerozdělení i doplňování // v milionech lidí; dry = zkušební běh (nic se nepřesouvá)
 
 const fmtM = (n) => `${(Number(n) / 1e6).toLocaleString('cs-CZ', { maximumFractionDigits: 1 })} mil.`;
 
@@ -25,25 +25,28 @@ export function pickSources(rows, s, done = new Set()) {
 /** Kolik lidí ještě přijme cílová planeta, aby se po přesunu vyrovnaly „lidé na planetě“ a „zbývá míst“. */
 export const acceptance = (r) => Math.floor((r.free - r.people) / 2);
 
-/** Cíle, kam se vejde celý přesun `amount`: největší rezerva první. `allowed` = názvy planet, které jsou v nabídce na detailu zdroje. */
-/** Obří planety (víc měst / víc lidí, než je nastaveno; 0 = bez omezení) se jako cíl ani k doplňování nepoužijí. */
-/**
- * Priorita cílové planety (menší číslo = dřív): 0 = prázdná (0 lidí, vždy první), 1 = malá (měst nejvýš `smallCities`, nebo lidí méně než `prioBelowM`; 0 = vypnuto),
- * 2 = ostatní. Prázdné a malé se plní přednostně (nejprázdnější první) a berou celý přesun, který se vejde; zbytek (2) se mezi sebou vyrovnává.
- */
-export const tier = (r, s = {}) => (r.people <= 0 ? 0 : (s.smallCities > 0 && r.cities <= s.smallCities) || (s.prioBelowM > 0 && r.people < s.prioBelowM * 1e6) ? 1 : 2);
+/** Obří planety: víc měst / víc lidí, než je nastaveno (0 = bez omezení). Dostávají lidi až nakonec, rovným dílem. */
 export const isGiant = (r, s = {}) => (s.ignoreCities > 0 && r.cities > s.ignoreCities) || (s.ignorePeopleM > 0 && r.people > s.ignorePeopleM * 1e6);
 
-export function pickTargets(rows, source, amount, allowed = null, s = {}) {
+/**
+ * Cíle pro přesun `amount`, v pořadí důležitosti:
+ *  1) planety bez lidí, 2) ostatní (neobří) planety – obě skupiny se plní, dokud nejsou zhruba z poloviny plné (po přesunu lidí ≤ zbývá míst);
+ *     nejdřív prázdné, pak ta s největší rezervou (rovnoměrné doplňování),
+ *  3) obří planety, až když nic z toho nezbylo: vybere se ta, která v tomto běhu dostala nejméně (`received` = název → přijatá čísla), takže se střídají.
+ * `allowed` = názvy planet, které jsou v nabídce na detailu zdroje.
+ */
+export const tier = (r, s = {}) => (isGiant(r, s) ? 2 : r.people <= 0 ? 0 : 1);
+export function pickTargets(rows, source, amount, allowed = null, s = {}, received = {}) {
+  const got = (r) => received[r.name] ?? 0;
   return rows
-    .filter((r) => r.name !== source && !isGiant(r, s) && (tier(r, s) < 2 ? r.free >= amount : acceptance(r) >= amount) && (!allowed || allowed.has(r.name))) // prázdné a malé berou vše, co se vejde; ostatní jen tolik, aby zůstaly vyrovnané
-    .sort((a, b) => (tier(a, s) - tier(b, s)) || (tier(a, s) < 2 ? a.people - b.people || b.free - a.free : acceptance(b) - acceptance(a))); // prázdné → malé (nejprázdnější první) → ostatní (největší rezerva = rovnoměrné doplňování)
+    .filter((r) => r.name !== source && (tier(r, s) < 2 ? acceptance(r) >= amount : r.free >= amount) && (!allowed || allowed.has(r.name)))
+    .sort((x, y) => (tier(x, s) - tier(y, s)) || (tier(x, s) === 2 ? got(x) - got(y) || y.free - x.free : tier(x, s) === 0 ? y.free - x.free : acceptance(y) - acceptance(x)));
 }
 
 export function createRedist() {
   let run = idle();
   function idle() {
-    return { status: 'idle', startedAt: 0, lastSeenAt: 0, settings: null, rows: [], done: new Set(), cur: null, moves: [], movedTotal: 0, reason: '', log: [], reloads: 0, lastMove: null, skipped: 0 };
+    return { status: 'idle', startedAt: 0, lastSeenAt: 0, settings: null, rows: [], done: new Set(), cur: null, moves: [], movedTotal: 0, reason: '', log: [], reloads: 0, lastMove: null, skipped: 0, received: {} };
   }
   const active = () => run.status === 'running';
   const addLog = (now, msg) => { run.log.push({ at: now, msg }); if (run.log.length > 80) run.log.shift(); };
@@ -83,6 +86,7 @@ export function createRedist() {
       if (c && rep.name === c.source.name) {
         run.moves.push({ source: c.source.name, target: c.target, amount: c.amount, at: now });
         run.movedTotal += c.amount;
+        run.received[c.target] = (run.received[c.target] ?? 0) + c.amount;
         run.done.add(c.source.name);
         run.lastMove = { source: c.source.name, before: c.source.unemployed };
         addLog(now, `${c.source.name} → ${c.target}: přesunuto ${fmtM(c.amount)}`);
@@ -124,14 +128,17 @@ export function createRedist() {
       const amount = Number(rep.count);
       if (!(amount >= S.minM * 1e6)) { skip(now, c.source.name, `k přesunu je jen ${Number.isFinite(amount) ? fmtM(amount) : '?'}`); return { action: 'back' }; }
       const allowed = Array.isArray(rep.options) ? new Set(rep.options) : null;
-      const targets = pickTargets(run.rows, c.source.name, amount, allowed, S);
+      const rowsNow = S.dry ? run.rows.map((r) => { const d = run.received[r.name] ?? 0; return d ? { ...r, people: r.people + d, free: r.free - d } : r; }) : run.rows; // zkušební běh tabulku neobnovuje, plánované přesuny se připočítají
+      const targets = pickTargets(rowsNow, c.source.name, amount, allowed, S, run.received);
       if (!targets.length) { skip(now, c.source.name, `není planeta, kam by se vešlo ${fmtM(amount)} a zůstala vyrovnaná`); return { action: 'back' }; }
       const t = targets[0];
       c.target = t.name; c.amount = amount;
+      if (tier(t, S) === 2) addLog(now, 'Ostatní planety jsou vyrovnané – zbytek jde na obří planety rovným dílem');
       addLog(now, `${c.source.name} → ${t.name}: ${fmtM(amount)} (cíl: lidí ${fmtM(t.people)}, zbývá ${fmtM(t.free)} míst)`);
       if (S.dry) { // zkušební běh: jen ukázat plán a jít dál
         run.moves.push({ source: c.source.name, target: t.name, amount, at: now, dry: true });
         run.movedTotal += amount;
+        run.received[t.name] = (run.received[t.name] ?? 0) + amount;
         run.done.add(c.source.name);
         run.cur = null;
         if (run.moves.length >= S.maxMoves) return { action: 'idle', summary: finish(now, 'finished', `pojistka: ${S.maxMoves} přesunů za jeden běh`) };

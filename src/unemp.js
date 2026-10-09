@@ -7,7 +7,6 @@
  */
 const STALE_MS = 120_000; // skript se tak dlouho neozval = běh se zastaví (zavřená karta, odhlášení…)
 const MAX_PLANETS = 200; // pojistka proti zacyklení
-import { tier } from './redist.js';
 const isGiant = (r, s) => (s.ignoreCities > 0 && r.cities > s.ignoreCities) || (s.ignorePeopleM > 0 && r.people > s.ignorePeopleM * 1e6); // obří planety se nedoplňují (nastavení Obchod → Chování)
 
 export function createUnemp() {
@@ -20,7 +19,7 @@ export function createUnemp() {
 
   function start(now = Date.now(), settings = {}) {
     if (active()) return false;
-    run = { ...idle(), status: 'running', startedAt: now, lastSeenAt: now, settings: { ignoreCities: Number(settings.ignoreCities) || 0, ignorePeopleM: Number(settings.ignorePeopleM) || 0, prioBelowM: Number(settings.prioBelowM) || 0, smallCities: Number(settings.smallCities) || 0 } };
+    run = { ...idle(), status: 'running', startedAt: now, lastSeenAt: now, settings: { ignoreCities: Number(settings.ignoreCities) || 0, ignorePeopleM: Number(settings.ignorePeopleM) || 0 } };
     addLog(now, 'Spuštěno – čekám na stránku Obchod → Nezaměstnaní');
     return true;
   }
@@ -66,18 +65,14 @@ export function createUnemp() {
     }
     if (rep.page === 'list') {
       if (!rep.sorted) return { action: 'sort' };
-      const filtering = Array.isArray(rep.rows) || run.skipNames.size > 0 || run.settings.ignoreCities > 0 || run.settings.ignorePeopleM > 0 || run.settings.prioBelowM > 0 || run.settings.smallCities > 0; // skript posílá celou tabulku vždy, takže prázdné planety (0 lidí) jdou první i bez nastavení
+      const filtering = Array.isArray(rep.rows) || run.skipNames.size > 0 || run.settings.ignoreCities > 0 || run.settings.ignorePeopleM > 0; // skript posílá celou tabulku vždy, takže prázdné planety (0 lidí) jdou první i bez nastavení
       let last = rep.last;
       if (filtering) { // omezení obřích planet: potřebuje celou tabulku, dole se vezme poslední planeta, která obří není
         if (!Array.isArray(rep.rows)) return { action: 'send-rows' };
         let cand = rep.rows.filter((r) => r.missing > 0 && !isGiant(r, run.settings) && !run.skipNames.has(r.name));
-        // přednostně prázdné planety, pak malé (měst nejvýš smallCities / lidí méně než prioBelowM); z nich ta nejprázdnější. Ostatní: od konce tabulky.
-        const best = cand.length ? Math.min(...cand.map((r) => tier(r, run.settings))) : 2;
-        if (best < 2) {
-          const pri = cand.filter((r) => tier(r, run.settings) === best);
-          cand = [pri.reduce((b, r) => (r.people <= b.people ? r : b))];
-          if (!run.emptyNoted) { run.emptyNoted = true; addLog(now, best === 0 ? 'Přednostně prázdné planety (0 lidí)' : 'Přednostně malé planety'); }
-        }
+        // přednostně prázdné planety (0 lidí): ta s nejvíc chybějícími lidmi; ostatní se berou od konce tabulky
+        const empty = cand.filter((r) => r.people <= 0);
+        if (empty.length) { cand = [empty.reduce((best, r) => (r.missing >= best.missing ? r : best))]; if (!run.emptyNoted) { run.emptyNoted = true; addLog(now, 'Přednostně prázdné planety (0 lidí)'); } }
         const skippedGiants = rep.rows.filter((r) => r.missing > 0 && isGiant(r, run.settings)).length;
         if (skippedGiants && !run.giantNoted) { run.giantNoted = true; addLog(now, `Obří planety se přeskakují (${skippedGiants} s chybějícími lidmi)`); }
         last = cand.length ? { name: cand[cand.length - 1].name, missing: cand[cand.length - 1].missing } : null;

@@ -94,34 +94,6 @@ test('pojistky: maximum přesunů, ruční zastavení a nečinný skript', () =>
   assert.match(t.staleCheck(130_000), /přestal hlásit/);
 });
 
-import { isGiant } from '../src/redist.js';
-test('obří planety: víc měst nebo lidí, než je nastaveno, se nepoužijí jako cíl; 0 = bez omezení', () => {
-  const big = { name: 'OBR', cities: 3000, people: 13_000 * M, free: 25_000 * M, unemployed: 0 };
-  const small = { name: 'MALA', cities: 120, people: 100 * M, free: 700 * M, unemployed: 0 };
-  assert.equal(isGiant(big, {}), false);
-  assert.equal(isGiant(big, { ignoreCities: 500 }), true);
-  assert.equal(isGiant(big, { ignorePeopleM: 5000 }), true);
-  assert.equal(isGiant(small, { ignoreCities: 500, ignorePeopleM: 5000 }), false);
-  assert.deepEqual(pickTargets([big, small], 'S', 100 * M).map((r) => r.name), ['OBR', 'MALA'], 'bez omezení vede obří planeta (největší rezerva)');
-  assert.deepEqual(pickTargets([big, small], 'S', 100 * M, null, { ignoreCities: 500 }).map((r) => r.name), ['MALA']);
-  // celý běh: cíl je ten malý, obří se přeskočí
-  const r = createRedist(); r.start({ ...S, ignoreCities: 500 }, 0);
-  const rows = [row('SRC', 5000, 200, 0), { ...big }, { ...small }];
-  r.report({ page: 'list', sorted: true, rows }, 1);
-  const mv = r.report({ page: 'planet', name: 'SRC', count: 200 * M, options: ['OBR', 'MALA'] }, 2);
-  assert.deepEqual([mv.action, mv.target], ['move', 'MALA']);
-});
-
-test('přednostně planety s málo lidmi: pod nastavenou hranicí se plní první (nejprázdnější první); bez hranice vede po prázdných největší rezerva', () => {
-  const rows = [row('S', 5000, 200, 0), row('MNOHO', 400, 0, 5000), row('MALO', 50, 0, 800), row('NULA', 0, 0, 600)];
-  assert.deepEqual(pickTargets(rows, 'S', 100 * M).map((r) => r.name), ['NULA', 'MNOHO', 'MALO'], 'prázdná planeta první vždy, pak největší rezerva');
-  assert.deepEqual(pickTargets(rows, 'S', 100 * M, null, { prioBelowM: 100 }).map((r) => r.name), ['NULA', 'MALO', 'MNOHO'], 'pod 100 mil. lidí první, nejprázdnější úplně první');
-  assert.deepEqual(pickTargets(rows, 'S', 100 * M, null, { prioBelowM: 20 }).map((r) => r.name), ['NULA', 'MNOHO', 'MALO'], 'jen NULA je pod 20 mil.');
-  const r = createRedist(); r.start({ ...S, prioBelowM: 100 }, 0);
-  r.report({ page: 'list', sorted: true, rows }, 1);
-  assert.equal(r.report({ page: 'planet', name: 'S', count: 200 * M, options: ['MNOHO', 'MALO', 'NULA'] }, 2).target, 'NULA');
-});
-
 test('přerozdělení: zdrojová planeta bez tlačítka Přesunout se přeskočí, běh jde na další a když žádná nezbyde, skončí', () => {
   const r = createRedist(); r.start(S, 0);
   const rows = [row('NOVA', 5000, 290, 0), row('B', 5000, 200, 0), row('T', 100, 0, 2000)];
@@ -135,16 +107,45 @@ test('přerozdělení: zdrojová planeta bez tlačítka Přesunout se přeskoč�
   assert.deepEqual([r.snapshot().status, r.snapshot().count, r.snapshot().skipped], ['finished', 1, 1]);
 });
 
-test('priorita cílů: prázdné → malé (měst nejvýš X, nejprázdnější první, plní se celým přesunem, který se vejde) → ostatní rovnoměrně (největší rezerva); obří se ignorují', () => {
-  const mk = (name, cities, people, free) => ({ name, cities, people: people * M, unemployed: 0, free: free * M });
-  const rows = [mk('NULA', 90, 0, 900), mk('MALA1', 40, 200, 450), mk('MALA2', 30, 50, 350), mk('STREDNI1', 200, 1000, 5000), mk('STREDNI2', 250, 2000, 9000), mk('OBR', 3000, 20000, 90000)];
-  const s = { smallCities: 50, ignoreCities: 1000 };
-  assert.deepEqual(pickTargets(rows, 'S', 300 * M, null, s).map((r) => r.name), ['NULA', 'MALA2', 'MALA1', 'STREDNI2', 'STREDNI1'], 'MALA1 se vejde (450 ≥ 300) i když by po vyrovnání nepřijala nic; OBR pryč');
-  assert.deepEqual(pickTargets(rows, 'S', 400 * M, null, s).map((r) => r.name), ['NULA', 'MALA1', 'STREDNI2', 'STREDNI1'], 'MALA2 má jen 350 volných – nevejde se');
-  // rovnoměrnost: po přesunu se pořadí střídá (rezerva klesne), takže se plní obě velké planety
-  const big = [mk('A', 200, 1000, 5000), mk('B', 250, 1000, 5400)];
-  const first = pickTargets(big, 'S', 300 * M, null, s)[0];
-  assert.equal(first.name, 'B');
-  big[1] = { ...big[1], people: big[1].people + 300 * M, free: big[1].free - 300 * M };
-  assert.equal(pickTargets(big, 'S', 300 * M, null, s)[0].name, 'A', 'po přesunu je na řadě druhá velká planeta');
+
+import { isGiant, tier } from '../src/redist.js';
+const mkr = (name, cities, people, free) => ({ name, cities, people: people * M, unemployed: 0, free: free * M });
+
+test('obří planety: víc měst nebo lidí, než je nastaveno; 0 = nikdo není obr', () => {
+  const big = mkr('OBR', 3000, 13_000, 25_000), small = mkr('MALA', 120, 100, 700);
+  assert.equal(isGiant(big, {}), false);
+  assert.equal(isGiant(big, { ignoreCities: 500 }), true);
+  assert.equal(isGiant(big, { ignorePeopleM: 5000 }), true);
+  assert.equal(isGiant(small, { ignoreCities: 500, ignorePeopleM: 5000 }), false);
+  assert.deepEqual([tier(mkr('NULA', 10, 0, 500), { ignoreCities: 500 }), tier(small, { ignoreCities: 500 }), tier(big, { ignoreCities: 500 })], [0, 1, 2]);
+});
+
+test('priorita cílů: prázdné a ostatní planety (do poloviny plné) jdou před obry; obři až nakonec', () => {
+  const rows = [mkr('OBR', 3000, 20000, 90000), mkr('STREDNI', 200, 1000, 5000), mkr('NULA', 90, 0, 900), mkr('PLNA', 100, 800, 900)];
+  const s = { ignoreCities: 1000 };
+  assert.deepEqual(pickTargets(rows, 'S', 300 * M, null, s).map((r) => r.name), ['NULA', 'STREDNI', 'OBR'], 'PLNA už je z poloviny plná (lidí 800, zbývá 900 → vejde se jen 50)');
+  assert.deepEqual(pickTargets(rows, 'S', 300 * M, null, {}).map((r) => r.name), ['NULA', 'OBR', 'STREDNI'], 'bez nastavení obrů nejsou obři: vede největší rezerva po prázdné');
+  assert.deepEqual(pickTargets(rows.filter((r) => r.name !== 'NULA' && r.name !== 'STREDNI'), 'S', 300 * M, null, s).map((r) => r.name), ['OBR'], 'jen obr zbyl');
+});
+
+test('zbytek se mezi obry dělí rovným dílem: střídají se podle toho, kolik už dostali (i když jeden má mnohem víc místa)', () => {
+  const giants = [mkr('G1', 2000, 9000, 50000), mkr('G2', 2500, 9000, 30000), mkr('G3', 3000, 9000, 20000)];
+  const s = { ignoreCities: 1000 };
+  const got = {};
+  const order = [];
+  for (let i = 0; i < 6; i++) { const t = pickTargets(giants, 'S', 200 * M, null, s, got)[0].name; order.push(t); got[t] = (got[t] ?? 0) + 200 * M; }
+  assert.deepEqual(order, ['G1', 'G2', 'G3', 'G1', 'G2', 'G3'], 'všechny tři obří planety dostanou stejně');
+});
+
+test('celý běh: nejdřív prázdná planeta, pak (když jsou ostatní vyrovnané) se obři střídají; zkušební běh si plánované přesuny pamatuje', () => {
+  const r = createRedist(); r.start({ ...REDIST_DEFAULTS, dry: true, ignoreCities: 1000 }, 0);
+  const rows = [row('A', 5000, 200, 0), row('B', 5000, 200, 0), row('C', 5000, 200, 0), row('D', 5000, 200, 0), mkr('NULA', 90, 0, 500), mkr('G1', 2000, 9000, 50000), mkr('G2', 2500, 9000, 50000)];
+  r.report({ page: 'list', sorted: true, rows }, 1);
+  const names = [];
+  for (const src of ['A', 'B', 'C', 'D']) {
+    r.report({ page: 'planet', name: src, count: 200 * M, options: ['NULA', 'G1', 'G2'] }, 2);
+    names.push(r.snapshot().moves.at(-1).target);
+    r.report({ page: 'list', sorted: true, rows }, 3); // další zdroj
+  }
+  assert.deepEqual(names, ['NULA', 'G1', 'G2', 'G1'], 'NULA přijme jednou (po tom je z poloviny plná), pak se obři střídají');
 });

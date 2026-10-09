@@ -473,15 +473,6 @@ test('Obchod: omezení obřích planet (měst / lidí) se uloží na server', { 
   await b.eval(`document.querySelector('[data-nav=watch]').click(); 1`);
 });
 
-test('Obchod: hranice „Nejdřív nejprázdnější planety“ (méně než N mil. lidí) se uloží na server', { skip, timeout: 30_000 }, async () => {
-  await b.eval(`document.querySelector('[data-nav=shop]').click(); 1`); await sleep(500);
-  assert.equal(await b.eval(`rdPrioBelow.value`), '0');
-  await b.eval(`rdPrioBelow.value = '50.000.000'; rdPrioBelow.dispatchEvent(new Event('change', { bubbles: true })); 1`); await sleep(900);
-  assert.equal((await app.api('/api/config')).redist.prioBelowM, 50);
-  await b.eval(`rdPrioBelow.value = '0'; rdPrioBelow.dispatchEvent(new Event('change', { bubbles: true })); 1`); await sleep(900);
-  await b.eval(`document.querySelector('[data-nav=watch]').click(); 1`);
-});
-
 test('pruh ras: na široké obrazovce celý seznam (naše první, bez přeškrtnutí), na úzké štíhlý řádek Rasy ▾ s rozbalením; klik přidá panel nebo na něj přejde', { skip, timeout: 40_000 }, async () => {
   await b.eval(`(() => { panels = panels.filter((x) => x !== '5'); saveUi(); renderBoard(); })()`); // Aschen (5) nemá panel
   await b.send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 900, deviceScaleFactor: 1, mobile: false }); await sleep(500);
