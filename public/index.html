@@ -143,9 +143,10 @@
         </div>
 
         <div class="rd-set">
-          <b>Nejdřív nejprázdnější planety</b><small>Planety, na kterých je méně lidí než tohle číslo, se plní přednostně (úplně nejprázdnější první). Nech 0 pro vypnuto.</small>
-          <div class="rd-fields one">
-            <label>Lidí na planetě je méně než<input type="text" inputmode="numeric" class="num" id="rdPrioBelow" placeholder="0"></label>
+          <b>Nejdřív prázdné a malé planety</b><small>Pořadí: 1) planety bez lidí (vždy), 2) malé planety – nejprázdnější první a vezmou celý přesun, který se vejde, 3) zbytek se mezi větší planety rozdělí rovnoměrně (vždy se plní ta s největší rezervou). Malá = splňuje kteroukoli z podmínek; nech 0 pro vypnuto.</small>
+          <div class="rd-fields">
+            <label>Počet měst je nejvýš<input type="text" inputmode="numeric" class="num" id="rdSmallCities" placeholder="0"></label>
+            <label>nebo lidí na planetě je méně než<input type="text" inputmode="numeric" class="num" id="rdPrioBelow" placeholder="0"></label>
           </div>
         </div>
       </div>

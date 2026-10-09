@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – nezaměstnaní
 // @namespace    sg-dominator
-// @version      1.4.0
+// @version      1.5.0
 // @description  Na pokyn z aplikace doplní nezaměstnané na planety, kterým chybí lidé, nebo je přerozdělí z plných planet na planety s volným místem: Obchod → Nezaměstnaní, seřadit, otevřít planetu, vybrat cíl, Přesunout, zpět.
 // @match        https://stargate-game.cz/obchod.php*
 // @match        https://www.stargate-game.cz/obchod.php*
@@ -150,7 +150,7 @@
     if (!tbl) return;
     for (;;) {
       const L = readList(tbl);
-      let ins = await post('/unemp/report', { page: 'list', sorted: L.sorted, last: L.last });
+      let ins = await post('/unemp/report', { page: 'list', sorted: L.sorted, last: L.last, rows: L.sorted ? rowsData(L.rows) : undefined }); // celá tabulka hned: prázdné planety (0 lidí) se doplňují přednostně
       if (ins?.action === 'send-rows') ins = await post('/unemp/report', { page: 'list', sorted: L.sorted, last: L.last, rows: rowsData(L.rows) }); // přerozdělení potřebuje celou tabulku
       if (ins?.action === 'sort' && L.sortLink) { await sleep(rnd(800, 2000)); await clickEl(L.sortLink); return; }
       if (ins?.action === 'open') {

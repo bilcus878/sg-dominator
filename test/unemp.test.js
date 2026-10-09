@@ -85,9 +85,14 @@ test('doplňování: přednostně planety s málo lidmi (pod hranicí, nejprázd
   assert.equal(u.report({ page: 'list', sorted: true, last: { name: 'C', missing: 2e8 } }, 1).action, 'send-rows');
   const open = u.report({ page: 'list', sorted: true, last: { name: 'C', missing: 2e8 }, rows }, 2);
   assert.deepEqual([open.action, open.name], ['open', 'NULA'], 'nejprázdnější pod hranicí 50 mil.');
-  assert.match(u.snapshot().log.map((l) => l.msg).join('\n'), /Přednostně planety s méně než 50 mil\. lidí \(2\)/);
+  assert.match(u.snapshot().log.map((l) => l.msg).join('\n'), /Přednostně prázdné planety/);
   const plain = createUnemp(); plain.start(0);
-  assert.equal(plain.report({ page: 'list', sorted: true, last: { name: 'C', missing: 2e8 } }, 1).name, 'C');
+  assert.equal(plain.report({ page: 'list', sorted: true, last: { name: 'C', missing: 2e8 } }, 1).name, 'C', 'bez tabulky platí poslední řádek');
+  const zero = createUnemp(); zero.start(0);
+  assert.equal(zero.report({ page: 'list', sorted: true, last: { name: 'C', missing: 2e8 }, rows }, 1).name, 'NULA', 'prázdná planeta (0 lidí) jde první i bez nastavení');
+  const small = createUnemp(); small.start(0, { smallCities: 50 });
+  const rs = [{ name: 'VELKA', cities: 400, people: 9e8, unemployed: 0, free: 0, missing: 9e7 }, { name: 'MALA1', cities: 30, people: 2e8, unemployed: 0, free: 0, missing: 5e7 }, { name: 'MALA2', cities: 20, people: 1e8, unemployed: 0, free: 0, missing: 5e7 }, { name: 'KONEC', cities: 200, people: 5e8, unemployed: 0, free: 0, missing: 8e7 }];
+  assert.equal(small.report({ page: 'list', sorted: true, last: { name: 'KONEC', missing: 8e7 }, rows: rs }, 1).name, 'MALA2', 'malé planety (měst ≤ 50) první, nejprázdnější z nich');
   const none = createUnemp(); none.start(0, { prioBelowM: 50 }); // žádná pod hranicí: normálně poslední
   assert.equal(none.report({ page: 'list', sorted: true, last: { name: 'C', missing: 2e8 }, rows: rows.slice(2) }, 1).name, 'C');
 });
