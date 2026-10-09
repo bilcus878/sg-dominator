@@ -1,8 +1,8 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791473189683,
-  "savedBy": "Jaroslav-ntb",
+  "savedAt": 1791523254588,
+  "savedBy": "JarmilPC",
   "config": {
     "threshold": 100000000,
     "criticalPct": 5,
@@ -29,9 +29,7 @@
         "service": false
       }
     },
-    "notifyTypes": {
-      "op": false
-    },
+    "notifyTypes": {},
     "races": {
       "1": {
         "name": "Asgardi",
@@ -143,7 +141,7 @@
       }
     },
     "gates": {
-      "enabled": true,
+      "enabled": false,
       "dryRun": false,
       "maxPrice": 1500000,
       "reserveNaq": 0,
@@ -193,7 +191,7 @@
       }
     },
     "op": {
-      "enabled": false,
+      "enabled": true,
       "repeatSec": 60,
       "vigilance": {
         "enabled": true,
@@ -217,7 +215,7 @@
         "restResumeMax": 230
       },
       "hunt": {
-        "enabled": false,
+        "enabled": true,
         "dryRun": false,
         "reactMinSec": 0.5,
         "reactMaxSec": 1,
@@ -242,8 +240,8 @@
       "dry": false,
       "maxMoves": 100,
       "pace": 1,
-      "pauseMinSec": 2,
-      "pauseMaxSec": 7,
+      "pauseMinSec": 1,
+      "pauseMaxSec": 3,
       "ignoreCities": 1000,
       "ignorePeopleM": 0,
       "prioBelowM": 100
@@ -428,10 +426,7 @@
     }
   },
   "ui": {
-    "panels": [
-      "1",
-      "9"
-    ],
+    "panels": [],
     "pstate": {
       "1": {
         "filter": "",
