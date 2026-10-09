@@ -1,8 +1,8 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791548099900,
-  "savedBy": "Jaroslav-ntb",
+  "savedAt": 1791580384979,
+  "savedBy": "JarmilPC",
   "config": {
     "threshold": 100000000,
     "criticalPct": 5,
@@ -29,9 +29,7 @@
         "service": false
       }
     },
-    "notifyTypes": {
-      "op": false
-    },
+    "notifyTypes": {},
     "races": {
       "1": {
         "name": "Asgardi",
@@ -193,7 +191,7 @@
       }
     },
     "op": {
-      "enabled": false,
+      "enabled": true,
       "repeatSec": 60,
       "vigilance": {
         "enabled": true,
