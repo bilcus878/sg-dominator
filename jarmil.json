@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791523254588,
+  "savedAt": 1791523844659,
   "savedBy": "JarmilPC",
   "config": {
     "threshold": 100000000,
@@ -195,8 +195,8 @@
       "repeatSec": 60,
       "vigilance": {
         "enabled": true,
-        "minSec": 7,
-        "maxSec": 13,
+        "minSec": 4,
+        "maxSec": 9,
         "skipEnabled": true,
         "skipMin": 49,
         "skipMax": 50,
@@ -242,7 +242,7 @@
       "pace": 1,
       "pauseMinSec": 1,
       "pauseMaxSec": 3,
-      "ignoreCities": 1000,
+      "ignoreCities": 2500,
       "ignorePeopleM": 0,
       "prioBelowM": 100
     },
