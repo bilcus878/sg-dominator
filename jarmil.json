@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791620611949,
+  "savedAt": 1791654598126,
   "savedBy": "JarmilPC",
   "config": {
     "threshold": 100000000,
@@ -90,7 +90,7 @@
       },
       "11": {
         "name": "Vyvrhelové",
-        "mode": "off",
+        "mode": "selected",
         "threshold": null,
         "role": "attack",
         "navName": true
@@ -140,6 +140,9 @@
       "bilcus87": {
         "threshold": 200000000,
         "topTarget": 400000000
+      },
+      "Tartarus": {
+        "watch": true
       }
     },
     "gates": {
@@ -160,7 +163,7 @@
       "notify": true
     },
     "session": {
-      "enabled": true,
+      "enabled": false,
       "reactMinSec": 1.5,
       "reactMaxSec": 3,
       "maintStart": "03:00",
@@ -428,7 +431,9 @@
     }
   },
   "ui": {
-    "panels": [],
+    "panels": [
+      "watched"
+    ],
     "pstate": {
       "1": {
         "filter": "",
@@ -450,6 +455,11 @@
         "dday": true
       },
       "9": {
+        "filter": "",
+        "below": false,
+        "sort": "game"
+      },
+      "11": {
         "filter": "",
         "below": false,
         "sort": "game"
