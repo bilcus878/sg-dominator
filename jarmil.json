@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791584274169,
+  "savedAt": 1791618263416,
   "savedBy": "JarmilPC",
   "config": {
     "threshold": 100000000,
@@ -195,13 +195,13 @@
       "repeatSec": 60,
       "vigilance": {
         "enabled": true,
-        "minSec": 4,
-        "maxSec": 9,
+        "minSec": 2,
+        "maxSec": 5,
         "skipEnabled": true,
         "skipMin": 49,
         "skipMax": 50,
-        "downMin": 3,
-        "downMax": 9
+        "downMin": 1,
+        "downMax": 2
       },
       "telescope": {
         "auto": true,
@@ -217,12 +217,12 @@
       "hunt": {
         "enabled": true,
         "dryRun": false,
-        "reactMinSec": 0.5,
-        "reactMaxSec": 1,
-        "stepMinSec": 0.5,
-        "stepMaxSec": 1.5,
-        "claimMinSec": 0.5,
-        "claimMaxSec": 1.5,
+        "reactMinSec": 0.3,
+        "reactMaxSec": 0.5,
+        "stepMinSec": 0.3,
+        "stepMaxSec": 0.5,
+        "claimMinSec": 0.3,
+        "claimMaxSec": 0.5,
         "tolerancePx": 30,
         "maxTries": 3,
         "retrySectorSec": 180,
@@ -241,8 +241,8 @@
       "maxMoves": 100,
       "pace": 1,
       "pauseMinSec": 1,
-      "pauseMaxSec": 3,
-      "ignoreCities": 2500,
+      "pauseMaxSec": 2,
+      "ignoreCities": 500,
       "ignorePeopleM": 0,
       "prioBelowM": 100
     },
