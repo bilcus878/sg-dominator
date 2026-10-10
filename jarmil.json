@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "jarmil",
-  "savedAt": 1791618263416,
+  "savedAt": 1791618680053,
   "savedBy": "JarmilPC",
   "config": {
     "threshold": 100000000,
@@ -242,7 +242,7 @@
       "pace": 1,
       "pauseMinSec": 1,
       "pauseMaxSec": 2,
-      "ignoreCities": 500,
+      "ignoreCities": 700,
       "ignorePeopleM": 0,
       "prioBelowM": 100
     },
