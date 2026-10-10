@@ -19,6 +19,7 @@ import { createTelescope } from './telescope.js';
 import { createHunt } from './ophunt.js';
 import { createGates } from './gates.js';
 import { createConquest, CONQUEST_DEFAULTS } from './conquest.js';
+import { createPlayerHunt } from './playerhunt.js';
 import { createArmy } from './army.js';
 import { createUnemp } from './unemp.js';
 import { createRedist } from './redist.js';
@@ -40,6 +41,7 @@ function saveConfig(c) { saveConfigRaw(c); scheduleProfileSave(); }
 if (process.env.SG_PORT) cfg.port = Number(process.env.SG_PORT);
 const state = createState();
 const conquest = createConquest(); // cizí rasy: kdo je k dobytí
+const playerHunt = createPlayerHunt(); // 🎯 lov jednotlivých hráčů (D a kritické), nezávisle na režimu rasy
 const army = createArmy(); // tlačítko Dohodit -> skript na stránce Rasová armáda
 let armyWaiters = [];
 const wakeArmy = () => { for (const f of armyWaiters.splice(0)) f(); };
@@ -393,9 +395,17 @@ async function handleIngest(req) {
   if (statsOn()) for (const p of resolved) if (dohozStats.hasOpen(p.name)) dohozStats.power(p.name, p.power, now); // účinek dohozu a návrat nad práh // rychlá větev auto-dohozu: pád se zachytí hned při prvním čtení
   const alerts = evaluate(state, attack ? resolved.map((p) => ({ ...p, watched: false })) : resolved, cfg, now);
   if (attack) {
-    for (const ev of conquest.evaluate(raceId, resolved, conquestFor(raceId), now)) {
+    // lovení hráči mají vlastní zprávy (lov níž), běžné „k dobytí“ se pro ně neposílá
+    for (const ev of conquest.evaluate(raceId, resolved.map((p) => (p.hunt ? { ...p, watched: false } : p)), conquestFor(raceId), now)) {
       const p = players.find((x) => x.name === ev.name);
       alerts.push({ name: ev.name, power: ev.power, prev: null, reason: ev.type, planets: p?.planets ?? null, since: ev.since });
+    }
+  }
+  { // 🎯 lov: objevení D, kritické (D + pod hranicí k dobytí), zmizení D – u kterékoli rasy, i nehlídané
+    const below = conquestFor(raceId).below;
+    for (const ev of playerHunt.evaluate(raceId, resolved.filter((p) => p.hunt), below, now)) {
+      const reason = ev.type === 'crit' ? 'critical' : ev.type === 'd-off' ? 'released' : 'target';
+      alerts.push({ name: ev.name, power: ev.power, prev: null, reason, hunt: ev.type, below });
     }
   }
   for (const a of alerts) {
@@ -403,7 +413,7 @@ async function handleIngest(req) {
     db.recordAlert(now, a);
     console.log(`[alert] [${a.race}] ${a.name} ${a.prev} -> ${a.power} (${a.reason})`);
     if (notifyOn(cfg, a.reason)) sendText(cfg, formatAlert(a)); // fire-and-forget, chyby se logují v notifieru; vypnutý druh se jen zapíše do historie
-    if (!attack) { // vlastní hráč pod prahem: horní hranici může mít nastavenou zvlášť u hráče
+    if (!attack && !a.hunt) { // vlastní hráč pod prahem (lovený cizí hráč nikdy): horní hranici může mít nastavenou zvlášť u hráče
       const own = cfg.players[a.name]?.topTarget;
       autoArmy.onAlert(a, own != null ? { ...cfg.army.auto, topUpTarget: own } : cfg.army.auto, now);
     } // vlastní hráč pod prahem: sám dohodit po náhodné prodlevě (jen když je auto-dohoz zapnutý)
@@ -573,7 +583,7 @@ function buildState() {
       rate: (raceIngest.get(id) ?? []).filter((t) => t > now - 5_000).length / 5, // příjmů za vteřinu (posledních 5 s)
       players: snap.players.map((p) => ({
         name: p.name, power: p.power, planets: p.planets ?? null, planetsDelta: p.planetsDelta ?? null, planetsChange: p.planetsChange ?? 0, planetsAt: p.planetsAt ?? 0,
-        powerDelta: p.powerDelta, powerAt: p.powerAt, attackable: p.attackable ?? null, online: p.online ?? null, rank: p.rank ?? null, ...recalcShown(id, p.name, now), hracId: p.hracId ?? null, utokId: p.utokId ?? null, attacks: p.attacks ?? null, ...conquest.status(id, p.name), ...resolveWatch(cfg, id, p.name),
+        powerDelta: p.powerDelta, powerAt: p.powerAt, attackable: p.attackable ?? null, online: p.online ?? null, rank: p.rank ?? null, ...recalcShown(id, p.name, now), hracId: p.hracId ?? null, utokId: p.utokId ?? null, attacks: p.attacks ?? null, ...conquest.status(id, p.name), ...playerHunt.status(id, p.name), ...resolveWatch(cfg, id, p.name),
       })),
     };
   });

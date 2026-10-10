@@ -25,5 +25,6 @@ export function resolveWatch(cfg, raceId, name) {
     overridden: explicit !== undefined,
     ownThreshold: p?.threshold ?? null,
     ownTop: p?.topTarget ?? null, // vlastní horní hranice pro dohazování
+    hunt: p?.hunt === true, // 🎯 lov: hlásit objevení D a kritické (D + síla pod hranicí k dobytí), i když se rasa nehlídá
   };
 }

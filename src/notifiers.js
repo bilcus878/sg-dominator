@@ -9,6 +9,10 @@ export function formatAlert(a) {
     return a.repeat ? `❗🟠 OP stále na mapě: ${a.count}\n${a.sectors}` : `🚨🟠 OP! Na mapě je ${a.count} OP\n${a.sectors}`;
   }
   const tag = a.race ? `[${a.race}] ` : '';
+  // lov hráče (🎯 u jednotlivého hráče): objevilo se D / kritické (D + síla pod hranicí) / D zmizelo
+  if (a.hunt === 'd-on') return `🎯 LOV: ${tag}${a.name} jde dobýt (D svítí) – síla ${dots(a.power)}`;
+  if (a.hunt === 'crit') return `🆘 LOV: ${tag}${String(a.name).toUpperCase()} JDE DOBÝT – síla ${dots(a.power)}${a.below ? ` (pod ${dots(a.below)})` : ''}!`;
+  if (a.hunt === 'd-off') return `⚪ LOV: ${tag}${a.name} už nejde dobýt (D zmizelo) – síla ${dots(a.power)}`;
   if (a.reason === 'target') return `🎯 K DOBYTÍ: ${tag}${a.name} – síla ${dots(a.power)}${a.planets != null ? ` (${dots(a.planets)} planet)` : ''}`;
   if (a.reason === 'released') return `✅ ${tag}${a.name} už není k dobytí – síla ${dots(a.power)}${a.since ? ` (cílem byl ${dur(Date.now() - a.since)})` : ''}`;
   return tag + formatBody(a);

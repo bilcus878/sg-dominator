@@ -299,6 +299,7 @@ export function sanitizeUpdate(cur, body, ctx = {}) {
         if (p.threshold === null || p.threshold === '') delete rec.threshold;
         else if (Number.isFinite(Number(p.threshold)) && Number(p.threshold) >= 0) rec.threshold = Number(p.threshold);
       }
+      if ('hunt' in p) { if (p.hunt) rec.hunt = true; else delete rec.hunt; } // 🎯 lov hráče
       if ('topTarget' in p) { // vlastní horní hranice pro dohazování (prázdné = výchozí z Nastavení → Dohoz)
         if (p.topTarget === null || p.topTarget === '') delete rec.topTarget;
         else if (Number.isFinite(Number(p.topTarget)) && Number(p.topTarget) >= 0) rec.topTarget = Math.min(1e13, Math.floor(Number(p.topTarget)));

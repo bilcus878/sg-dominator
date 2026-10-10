@@ -143,6 +143,7 @@ function openPset(btn) {
   $('psLowHelp').textContent = `Když síla hráče klesne pod toto číslo, přijde alert (a spustí se auto-dohoz). Prázdné = výchozí práh ${dots(defLow)}.`;
   $('psTopHelp').textContent = `Auto-dohoz dohazuje, dokud síla hráče nepřekročí toto číslo. Prázdné = výchozí ${gTop ? dots(gTop) : '(zatím nenastavená)'} z Nastavení → Dohoz.`
     + (topMode ? '' : ' Pozor: auto-dohoz je teď v režimu „Nad práh“, horní hranice se použije až po přepnutí na „Až do horní hranice“.');
+  $('psHunt').checked = !!p.hunt;
   $('psErr').textContent = '';
   const pop = $('psetPop'), rc = btn.getBoundingClientRect();
   pop.hidden = false;
@@ -157,8 +158,9 @@ function savePset() {
   const r = raceOf(psCtx.raceId), p = r?.players.find((x) => x.name === psCtx.name);
   const effLow = low ?? (r?.threshold ?? cfg.threshold);
   if (top != null && top <= effLow) { $('psErr').textContent = `Horní hranice musí být vyšší než dolní práh (${dots(effLow)}).`; $('psTop').focus(); return; }
-  if (p) { p.ownThreshold = low; p.ownTop = top; } // lokálně hned
-  savePartial({ players: { [psCtx.name]: { threshold: low, topTarget: top } } });
+  const huntOn = $('psHunt').checked;
+  if (p) { p.ownThreshold = low; p.ownTop = top; p.hunt = huntOn; } // lokálně hned
+  savePartial({ players: { [psCtx.name]: { threshold: low, topTarget: top, hunt: huntOn } } });
   closePset();
   renderBoard();
 }

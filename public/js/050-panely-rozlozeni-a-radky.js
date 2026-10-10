@@ -101,7 +101,7 @@ function makeRow(v, r, p) {
     <td class="c hcol"><button class="ghost dohodit" data-act="dohodit" title="Pošle hráči rasovou armádu">Dohodit</button></td>
     <td class="c"><label class="sw"><input type="checkbox"><span></span></label></td>`;
   const nameTd = tr.children[0];
-  nameTd.innerHTML = '<span class="nlw"><span class="nl1"><span class="on"></span><span class="nm"></span><span class="tg"></span></span><span class="nl2"><span class="rc"><span class="rcl"></span><span class="ecl"></span></span><span class="thl"><button type="button" class="pset" aria-haspopup="dialog"><i class="pgear">⚙</i><b class="pa" hidden></b><b class="pb" hidden></b></button></span></span></span>';
+  nameTd.innerHTML = '<span class="nlw"><span class="nl1"><span class="on"></span><span class="nm"></span><span class="tg"></span></span><span class="nl2"><span class="rc"><span class="rcl"></span><span class="ecl"></span></span><span class="thl"><button type="button" class="pset" aria-haspopup="dialog"><i class="pgear">⚙</i><b class="ph" hidden>🎯</b><b class="pa" hidden></b><b class="pb" hidden></b></button></span></span></span>';
   nameTd.querySelector('.nm').textContent = p.name;
   nameTd.addEventListener('click', (e) => { if (!e.target.closest('.thl')) copyName(p.name); });
   if (v.isW) tr.children[1].textContent = r.name;
@@ -110,7 +110,7 @@ function makeRow(v, r, p) {
   sw.dataset.kind = 'watch';
   const cell = (td) => ({ td, v: td.querySelector('.pv'), d: td.querySelector('.pd'), dd: td.querySelector('.pdd') });
   const hb = tr.querySelector('.dohodit'); hb.dataset.name = p.name;
-  return { tr, hb, nm: nameTd.querySelector('.nm'), rcl: nameTd.querySelector('.rcl'), ecl: nameTd.querySelector('.ecl'), on: nameTd.querySelector('.on'), tag: nameTd.querySelector('.tg'), thl: nameTd.querySelector('.thl'), pset, psa: pset.querySelector('.pa'), psb: pset.querySelector('.pb'), atks: tr.querySelector('.atks'), planets: cell(tr.children[v.isW ? 2 : 1]), pw: cell(tr.children[v.isW ? 3 : 2]), power: tr.children[v.isW ? 3 : 2], sw };
+  return { tr, hb, nm: nameTd.querySelector('.nm'), rcl: nameTd.querySelector('.rcl'), ecl: nameTd.querySelector('.ecl'), on: nameTd.querySelector('.on'), tag: nameTd.querySelector('.tg'), thl: nameTd.querySelector('.thl'), pset, psh: pset.querySelector('.ph'), psa: pset.querySelector('.pa'), psb: pset.querySelector('.pb'), atks: tr.querySelector('.atks'), planets: cell(tr.children[v.isW ? 2 : 1]), pw: cell(tr.children[v.isW ? 3 : 2]), power: tr.children[v.isW ? 3 : 2], sw };
 }
 
 /** Dohodit: pošle hráči rasovou armádu přes skript na stránce Jednotky → Rasová armáda a počká na výsledek. */
@@ -378,9 +378,13 @@ function updatePanel(id) {
       const aTxt = ownLow ? `↓ ${short(p.ownThreshold)}` : '', bTxt = ownTop ? `↑ ${short(p.ownTop)}` : '';
       if (row.psa.textContent !== aTxt) row.psa.textContent = aTxt;
       if (row.psb.textContent !== bTxt) row.psb.textContent = bTxt;
-      row.pset.classList.toggle('custom', ownLow || ownTop);
+      row.psh.hidden = !p.hunt; // 🎯 lov hráče (D / kritické)
+      row.psh.title = p.hunt ? `Lov: ${p.huntCrit ? '🆘 JDE DOBÝT a je pod hranicí' : p.huntD ? 'D svítí – jde dobýt' : 'čeká se na D'}` : '';
+      row.psh.classList.toggle('hot', !!p.huntD);
+      row.pset.classList.toggle('custom', ownLow || ownTop || !!p.hunt);
       row.pset.title = ['Nastavení hráče (klikni pro úpravu)',
         `↓ Dolní práh (alert): ${ownLow ? `${dots(p.ownThreshold)} – vlastní` : `${dots(defLow)} – výchozí`}${ownLow ? ` (výchozí ${dots(defLow)})` : ''}`,
+        ...(p.hunt ? ['🎯 Lov: zprávy při objevení D a 🆘 při D + síle pod hranicí k dobytí'] : []),
         `↑ Horní hranice auto-dohozu: ${ownTop ? `${dots(p.ownTop)} – vlastní${gTop ? ` (výchozí ${dots(gTop)})` : ''}` : gTop ? `${dots(gTop)} – výchozí z Nastavení → Dohoz` : 'není nastavená'}`].join('\n');
     }
     if (!pending) { // ovládací prvky se synchronizují jen když se nic neukládá a uživatel v nich nepíše
