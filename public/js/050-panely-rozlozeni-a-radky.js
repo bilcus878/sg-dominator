@@ -198,6 +198,9 @@ function flipRows(rows, first) {
   }));
 }
 
+/** Hráč, kterého jde opravdu dobýt: pod hranicí k dobytí, svítí D a má víc než 1 planetu (s jedinou planetou dobýt nejde). */
+const canTake = (p) => !!p.target && p.attackable === true && !(p.planets <= 1);
+
 function updatePanel(id) {
   const v = view.get(id);
   const r = v.isW ? null : raceOf(id);
@@ -230,8 +233,8 @@ function updatePanel(id) {
     const w = r ? r.players.filter((p) => p.watched).length : 0;
     v.watchTxt.innerHTML = mode === 'off' ? ''
       : mode === 'selected' && !w ? 'zapni hráče vpravo'
-      : `<b>${w}</b>/${total}${attack && r.players.some((p) => p.target) ? ` · 🎯 <b>${r.players.filter((p) => p.target).length}</b>` : ''}`;
-    v.watchTxt.title = mode === 'off' ? 'Nic se nehlídá' : `Hlídá se ${w} z ${total} hráčů${attack ? `, k dobytí ${r.players.filter((p) => p.target).length}` : ''}`;
+      : `<b>${w}</b>/${total}${attack && r.players.some(canTake) ? ` · 🎯 <b>${r.players.filter(canTake).length}</b>` : ''}`;
+    v.watchTxt.title = mode === 'off' ? 'Nic se nehlídá' : `Hlídá se ${w} z ${total} hráčů${attack ? `, k dobytí ${r.players.filter(canTake).length} (pod hranicí, svítí D a víc než 1 planeta)` : ''}`;
     const th = r?.threshold ?? cfg.threshold;
     const pct = r?.criticalPct ?? cfg.criticalPct;
     const cq = r?.conquest ?? cfg.conquest;
@@ -266,7 +269,7 @@ function updatePanel(id) {
   if (v.isW) { v.fsum.textContent = `${items.length} hráčů`; v.fsum.classList.remove('hot'); }
   else {
     const atkR = r?.role === 'attack';
-    const n = !r ? 0 : atkR ? r.players.filter((p) => p.target).length : r.players.filter((p) => p.watched && p.power < p.threshold).length;
+    const n = !r ? 0 : atkR ? r.players.filter(canTake).length : r.players.filter((p) => p.watched && p.power < p.threshold).length;
     v.fsum.textContent = atkR ? `🎯 ${n} k dobytí` : `${n} pod prahem`;
     v.fsum.classList.toggle('hot', n > 0);
   }

@@ -295,6 +295,7 @@ function parsePlayers(body) {
     if (['vudce', 'zastupce', 'ministr', 'obcan'].includes(p.rank)) q.rank = p.rank; // hodnost (barva jména ve hře)
     if (typeof p.online === 'boolean') q.online = p.online; // zelená tečka ve hře
     if (typeof p.attackable === 'boolean') q.attackable = p.attackable; // sloupec Útok ve hře (false = „nelze“)
+    if (q.attackable && Number.isInteger(q.planets) && q.planets <= 1) q.attackable = false; // hráče s jedinou planetou dobýt nejde, i když hra ukáže D
     if (Number.isInteger(p.hracId) && p.hracId > 0 && p.hracId < 1e12) q.hracId = p.hracId; // id hráče z odkazu D (utok.php?hrac_id=…)
     if (Number.isInteger(p.utokId) && p.utokId > 0 && p.utokId < 100) q.utokId = p.utokId;
     if (Array.isArray(p.attacks)) { // všechny druhy útoku jako ve hře (D P Z U N L S T): písmeno, id útoku, svítí = jde zahájit
