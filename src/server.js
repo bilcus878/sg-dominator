@@ -455,7 +455,10 @@ async function handleIngestOp(req) {
     console.log(`[alert] OP ${a.repeat ? 'stále ' : ''}na mapě: ${a.name}`);
     if (notifyOn(cfg, 'op')) sendText(cfg, formatAlert(a));
   }
-  const offer = hunt.offer(sectors, cfg.op.hunt, now, { opEnabled: cfg.op.enabled });
+  // „za dnešek jsme kolonizovali X ze Y možných“ (skript mapy 1.5.0+): při X >= Y automat další OP nehoní
+  const col = body.colonized && Number.isInteger(body.colonized.done) && Number.isInteger(body.colonized.max) && body.colonized.done >= 0 && body.colonized.max >= 0 && body.colonized.max < 1000
+    ? { done: body.colonized.done, max: body.colonized.max } : null;
+  const offer = hunt.offer(sectors, cfg.op.hunt, now, { opEnabled: cfg.op.enabled, colonized: col });
   if (hunt.active(now)) op.hold(now + 20_000);
   if (offer.notify) sendService(cfg, offer.notify);
   pushState();

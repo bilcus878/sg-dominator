@@ -9,6 +9,8 @@
  *
  * Pojistky: jedna zakázka najednou, vypršení zakázky, cooldown sektoru po neúspěchu (ať se nezacyklí na falešném OP),
  * limit zakázek za hodinu, nedostatek naquadahu automat vypne a hlásí se, zkušební režim (dryRun) nikdy nekliká na „Získat souřadnice“.
+ * Denní maximum ze hry („za dnešek jsme kolonizovali 5 ze 5 možných“): při dosažení se nové OP nehoní, dokud hra nepovolí další
+ * (nový den); automat se nevypíná, jen čeká.
  * Zprávy (notify) jdou jen do servisního chatu.
  */
 
@@ -35,6 +37,8 @@ export function createHunt({ rand = Math.random } = {}) {
   let limitNotified = false;
   let caught = []; // časy osídlených OP (statistika „dnes / za hodinu / celkem“ od spuštění aplikace)
   let caughtTotal = 0;
+  let quota = null; // { done, max } ze stránky mapy: kolik OP je dnes kolonizováno z kolika možných
+  let quotaNotified = false;
 
   const cfgH = (h) => ({ ...HUNT_DEFAULTS, ...h });
   const range = (a, b) => a + rand() * (b - a);
@@ -60,10 +64,18 @@ export function createHunt({ rand = Math.random } = {}) {
    * @param {{id:string,label:string,u?:number,v?:number}[]} sectors
    * @returns {{spec?:object, notify?:string}} spec = zakázka, kterou má skript teď provést (jen když je její čas a ještě nezačala)
    */
-  function offer(sectors, hCfg, now, { opEnabled = true } = {}) {
+  function offer(sectors, hCfg, now, { opEnabled = true, colonized = null } = {}) {
     const h = cfgH(hCfg);
     const out = {};
+    if (colonized) quota = colonized;
     if (!h.enabled || !opEnabled) { job = null; return out; }
+    // denní maximum kolonizací vyčerpané (např. 5/5): nehonit nic nového, rozjetou zakázku nechat doběhnout
+    if (quota && quota.max > 0 && quota.done >= quota.max) {
+      if (job && !job.started) job = null;
+      if (!quotaNotified) { quotaNotified = true; out.notify = `⏸ Automat OP: dnes je kolonizováno ${quota.done}/${quota.max} (maximum). Další OP nehoním, dokud hra nepovolí další (nový den).`; }
+      out.full = true;
+      if (!job) return out;
+    } else if (quota) quotaNotified = false;
     if (job && now - job.createdAt > JOB_MAX_MS) {
       const t = finish('timeout', `⚠️ Automat OP: zakázka na ${sectorName(job)} vypršela (skript se zasekl nebo se zavřelo okno mapy).`, now, {}, h);
       if (t) out.notify = t;
@@ -160,6 +172,8 @@ export function createHunt({ rand = Math.random } = {}) {
       startsLastHour: starts.filter((t) => now - t < 3_600_000).length,
       caughtTotal,
       caughtToday: caught.filter((t) => t >= new Date(now).setHours(0, 0, 0, 0)).length,
+      quota, // { done, max } ze hry
+      full: !!quota && quota.max > 0 && quota.done >= quota.max,
     };
   }
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stargate dominator – OP na mapě
 // @namespace    sg-dominator
-// @version      1.4.4
+// @version      1.5.0
 // @description  Hledá na mapě galaxie svítící tečky (opuštěné planety) a hlásí je lokálnímu notifikátoru; potvrzuje tlačítko bdělosti (po náhodné prodlevě), zapíná zastavený teleskop a (je-li zapnutý automat na OP) opuštěnou planetu sám osídlí
 // @match        https://stargate-game.cz/mapa.php*
 // @match        https://www.stargate-game.cz/mapa.php*
@@ -137,6 +137,12 @@
     }).filter(Boolean);
   }
 
+  /** „Kolonizace OP: za dnešek jsme kolonizovali 2 ze 5 možných.“ -> { done: 2, max: 5 }; nenalezeno -> null. */
+  function readColonized() {
+    const m = (document.body.innerText || '').match(/kolonizovali\s*(\d+)\s*ze\s*(\d+)\s*možných/i);
+    return m ? { done: Number(m[1]), max: Number(m[2]) } : null;
+  }
+
   let sectors = [];
   let lastKey = '';
   let lastSendAt = 0;
@@ -155,7 +161,7 @@
     const found = findDots(data, c.width, c.height)
       .map((d) => { const s = sectorAt(d.x, d.y, sectors); return s && { id: s.id, label: s.label, ...normPos(d.x, d.y, s.pts) }; }) // + poloha tečky v sektoru (pro automat na OP)
       .filter(Boolean);
-    const key = found.map((s) => s.id).sort().join(',');
+    const key = found.map((s) => s.id).sort().join(',') + '|' + JSON.stringify(readColonized());
     const now = Date.now();
     // změna = okamžitě, jinak jen heartbeat max 1× za vteřinu
     if (key === lastKey && now - lastSendAt < 800) return;
@@ -164,7 +170,7 @@
       method: 'POST',
       url: `${SERVER}/ingest-op`,
       headers: { 'content-type': 'application/json', 'x-token': TOKEN },
-      data: JSON.stringify({ src, sectors: found }),
+      data: JSON.stringify({ src, sectors: found, colonized: readColonized() }),
       timeout: 5000,
       onload: (r) => { try { const j = JSON.parse(r.responseText); if (j.vigilance) vig = j.vigilance; if (j.hunt) startHunt(j.hunt); } catch { /* zůstane poslední známé nastavení */ } },
     });

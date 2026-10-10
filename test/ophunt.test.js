@@ -114,3 +114,34 @@ test('nastavení automatu na OP: meze a konec nikdy pod začátkem', () => {
   assert.equal(DEFAULTS.op.hunt.enabled, false);
   assert.equal(DEFAULTS.op.hunt.dryRun, true, 'výchozí je zkušební režim');
 });
+
+test('denní maximum kolonizací (5/5): nové OP se nehoní, jedna zpráva; po novém dni (0/5) automat pokračuje', () => {
+  const h = mk();
+  const full = h.offer([dot('27')], cfg(), 0, { colonized: { done: 5, max: 5 } });
+  assert.equal(full.spec, undefined);
+  assert.equal(full.full, true);
+  assert.match(full.notify, /kolonizováno 5\/5/);
+  assert.equal(h.offer([dot('27')], cfg(), 5000, { colonized: { done: 5, max: 5 } }).notify, undefined, 'zpráva jen jednou');
+  assert.equal(h.snapshot(5000).full, true);
+  h.offer([dot('27')], cfg(), 10_000, { colonized: { done: 0, max: 5 } }); // nový den: naplánuje se zakázka
+  assert.ok(h.offer([dot('27')], cfg(), 13_000, { colonized: { done: 0, max: 5 } }).spec, 'automat zase honí');
+});
+
+test('denní maximum: připravená (nespuštěná) zakázka se zruší, rozjetá doběhne', () => {
+  const h = mk();
+  h.offer([dot('27')], cfg(), 0, { colonized: { done: 4, max: 5 } });
+  const o = h.offer([dot('27')], cfg(), 3000, { colonized: { done: 4, max: 5 } });
+  assert.equal(h.event({ id: o.spec.id, event: 'start' }, cfg(), 3100).ok, true); // rozjetá
+  h.offer([dot('27')], cfg(), 4000, { colonized: { done: 5, max: 5 } });
+  assert.equal(h.active(4000), true, 'rozjetá zakázka zůstává');
+  const h2 = mk();
+  h2.offer([dot('27')], cfg(), 0, { colonized: { done: 4, max: 5 } }); // jen naplánovaná
+  h2.offer([dot('27')], cfg(), 500, { colonized: { done: 5, max: 5 } });
+  assert.equal(h2.active(500), false, 'nespuštěná se zruší');
+});
+
+test('bez údaje o kolonizaci (starý skript mapy) se automat chová jako dřív', () => {
+  const h = mk();
+  h.offer([dot('27')], cfg(), 0);
+  assert.ok(h.offer([dot('27')], cfg(), 3000).spec);
+});
